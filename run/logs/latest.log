@@ -1,0 +1,58 @@
+[20:10:15] [Client thread/INFO]: Setting user: Player671
+[20:10:16] [Client thread/INFO]: LWJGL Version: 2.9.4
+[20:10:18] [Client thread/INFO]: Reloading ResourceManager: Default, FMLFileResourcePack:Forge Mod Loader, FMLFileResourcePack:Minecraft Forge, FMLFileResourcePack:laybalt
+[20:10:19] [Sound Library Loader/INFO]: Starting up SoundSystem...
+[20:10:19] [Thread-9/INFO]: Initializing LWJGL OpenAL
+[20:10:19] [Thread-9/INFO]: (The LWJGL binding of OpenAL.  For more information, see http://www.lwjgl.org)
+[20:10:19] [Thread-9/INFO]: OpenAL initialized.
+[20:10:19] [Sound Library Loader/INFO]: Sound engine started
+[20:10:23] [Client thread/INFO]: Created: 16x16 textures-atlas
+[20:10:23] [Client thread/INFO]: Reloading ResourceManager: Default, FMLFileResourcePack:Forge Mod Loader, FMLFileResourcePack:Minecraft Forge, FMLFileResourcePack:laybalt
+[20:10:23] [Client thread/INFO]: SoundSystem shutting down...
+[20:10:23] [Client thread/WARN]: Author: Paul Lamb, www.paulscode.com
+[20:10:23] [Sound Library Loader/INFO]: Starting up SoundSystem...
+[20:10:24] [Thread-11/INFO]: Initializing LWJGL OpenAL
+[20:10:24] [Thread-11/INFO]: (The LWJGL binding of OpenAL.  For more information, see http://www.lwjgl.org)
+[20:10:24] [Thread-11/INFO]: OpenAL initialized.
+[20:10:24] [Sound Library Loader/INFO]: Sound engine started
+[20:10:27] [Client thread/INFO]: Created: 512x512 textures-atlas
+[20:10:30] [Server thread/INFO]: Starting integrated minecraft server version 1.8.9
+[20:10:30] [Server thread/INFO]: Generating keypair
+[20:10:30] [Server thread/INFO]: Preparing start region for level 0
+[20:10:30] [Server thread/INFO]: Changing view distance to 12, from 10
+[20:10:31] [Server thread/INFO]: Player671[local:E:07bcd5db] logged in with entity id 37 at (1174.334234474805, 68.90382702707727, 1184.5550400064387)
+[20:10:31] [Server thread/INFO]: Player671 joined the game
+[20:10:33] [Client thread/INFO]: [CHAT] AutoFishing is now on
+[20:11:00] [Client thread/INFO]: [CHAT] AutoFishing is now off
+[20:11:01] [Client thread/INFO]: [CHAT] AutoFishing is now on
+[20:11:07] [Client thread/INFO]: [CHAT] AutoFishing is now off
+[20:11:09] [Client thread/INFO]: [CHAT] AutoFishing is now on
+[20:11:11] [Server thread/INFO]: Stopping server
+[20:11:11] [Server thread/INFO]: Saving players
+[20:11:11] [Server thread/INFO]: Saving worlds
+[20:11:11] [Server thread/INFO]: Saving chunks for level 'New World'/Overworld
+[20:11:11] [Server thread/INFO]: Saving chunks for level 'New World'/Nether
+[20:11:11] [Server thread/INFO]: Saving chunks for level 'New World'/The End
+[20:11:11] [Client thread/FATAL]: Unreported exception thrown!
+java.lang.NullPointerException
+	at com.laybalt.AutoFishing.AFish.onTick(AFish.java:26) ~[AFish.class:?]
+	at net.minecraftforge.fml.common.eventhandler.ASMEventHandler_7_AFish_onTick_ClientTickEvent.invoke(.dynamic) ~[?:?]
+	at net.minecraftforge.fml.common.eventhandler.ASMEventHandler.invoke(ASMEventHandler.java:49) ~[ASMEventHandler.class:?]
+	at net.minecraftforge.fml.common.eventhandler.EventBus.post(EventBus.java:140) ~[EventBus.class:?]
+	at net.minecraftforge.fml.common.FMLCommonHandler.onPostClientTick(FMLCommonHandler.java:336) ~[FMLCommonHandler.class:?]
+	at net.minecraft.client.Minecraft.runTick(Minecraft.java:2238) ~[Minecraft.class:?]
+	at net.minecraft.client.Minecraft.runGameLoop(Minecraft.java:1080) ~[Minecraft.class:?]
+	at net.minecraft.client.Minecraft.run(Minecraft.java:380) [Minecraft.class:?]
+	at net.minecraft.client.main.Main.main(Main.java:116) [Main.class:?]
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[?:1.8.0_392]
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62) ~[?:1.8.0_392]
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[?:1.8.0_392]
+	at java.lang.reflect.Method.invoke(Method.java:498) ~[?:1.8.0_392]
+	at net.minecraft.launchwrapper.Launch.launch(Launch.java:135) [launchwrapper-1.12.jar:?]
+	at net.minecraft.launchwrapper.Launch.main(Launch.java:28) [launchwrapper-1.12.jar:?]
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[?:1.8.0_392]
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62) ~[?:1.8.0_392]
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[?:1.8.0_392]
+	at java.lang.reflect.Method.invoke(Method.java:498) ~[?:1.8.0_392]
+	at net.minecraftforge.gradle.GradleStartCommon.launch(GradleStartCommon.java:97) [start/:?]
+	at GradleStart.main(GradleStart.java:26) [start/:?]

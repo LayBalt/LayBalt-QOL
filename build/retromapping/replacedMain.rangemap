@@ -1,0 +1,182 @@
+Symbol range map extraction starting
+Processing 4 files
+processing com\laybalt\AutoFishing\AFish.java
+@|com\laybalt\AutoFishing\AFish.java|8|31|com.laybalt.AutoFishing|package|com.laybalt.AutoFishing|(file)
+Class Start: com.laybalt.AutoFishing.AFish
+   @|com\laybalt\AutoFishing\AFish.java|548|561|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing|
+   Method Start: toggleAutoFishing()V
+      @|com\laybalt\AutoFishing\AFish.java|595|612|toggleAutoFishing|method|com.laybalt.AutoFishing.AFish|toggleAutoFishing|()V
+      @|com\laybalt\AutoFishing\AFish.java|625|638|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing
+      @|com\laybalt\AutoFishing\AFish.java|642|655|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing
+   Method End: toggleAutoFishing()V
+   Method Start: isAutoFishing()Z
+      @|com\laybalt\AutoFishing\AFish.java|690|703|isAutoFishing|method|com.laybalt.AutoFishing.AFish|isAutoFishing|()Z
+      @|com\laybalt\AutoFishing\AFish.java|723|736|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing
+   Method End: isAutoFishing()Z
+   @|com\laybalt\AutoFishing\AFish.java|760|769|casttimer|field|com.laybalt.AutoFishing.AFish|casttimer|
+   @|com\laybalt\AutoFishing\AFish.java|795|804|isReeling|field|com.laybalt.AutoFishing.AFish|isReeling|
+   Method Start: ReelRod()V
+      @|com\laybalt\AutoFishing\AFish.java|831|838|ReelRod|method|com.laybalt.AutoFishing.AFish|ReelRod|()V
+      @|com\laybalt\AutoFishing\AFish.java|885|894|ItemStack|class|net.minecraft.item.ItemStack
+      @|com\laybalt\AutoFishing\AFish.java|907|916|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|917|929|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|932|941|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com\laybalt\AutoFishing\AFish.java|942|953|getHeldItem|method|net.minecraft.entity.EntityLivingBase|getHeldItem|()Lnet/minecraft/item/ItemStack;
+      @|com\laybalt\AutoFishing\AFish.java|965|974|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|975|987|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|990|1006|playerController|field|net.minecraft.client.Minecraft|playerController
+      @|com\laybalt\AutoFishing\AFish.java|1007|1018|sendUseItem|method|net.minecraft.client.multiplayer.PlayerControllerMP|sendUseItem|(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;Lnet/minecraft/item/ItemStack;)Z
+      @|com\laybalt\AutoFishing\AFish.java|1019|1028|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|1029|1041|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|1044|1053|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com\laybalt\AutoFishing\AFish.java|1055|1064|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|1065|1077|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|1080|1088|theWorld|field|net.minecraft.client.Minecraft|theWorld
+   Method End: ReelRod()V
+   Method Start: CastRod()V
+      @|com\laybalt\AutoFishing\AFish.java|1125|1132|CastRod|method|com.laybalt.AutoFishing.AFish|CastRod|()V
+      @|com\laybalt\AutoFishing\AFish.java|1145|1159|EntityFishHook|class|net.minecraft.entity.projectile.EntityFishHook
+      @|com\laybalt\AutoFishing\AFish.java|1171|1180|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|1181|1193|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|1196|1205|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com\laybalt\AutoFishing\AFish.java|1206|1216|fishEntity|field|net.minecraft.entity.player.EntityPlayer|fishEntity
+      @|com\laybalt\AutoFishing\AFish.java|1226|1235|casttimer|field|com.laybalt.AutoFishing.AFish|casttimer
+      @|com\laybalt\AutoFishing\AFish.java|1251|1260|casttimer|field|com.laybalt.AutoFishing.AFish|casttimer
+      @|com\laybalt\AutoFishing\AFish.java|1302|1311|ItemStack|class|net.minecraft.item.ItemStack
+      @|com\laybalt\AutoFishing\AFish.java|1324|1333|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|1334|1346|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|1349|1358|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com\laybalt\AutoFishing\AFish.java|1359|1370|getHeldItem|method|net.minecraft.entity.EntityLivingBase|getHeldItem|()Lnet/minecraft/item/ItemStack;
+      @|com\laybalt\AutoFishing\AFish.java|1386|1395|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|1396|1408|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|1411|1427|playerController|field|net.minecraft.client.Minecraft|playerController
+      @|com\laybalt\AutoFishing\AFish.java|1428|1439|sendUseItem|method|net.minecraft.client.multiplayer.PlayerControllerMP|sendUseItem|(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;Lnet/minecraft/item/ItemStack;)Z
+      @|com\laybalt\AutoFishing\AFish.java|1440|1449|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|1450|1462|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|1465|1474|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com\laybalt\AutoFishing\AFish.java|1476|1485|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|1486|1498|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|1501|1509|theWorld|field|net.minecraft.client.Minecraft|theWorld
+      @|com\laybalt\AutoFishing\AFish.java|1535|1544|casttimer|field|com.laybalt.AutoFishing.AFish|casttimer
+   Method End: CastRod()V
+   Method Start: onTick(Lnet/minecraftforge/fml/common/gameevent/TickEvent$ClientTickEvent;)V
+      @|com\laybalt\AutoFishing\AFish.java|1603|1609|onTick|method|com.laybalt.AutoFishing.AFish|onTick|(Lnet/minecraftforge/fml/common/gameevent/TickEvent$ClientTickEvent;)V
+      @|com\laybalt\AutoFishing\AFish.java|1610|1635|TickEvent.ClientTickEvent|class|net.minecraftforge.fml.common.gameevent.TickEvent.ClientTickEvent
+      @|com\laybalt\AutoFishing\AFish.java|1636|1641|event|param|com.laybalt.AutoFishing.AFish|onTick|(Lnet/minecraftforge/fml/common/gameevent/TickEvent$ClientTickEvent;)V|event|0
+      @|com\laybalt\AutoFishing\AFish.java|1657|1670|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing
+      @|com\laybalt\AutoFishing\AFish.java|1686|1698|EntityPlayer|class|net.minecraft.entity.player.EntityPlayer
+      @|com\laybalt\AutoFishing\AFish.java|1708|1717|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|1718|1730|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|1733|1742|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com\laybalt\AutoFishing\AFish.java|1794|1803|ItemStack|class|net.minecraft.item.ItemStack
+      @|com\laybalt\AutoFishing\AFish.java|1816|1825|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|1826|1838|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|1841|1850|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com\laybalt\AutoFishing\AFish.java|1851|1862|getHeldItem|method|net.minecraft.entity.EntityLivingBase|getHeldItem|()Lnet/minecraft/item/ItemStack;
+      @|com\laybalt\AutoFishing\AFish.java|1917|1924|getItem|method|net.minecraft.item.ItemStack|getItem|()Lnet/minecraft/item/Item;
+      @|com\laybalt\AutoFishing\AFish.java|1930|1935|Items|class|net.minecraft.init.Items
+      @|com\laybalt\AutoFishing\AFish.java|1936|1947|fishing_rod|field|net.minecraft.init.Items|fishing_rod
+      @|com\laybalt\AutoFishing\AFish.java|1971|1985|EntityFishHook|class|net.minecraft.entity.projectile.EntityFishHook
+      @|com\laybalt\AutoFishing\AFish.java|1997|2006|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|2007|2019|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|2022|2031|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com\laybalt\AutoFishing\AFish.java|2032|2042|fishEntity|field|net.minecraft.entity.player.EntityPlayer|fishEntity
+      @|com\laybalt\AutoFishing\AFish.java|2097|2106|isInWater|method|net.minecraft.entity.Entity|isInWater|()Z
+      @|com\laybalt\AutoFishing\AFish.java|2156|2160|posX|field|net.minecraft.entity.Entity|posX
+      @|com\laybalt\AutoFishing\AFish.java|2206|2210|posY|field|net.minecraft.entity.Entity|posY
+      @|com\laybalt\AutoFishing\AFish.java|2256|2260|posZ|field|net.minecraft.entity.Entity|posZ
+      @|com\laybalt\AutoFishing\AFish.java|2292|2298|Entity|class|net.minecraft.entity.Entity
+      @|com\laybalt\AutoFishing\AFish.java|2308|2317|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFish.java|2318|2330|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFish.java|2333|2341|theWorld|field|net.minecraft.client.Minecraft|theWorld
+      @|com\laybalt\AutoFishing\AFish.java|2342|2363|getEntitiesWithinAABB|method|net.minecraft.world.World|getEntitiesWithinAABB|(Ljava/lang/Class;Lnet/minecraft/util/AxisAlignedBB;)Ljava/util/List;
+      @|com\laybalt\AutoFishing\AFish.java|2364|2380|EntityArmorStand|class|net.minecraft.entity.item.EntityArmorStand
+      @|com\laybalt\AutoFishing\AFish.java|2392|2405|AxisAlignedBB|class|net.minecraft.util.AxisAlignedBB
+      @|com\laybalt\AutoFishing\AFish.java|2502|2518|EntityArmorStand|class|net.minecraft.entity.item.EntityArmorStand
+      @|com\laybalt\AutoFishing\AFish.java|2529|2545|getCustomNameTag|method|net.minecraft.entity.Entity|getCustomNameTag|()Ljava/lang/String;
+      @|com\laybalt\AutoFishing\AFish.java|2548|2556|contains|method|java.lang.String|contains|(Ljava/lang/CharSequence;)Z
+      @|com\laybalt\AutoFishing\AFish.java|2599|2606|ReelRod|method|com.laybalt.AutoFishing.AFish|ReelRod|()V
+      @|com\laybalt\AutoFishing\AFish.java|2642|2651|isReeling|field|com.laybalt.AutoFishing.AFish|isReeling
+      @|com\laybalt\AutoFishing\AFish.java|2783|2792|isReeling|field|com.laybalt.AutoFishing.AFish|isReeling
+      @|com\laybalt\AutoFishing\AFish.java|2824|2831|CastRod|method|com.laybalt.AutoFishing.AFish|CastRod|()V
+      @|com\laybalt\AutoFishing\AFish.java|2863|2872|isReeling|field|com.laybalt.AutoFishing.AFish|isReeling
+   Method End: onTick(Lnet/minecraftforge/fml/common/gameevent/TickEvent$ClientTickEvent;)V
+Class End  : com.laybalt.AutoFishing.AFish
+endProcessing com\laybalt\AutoFishing\AFish.java
+
+processing com\laybalt\AutoFishing\AFishKeyBind.java
+@|com\laybalt\AutoFishing\AFishKeyBind.java|8|31|com.laybalt.AutoFishing|package|com.laybalt.AutoFishing|(file)
+Class Start: com.laybalt.AutoFishing.AFishKeyBind
+   @|com\laybalt\AutoFishing\AFishKeyBind.java|350|360|KeyBinding|class|net.minecraft.client.settings.KeyBinding
+   @|com\laybalt\AutoFishing\AFishKeyBind.java|361|371|keyBinding|field|com.laybalt.AutoFishing.AFishKeyBind|keyBinding|
+   Method Start: AFishKeyBind()V
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|385|397|AFishKeyBind|method|com.laybalt.AutoFishing.AFishKeyBind|AFishKeyBind|()V
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|410|420|keyBinding|field|com.laybalt.AutoFishing.AFishKeyBind|keyBinding
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|427|437|KeyBinding|class|net.minecraft.client.settings.KeyBinding
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|453|461|Keyboard|class|org.lwjgl.input.Keyboard
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|462|467|KEY_F|field|org.lwjgl.input.Keyboard|KEY_F
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|489|503|ClientRegistry|class|net.minecraftforge.fml.client.registry.ClientRegistry
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|504|522|registerKeyBinding|method|net.minecraftforge.fml.client.registry.ClientRegistry|registerKeyBinding|(Lnet/minecraft/client/settings/KeyBinding;)V
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|523|533|keyBinding|field|com.laybalt.AutoFishing.AFishKeyBind|keyBinding
+   Method End: AFishKeyBind()V
+   Method Start: onKeyInput(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|579|589|onKeyInput|method|com.laybalt.AutoFishing.AFishKeyBind|onKeyInput|(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|590|614|InputEvent.KeyInputEvent|class|net.minecraftforge.fml.common.gameevent.InputEvent.KeyInputEvent
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|615|620|event|param|com.laybalt.AutoFishing.AFishKeyBind|onKeyInput|(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V|event|0
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|636|646|keyBinding|field|com.laybalt.AutoFishing.AFishKeyBind|keyBinding
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|647|656|isPressed|method|net.minecraft.client.settings.KeyBinding|isPressed|()Z
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|674|679|AFish|class|com.laybalt.AutoFishing.AFish
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|680|697|toggleAutoFishing|method|com.laybalt.AutoFishing.AFish|toggleAutoFishing|()V
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|713|725|AFishMessage|class|com.laybalt.AutoFishing.AFishMessage
+      @|com\laybalt\AutoFishing\AFishKeyBind.java|726|737|sendMessage|method|com.laybalt.AutoFishing.AFishMessage|sendMessage|()V
+   Method End: onKeyInput(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
+Class End  : com.laybalt.AutoFishing.AFishKeyBind
+endProcessing com\laybalt\AutoFishing\AFishKeyBind.java
+
+processing com\laybalt\AutoFishing\AFishMessage.java
+@|com\laybalt\AutoFishing\AFishMessage.java|8|31|com.laybalt.AutoFishing|package|com.laybalt.AutoFishing|(file)
+Class Start: com.laybalt.AutoFishing.AFishMessage
+   Method Start: sendMessage()V
+      @|com\laybalt\AutoFishing\AFishMessage.java|177|188|sendMessage|method|com.laybalt.AutoFishing.AFishMessage|sendMessage|()V
+      @|com\laybalt\AutoFishing\AFishMessage.java|201|207|String|class|java.lang.String
+      @|com\laybalt\AutoFishing\AFishMessage.java|214|219|AFish|class|com.laybalt.AutoFishing.AFish
+      @|com\laybalt\AutoFishing\AFishMessage.java|220|233|isAutoFishing|method|com.laybalt.AutoFishing.AFish|isAutoFishing|()Z
+      @|com\laybalt\AutoFishing\AFishMessage.java|298|307|Minecraft|class|net.minecraft.client.Minecraft
+      @|com\laybalt\AutoFishing\AFishMessage.java|308|320|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com\laybalt\AutoFishing\AFishMessage.java|323|332|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com\laybalt\AutoFishing\AFishMessage.java|333|347|addChatMessage|method|net.minecraft.command.ICommandSender|addChatMessage|(Lnet/minecraft/util/IChatComponent;)V
+      @|com\laybalt\AutoFishing\AFishMessage.java|352|376|ChatComponentTranslation|class|net.minecraft.util.ChatComponentTranslation
+   Method End: sendMessage()V
+Class End  : com.laybalt.AutoFishing.AFishMessage
+endProcessing com\laybalt\AutoFishing\AFishMessage.java
+
+processing com\laybalt\Main.java
+@|com\laybalt\Main.java|8|19|com.laybalt|package|com.laybalt|(file)
+Class Start: com.laybalt.Main
+   @|com\laybalt\Main.java|457|463|String|class|java.lang.String
+   @|com\laybalt\Main.java|464|469|MODID|field|com.laybalt.Main|MODID|
+   @|com\laybalt\Main.java|507|513|String|class|java.lang.String
+   @|com\laybalt\Main.java|514|521|VERSION|field|com.laybalt.Main|VERSION|
+   Method Start: init(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V
+      @|com\laybalt\Main.java|566|570|init|method|com.laybalt.Main|init|(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V
+      @|com\laybalt\Main.java|571|593|FMLInitializationEvent|class|net.minecraftforge.fml.common.event.FMLInitializationEvent
+      @|com\laybalt\Main.java|594|599|event|param|com.laybalt.Main|init|(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V|event|0
+      @|com\laybalt\Main.java|611|623|AFishKeyBind|class|com.laybalt.AutoFishing.AFishKeyBind
+      @|com\laybalt\Main.java|643|655|AFishKeyBind|class|com.laybalt.AutoFishing.AFishKeyBind
+      @|com\laybalt\Main.java|667|679|AFishMessage|class|com.laybalt.AutoFishing.AFishMessage
+      @|com\laybalt\Main.java|699|711|AFishMessage|class|com.laybalt.AutoFishing.AFishMessage
+      @|com\laybalt\Main.java|723|728|AFish|class|com.laybalt.AutoFishing.AFish
+      @|com\laybalt\Main.java|741|746|AFish|class|com.laybalt.AutoFishing.AFish
+      @|com\laybalt\Main.java|759|773|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
+      @|com\laybalt\Main.java|774|783|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
+      @|com\laybalt\Main.java|784|792|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
+      @|com\laybalt\Main.java|816|830|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
+      @|com\laybalt\Main.java|831|840|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
+      @|com\laybalt\Main.java|841|849|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
+      @|com\laybalt\Main.java|873|887|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
+      @|com\laybalt\Main.java|888|897|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
+      @|com\laybalt\Main.java|898|906|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
+   Method End: init(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V
+Class End  : com.laybalt.Main
+endProcessing com\laybalt\Main.java
+
