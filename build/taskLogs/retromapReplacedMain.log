@@ -33387,8 +33387,135 @@ RENAME MAP: param net/minecraft/world/storage/WorldInfo/WorldInfo (Lnet/minecraf
 RENAME MAP: param net/minecraft/world/storage/WorldInfo/WorldInfo (Lnet/minecraft/world/WorldSettings;Ljava/lang/String;)V 0 -> p_i2158_1_
 RENAME MAP: param net/minecraft/world/storage/WorldInfo/WorldInfo (Lnet/minecraft/world/WorldSettings;Ljava/lang/String;)V 1 -> p_i2158_2_
 RENAME MAP: param net/minecraft/world/storage/WorldInfo/WorldInfo (Lnet/minecraft/world/storage/WorldInfo;)V 0 -> p_i2159_1_
-Start Processing: com\laybalt\AutoFishing\AFish.java
-Warning: com\laybalt\AutoFishing\AFish.java has CRLF line endings; consider switching to LF
+Start Processing: com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java
+Rename class net/minecraft/client/settings/KeyBinding[367,377]::KeyBinding->KeyBinding
+[method, com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft/AClickerKeyBindLeft, ()V]
+FOUND CONSTR method com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft/AClickerKeyBindLeft ()V com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft
+Rename class net/minecraft/client/settings/KeyBinding[451,461]::KeyBinding->KeyBinding
+No rename for class net/minecraftforge/fml/client/registry/ClientRegistry
+[method, net/minecraftforge/fml/client/registry/ClientRegistry/registerKeyBinding, (Lnet/minecraft/client/settings/KeyBinding;)V]
+No rename for method net/minecraftforge/fml/client/registry/ClientRegistry/registerKeyBinding (Lnet/minecraft/client/settings/KeyBinding;)V
+[method, com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft/onKeyInput, (Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V]
+No rename for class net/minecraftforge/fml/common/gameevent/InputEvent/KeyInputEvent
+Rename method net/minecraft/client/settings/KeyBinding/isPressed ()Z[676,685]::isPressed->func_151468_f
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/toggleAutoClicking, ()V]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft/sendMessage, ()V]
+Import: net.minecraft.client.settings.KeyBinding
+Adding 0 imports
+End  Processing: com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java
+
+Start Processing: com/laybalt/AutoClicker/LeftClick/AClickerLeft.java
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/AClickerLeft, ()V]
+FOUND CONSTR method com/laybalt/AutoClicker/LeftClick/AClickerLeft/AClickerLeft ()V com/laybalt/AutoClicker/LeftClick/AClickerLeft
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/getRandomClickInterval, ()J]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/getInstance, ()Lcom/laybalt/AutoClicker/LeftClick/AClickerLeft;]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/toggleAutoClicking, ()V]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/getInstance, ()Lcom/laybalt/AutoClicker/LeftClick/AClickerLeft;]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/startAutoClick, ()V]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/stopAutoClick, ()V]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/isAutoClicking, ()Z]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/getRandomClickInterval, ()J]
+[method, java/util/Random/nextInt, (I)I]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/startAutoClick, ()V]
+[method, java/util/Timer/scheduleAtFixedRate, (Ljava/util/TimerTask;JJ)V]
+[method, java/lang/Runnable/run, ()V]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/autoClick, ()V]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/stopAutoClick, ()V]
+[method, java/util/Timer/cancel, ()V]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/autoClick, ()V]
+[method, java/lang/System/currentTimeMillis, ()J]
+Rename class net/minecraft/client/Minecraft[1918,1927]::Minecraft->Minecraft
+Rename class net/minecraft/client/Minecraft[1933,1942]::Minecraft->Minecraft
+Rename method net/minecraft/client/Minecraft/getMinecraft ()Lnet/minecraft/client/Minecraft;[1943,1955]::getMinecraft->func_71410_x
+Rename field net/minecraft/client/Minecraft/thePlayer[1992,2001]::thePlayer->field_71439_g
+Rename class net/minecraft/client/Minecraft[2079,2088]::Minecraft->Minecraft
+[method, java/lang/Class/getDeclaredMethod, (Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;]
+[method, java/lang/reflect/AccessibleObject/setAccessible, (Z)V]
+[method, java/lang/reflect/Method/invoke, (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;]
+[method, java/lang/Throwable/printStackTrace, ()V]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/getRandomClickInterval, ()J]
+Import: net.minecraft.client.Minecraft
+Adding 0 imports
+End  Processing: com/laybalt/AutoClicker/LeftClick/AClickerLeft.java
+
+Start Processing: com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java
+[method, com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft/sendMessage, ()V]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/isAutoClicking, ()Z]
+Rename class net/minecraft/client/Minecraft[333,342]::Minecraft->Minecraft
+Rename method net/minecraft/client/Minecraft/getMinecraft ()Lnet/minecraft/client/Minecraft;[343,355]::getMinecraft->func_71410_x
+Rename field net/minecraft/client/Minecraft/thePlayer[358,367]::thePlayer->field_71439_g
+Rename method net/minecraft/command/ICommandSender/addChatMessage (Lnet/minecraft/util/IChatComponent;)V[372,386]::addChatMessage->func_145747_a
+Rename class net/minecraft/util/ChatComponentTranslation[390,414]::ChatComponentTranslation->ChatComponentTranslation
+Import: net.minecraft.client.Minecraft
+Import: net.minecraft.util.ChatComponentTranslation
+Adding 0 imports
+End  Processing: com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java
+
+Start Processing: com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java
+Rename class net/minecraft/client/settings/KeyBinding[369,379]::KeyBinding->KeyBinding
+[method, com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight/AClickerKeyBindRight, ()V]
+FOUND CONSTR method com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight/AClickerKeyBindRight ()V com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight
+Rename class net/minecraft/client/settings/KeyBinding[454,464]::KeyBinding->KeyBinding
+No rename for class net/minecraftforge/fml/client/registry/ClientRegistry
+[method, net/minecraftforge/fml/client/registry/ClientRegistry/registerKeyBinding, (Lnet/minecraft/client/settings/KeyBinding;)V]
+No rename for method net/minecraftforge/fml/client/registry/ClientRegistry/registerKeyBinding (Lnet/minecraft/client/settings/KeyBinding;)V
+[method, com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight/onKeyInput, (Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V]
+No rename for class net/minecraftforge/fml/common/gameevent/InputEvent/KeyInputEvent
+Rename method net/minecraft/client/settings/KeyBinding/isPressed ()Z[680,689]::isPressed->func_151468_f
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/toggleAutoClicking, ()V]
+[method, com/laybalt/AutoClicker/RightClick/AClickerMessageRight/sendMessage, ()V]
+Import: net.minecraft.client.settings.KeyBinding
+Adding 0 imports
+End  Processing: com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java
+
+Start Processing: com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java
+[method, com/laybalt/AutoClicker/RightClick/AClickerMessageRight/sendMessage, ()V]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/isAutoClicking, ()Z]
+Rename class net/minecraft/client/Minecraft[338,347]::Minecraft->Minecraft
+Rename method net/minecraft/client/Minecraft/getMinecraft ()Lnet/minecraft/client/Minecraft;[348,360]::getMinecraft->func_71410_x
+Rename field net/minecraft/client/Minecraft/thePlayer[363,372]::thePlayer->field_71439_g
+Rename method net/minecraft/command/ICommandSender/addChatMessage (Lnet/minecraft/util/IChatComponent;)V[377,391]::addChatMessage->func_145747_a
+Rename class net/minecraft/util/ChatComponentTranslation[395,419]::ChatComponentTranslation->ChatComponentTranslation
+Import: net.minecraft.client.Minecraft
+Import: net.minecraft.util.ChatComponentTranslation
+Adding 0 imports
+End  Processing: com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java
+
+Start Processing: com/laybalt/AutoClicker/RightClick/AClickerRight.java
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/AClickerRight, ()V]
+FOUND CONSTR method com/laybalt/AutoClicker/RightClick/AClickerRight/AClickerRight ()V com/laybalt/AutoClicker/RightClick/AClickerRight
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/getRandomClickInterval, ()J]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/getInstance, ()Lcom/laybalt/AutoClicker/RightClick/AClickerRight;]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/toggleAutoClicking, ()V]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/getInstance, ()Lcom/laybalt/AutoClicker/RightClick/AClickerRight;]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/startAutoClick, ()V]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/stopAutoClick, ()V]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/isAutoClicking, ()Z]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/getRandomClickInterval, ()J]
+[method, java/util/Random/nextInt, (I)I]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/startAutoClick, ()V]
+[method, java/util/Timer/scheduleAtFixedRate, (Ljava/util/TimerTask;JJ)V]
+[method, java/lang/Runnable/run, ()V]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/autoClick, ()V]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/stopAutoClick, ()V]
+[method, java/util/Timer/cancel, ()V]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/autoClick, ()V]
+[method, java/lang/System/currentTimeMillis, ()J]
+Rename class net/minecraft/client/Minecraft[1930,1939]::Minecraft->Minecraft
+Rename class net/minecraft/client/Minecraft[1945,1954]::Minecraft->Minecraft
+Rename method net/minecraft/client/Minecraft/getMinecraft ()Lnet/minecraft/client/Minecraft;[1955,1967]::getMinecraft->func_71410_x
+Rename field net/minecraft/client/Minecraft/thePlayer[2004,2013]::thePlayer->field_71439_g
+Rename class net/minecraft/client/Minecraft[2096,2105]::Minecraft->Minecraft
+[method, java/lang/Class/getDeclaredMethod, (Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;]
+[method, java/lang/reflect/AccessibleObject/setAccessible, (Z)V]
+[method, java/lang/reflect/Method/invoke, (Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;]
+[method, java/lang/Throwable/printStackTrace, ()V]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/getRandomClickInterval, ()J]
+Import: net.minecraft.client.Minecraft
+Adding 0 imports
+End  Processing: com/laybalt/AutoClicker/RightClick/AClickerRight.java
+
+Start Processing: com/laybalt/AutoFishing/AFish.java
 [method, com/laybalt/AutoFishing/AFish/toggleAutoFishing, ()V]
 [method, com/laybalt/AutoFishing/AFish/isAutoFishing, ()Z]
 [method, com/laybalt/AutoFishing/AFish/ReelRod, ()V]
@@ -33472,10 +33599,9 @@ Import: net.minecraft.init.Items
 Import: net.minecraft.item.ItemStack
 Import: net.minecraft.util.AxisAlignedBB
 Adding 0 imports
-End  Processing: com\laybalt\AutoFishing\AFish.java
+End  Processing: com/laybalt/AutoFishing/AFish.java
 
-Start Processing: com\laybalt\AutoFishing\AFishKeyBind.java
-Warning: com\laybalt\AutoFishing\AFishKeyBind.java has CRLF line endings; consider switching to LF
+Start Processing: com/laybalt/AutoFishing/AFishKeyBind.java
 Rename class net/minecraft/client/settings/KeyBinding[350,360]::KeyBinding->KeyBinding
 [method, com/laybalt/AutoFishing/AFishKeyBind/AFishKeyBind, ()V]
 FOUND CONSTR method com/laybalt/AutoFishing/AFishKeyBind/AFishKeyBind ()V com/laybalt/AutoFishing/AFishKeyBind
@@ -33490,10 +33616,9 @@ Rename method net/minecraft/client/settings/KeyBinding/isPressed ()Z[647,656]::i
 [method, com/laybalt/AutoFishing/AFishMessage/sendMessage, ()V]
 Import: net.minecraft.client.settings.KeyBinding
 Adding 0 imports
-End  Processing: com\laybalt\AutoFishing\AFishKeyBind.java
+End  Processing: com/laybalt/AutoFishing/AFishKeyBind.java
 
-Start Processing: com\laybalt\AutoFishing\AFishMessage.java
-Warning: com\laybalt\AutoFishing\AFishMessage.java has CRLF line endings; consider switching to LF
+Start Processing: com/laybalt/AutoFishing/AFishMessage.java
 [method, com/laybalt/AutoFishing/AFishMessage/sendMessage, ()V]
 [method, com/laybalt/AutoFishing/AFish/isAutoFishing, ()Z]
 Rename class net/minecraft/client/Minecraft[298,307]::Minecraft->Minecraft
@@ -33504,9 +33629,9 @@ Rename class net/minecraft/util/ChatComponentTranslation[355,379]::ChatComponent
 Import: net.minecraft.client.Minecraft
 Import: net.minecraft.util.ChatComponentTranslation
 Adding 0 imports
-End  Processing: com\laybalt\AutoFishing\AFishMessage.java
+End  Processing: com/laybalt/AutoFishing/AFishMessage.java
 
-Start Processing: com\laybalt\Main.java
+Start Processing: com/laybalt/Main.java
 [method, com/laybalt/Main/init, (Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V]
 No rename for class net/minecraftforge/fml/common/event/FMLInitializationEvent
 No rename for class net/minecraftforge/common/MinecraftForge
@@ -33521,6 +33646,38 @@ No rename for class net/minecraftforge/common/MinecraftForge
 No rename for field net/minecraftforge/common/MinecraftForge/EVENT_BUS
 [method, net/minecraftforge/fml/common/eventhandler/EventBus/register, (Ljava/lang/Object;)V]
 No rename for method net/minecraftforge/fml/common/eventhandler/EventBus/register (Ljava/lang/Object;)V
+No rename for class net/minecraftforge/common/MinecraftForge
+No rename for field net/minecraftforge/common/MinecraftForge/EVENT_BUS
+[method, net/minecraftforge/fml/common/eventhandler/EventBus/register, (Ljava/lang/Object;)V]
+No rename for method net/minecraftforge/fml/common/eventhandler/EventBus/register (Ljava/lang/Object;)V
+No rename for class net/minecraftforge/common/MinecraftForge
+No rename for field net/minecraftforge/common/MinecraftForge/EVENT_BUS
+[method, net/minecraftforge/fml/common/eventhandler/EventBus/register, (Ljava/lang/Object;)V]
+No rename for method net/minecraftforge/fml/common/eventhandler/EventBus/register (Ljava/lang/Object;)V
+No rename for class net/minecraftforge/common/MinecraftForge
+No rename for field net/minecraftforge/common/MinecraftForge/EVENT_BUS
+[method, net/minecraftforge/fml/common/eventhandler/EventBus/register, (Ljava/lang/Object;)V]
+No rename for method net/minecraftforge/fml/common/eventhandler/EventBus/register (Ljava/lang/Object;)V
+No rename for class net/minecraftforge/common/MinecraftForge
+No rename for field net/minecraftforge/common/MinecraftForge/EVENT_BUS
+[method, net/minecraftforge/fml/common/eventhandler/EventBus/register, (Ljava/lang/Object;)V]
+No rename for method net/minecraftforge/fml/common/eventhandler/EventBus/register (Ljava/lang/Object;)V
+No rename for class net/minecraftforge/common/MinecraftForge
+No rename for field net/minecraftforge/common/MinecraftForge/EVENT_BUS
+[method, net/minecraftforge/fml/common/eventhandler/EventBus/register, (Ljava/lang/Object;)V]
+No rename for method net/minecraftforge/fml/common/eventhandler/EventBus/register (Ljava/lang/Object;)V
+No rename for class net/minecraftforge/common/MinecraftForge
+No rename for field net/minecraftforge/common/MinecraftForge/EVENT_BUS
+[method, net/minecraftforge/fml/common/eventhandler/EventBus/register, (Ljava/lang/Object;)V]
+No rename for method net/minecraftforge/fml/common/eventhandler/EventBus/register (Ljava/lang/Object;)V
+[method, com/laybalt/Main/preInit, (Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V]
+No rename for class net/minecraftforge/fml/common/event/FMLInitializationEvent
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/isAutoClicking, ()Z]
+[method, com/laybalt/AutoClicker/LeftClick/AClickerLeft/toggleAutoClicking, ()V]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/isAutoClicking, ()Z]
+[method, com/laybalt/AutoClicker/RightClick/AClickerRight/toggleAutoClicking, ()V]
+[method, com/laybalt/AutoFishing/AFish/isAutoFishing, ()Z]
+[method, com/laybalt/AutoFishing/AFish/toggleAutoFishing, ()V]
 Adding 0 imports
-End  Processing: com\laybalt\Main.java
+End  Processing: com/laybalt/Main.java
 

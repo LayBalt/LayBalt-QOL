@@ -1,182 +1,511 @@
 Symbol range map extraction starting
-Processing 4 files
-processing com\laybalt\AutoFishing\AFish.java
-@|com\laybalt\AutoFishing\AFish.java|8|31|com.laybalt.AutoFishing|package|com.laybalt.AutoFishing|(file)
+Processing 10 files
+processing com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java
+@|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|8|41|com.laybalt.AutoClicker.LeftClick|package|com.laybalt.AutoClicker.LeftClick|(file)
+Class Start: com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft
+   @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|367|377|KeyBinding|class|net.minecraft.client.settings.KeyBinding
+   @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|378|388|keyBinding|field|com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft|keyBinding|
+   Method Start: AClickerKeyBindLeft()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|402|421|AClickerKeyBindLeft|method|com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft|AClickerKeyBindLeft|()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|434|444|keyBinding|field|com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft|keyBinding
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|451|461|KeyBinding|class|net.minecraft.client.settings.KeyBinding
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|482|490|Keyboard|class|org.lwjgl.input.Keyboard
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|491|496|KEY_C|field|org.lwjgl.input.Keyboard|KEY_C
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|518|532|ClientRegistry|class|net.minecraftforge.fml.client.registry.ClientRegistry
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|533|551|registerKeyBinding|method|net.minecraftforge.fml.client.registry.ClientRegistry|registerKeyBinding|(Lnet/minecraft/client/settings/KeyBinding;)V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|552|562|keyBinding|field|com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft|keyBinding
+   Method End: AClickerKeyBindLeft()V
+   Method Start: onKeyInput(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|608|618|onKeyInput|method|com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft|onKeyInput|(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|619|643|InputEvent.KeyInputEvent|class|net.minecraftforge.fml.common.gameevent.InputEvent.KeyInputEvent
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|644|649|event|param|com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft|onKeyInput|(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V|event|0
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|665|675|keyBinding|field|com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft|keyBinding
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|676|685|isPressed|method|net.minecraft.client.settings.KeyBinding|isPressed|()Z
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|703|715|AClickerLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerLeft
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|716|734|toggleAutoClicking|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|toggleAutoClicking|()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|750|769|AClickerMessageLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerMessageLeft
+      @|com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java|770|781|sendMessage|method|com.laybalt.AutoClicker.LeftClick.AClickerMessageLeft|sendMessage|()V
+   Method End: onKeyInput(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
+Class End  : com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft
+endProcessing com/laybalt/AutoClicker/LeftClick/AClickerKeyBindLeft.java
+
+processing com/laybalt/AutoClicker/LeftClick/AClickerLeft.java
+@|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|25|58|com.laybalt.AutoClicker.LeftClick|package|com.laybalt.AutoClicker.LeftClick|(file)
+Class Start: com.laybalt.AutoClicker.LeftClick.AClickerLeft
+   @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|267|279|autoClicking|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|autoClicking|
+   @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|318|339|MIN_CLICKS_PER_SECOND|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|MIN_CLICKS_PER_SECOND|
+   @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|375|396|MAX_CLICKS_PER_SECOND|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|MAX_CLICKS_PER_SECOND|
+   @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|420|433|lastClickTime|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|lastClickTime|
+   @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|456|469|clickInterval|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|clickInterval|
+   @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|489|495|Random|class|java.util.Random
+   @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|496|502|random|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|random|
+   @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|509|515|Random|class|java.util.Random
+   @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|531|536|Timer|class|java.util.Timer
+   @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|537|542|timer|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|timer|
+   @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|563|575|AClickerLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerLeft
+   @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|576|584|instance|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|instance|
+   Method Start: AClickerLeft()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|598|610|AClickerLeft|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|AClickerLeft|()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|623|636|clickInterval|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|clickInterval
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|639|661|getRandomClickInterval|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|getRandomClickInterval|()J
+   Method End: AClickerLeft()V
+   Method Start: getInstance()Lcom/laybalt/AutoClicker/LeftClick/AClickerLeft;
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|703|714|getInstance|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|getInstance|()Lcom/laybalt/AutoClicker/LeftClick/AClickerLeft;
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|690|702|AClickerLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerLeft
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|731|739|instance|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|instance
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|763|771|instance|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|instance
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|778|790|AClickerLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerLeft
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|819|827|instance|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|instance
+   Method End: getInstance()Lcom/laybalt/AutoClicker/LeftClick/AClickerLeft;
+   Method Start: toggleAutoClicking()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|859|877|toggleAutoClicking|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|toggleAutoClicking|()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|890|902|AClickerLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerLeft
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|913|924|getInstance|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|getInstance|()Lcom/laybalt/AutoClicker/LeftClick/AClickerLeft;
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|936|948|autoClicking|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|autoClicking
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|952|964|autoClicking|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|autoClicking
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|978|990|autoClicking|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|autoClicking
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1014|1028|startAutoClick|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|startAutoClick|()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1069|1082|stopAutoClick|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|stopAutoClick|()V
+   Method End: toggleAutoClicking()V
+   Method Start: isAutoClicking()Z
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1129|1143|isAutoClicking|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|isAutoClicking|()Z
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1163|1175|autoClicking|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|autoClicking
+   Method End: isAutoClicking()Z
+   Method Start: getRandomClickInterval()J
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1201|1223|getRandomClickInterval|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|getRandomClickInterval|()J
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1258|1264|random|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|random
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1265|1272|nextInt|method|java.util.Random|nextInt|(I)I
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1274|1295|MAX_CLICKS_PER_SECOND|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|MAX_CLICKS_PER_SECOND
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1298|1319|MIN_CLICKS_PER_SECOND|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|MIN_CLICKS_PER_SECOND
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1328|1349|MIN_CLICKS_PER_SECOND|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|MIN_CLICKS_PER_SECOND
+   Method End: getRandomClickInterval()J
+   Method Start: startAutoClick()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1413|1427|startAutoClick|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|startAutoClick|()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1440|1445|timer|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|timer
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1452|1457|Timer|class|java.util.Timer
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1469|1474|timer|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|timer
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1475|1494|scheduleAtFixedRate|method|java.util.Timer|scheduleAtFixedRate|(Ljava/util/TimerTask;JJ)V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1499|1508|TimerTask|class|java.util.TimerTask
+      Anon Class Start: com.laybalt.AutoClicker.LeftClick.AClickerLeft$1
+         Method Start: run()V
+            @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1559|1562|run|method|java.lang.Runnable|run|()V
+            @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1583|1592|autoClick|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|autoClick|()V
+         Method End: run()V
+      Anon Class End: com.laybalt.AutoClicker.LeftClick.AClickerLeft$1
+   Method End: startAutoClick()V
+   Method Start: stopAutoClick()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1651|1664|stopAutoClick|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|stopAutoClick|()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1681|1686|timer|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|timer
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1710|1715|timer|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|timer
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1716|1722|cancel|method|java.util.Timer|cancel|()V
+   Method End: stopAutoClick()V
+   Method Start: autoClick()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1759|1768|autoClick|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|autoClick|()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1800|1806|System|class|java.lang.System
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1807|1824|currentTimeMillis|method|java.lang.System|currentTimeMillis|()J
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1840|1852|autoClicking|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|autoClicking
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1871|1884|lastClickTime|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|lastClickTime
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1888|1901|clickInterval|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|clickInterval
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1918|1927|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1933|1942|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1943|1955|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|1992|2001|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|2055|2061|Method|class|java.lang.reflect.Method
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|2075|2084|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|2091|2108|getDeclaredMethod|method|java.lang.Class|getDeclaredMethod|(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|2155|2168|setAccessible|method|java.lang.reflect.AccessibleObject|setAccessible|(Z)V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|2207|2213|invoke|method|java.lang.reflect.Method|invoke|(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|2244|2253|Exception|class|java.lang.Exception
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|2281|2296|printStackTrace|method|java.lang.Throwable|printStackTrace|()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|2334|2347|lastClickTime|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|lastClickTime
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|2379|2392|clickInterval|field|com.laybalt.AutoClicker.LeftClick.AClickerLeft|clickInterval
+      @|com/laybalt/AutoClicker/LeftClick/AClickerLeft.java|2395|2417|getRandomClickInterval|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|getRandomClickInterval|()J
+   Method End: autoClick()V
+Class End  : com.laybalt.AutoClicker.LeftClick.AClickerLeft
+endProcessing com/laybalt/AutoClicker/LeftClick/AClickerLeft.java
+
+processing com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java
+@|com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java|8|41|com.laybalt.AutoClicker.LeftClick|package|com.laybalt.AutoClicker.LeftClick|(file)
+Class Start: com.laybalt.AutoClicker.LeftClick.AClickerMessageLeft
+   Method Start: sendMessage()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java|194|205|sendMessage|method|com.laybalt.AutoClicker.LeftClick.AClickerMessageLeft|sendMessage|()V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java|218|224|String|class|java.lang.String
+      @|com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java|231|243|AClickerLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerLeft
+      @|com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java|244|258|isAutoClicking|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|isAutoClicking|()Z
+      @|com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java|333|342|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java|343|355|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java|358|367|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java|368|382|addChatMessage|method|net.minecraft.command.ICommandSender|addChatMessage|(Lnet/minecraft/util/IChatComponent;)V
+      @|com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java|387|411|ChatComponentTranslation|class|net.minecraft.util.ChatComponentTranslation
+   Method End: sendMessage()V
+Class End  : com.laybalt.AutoClicker.LeftClick.AClickerMessageLeft
+endProcessing com/laybalt/AutoClicker/LeftClick/AClickerMessageLeft.java
+
+processing com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java
+@|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|8|42|com.laybalt.AutoClicker.RightClick|package|com.laybalt.AutoClicker.RightClick|(file)
+Class Start: com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight
+   @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|369|379|KeyBinding|class|net.minecraft.client.settings.KeyBinding
+   @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|380|390|keyBinding|field|com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight|keyBinding|
+   Method Start: AClickerKeyBindRight()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|404|424|AClickerKeyBindRight|method|com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight|AClickerKeyBindRight|()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|437|447|keyBinding|field|com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight|keyBinding
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|454|464|KeyBinding|class|net.minecraft.client.settings.KeyBinding
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|486|494|Keyboard|class|org.lwjgl.input.Keyboard
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|495|500|KEY_C|field|org.lwjgl.input.Keyboard|KEY_C
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|522|536|ClientRegistry|class|net.minecraftforge.fml.client.registry.ClientRegistry
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|537|555|registerKeyBinding|method|net.minecraftforge.fml.client.registry.ClientRegistry|registerKeyBinding|(Lnet/minecraft/client/settings/KeyBinding;)V
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|556|566|keyBinding|field|com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight|keyBinding
+   Method End: AClickerKeyBindRight()V
+   Method Start: onKeyInput(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|612|622|onKeyInput|method|com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight|onKeyInput|(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|623|647|InputEvent.KeyInputEvent|class|net.minecraftforge.fml.common.gameevent.InputEvent.KeyInputEvent
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|648|653|event|param|com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight|onKeyInput|(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V|event|0
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|669|679|keyBinding|field|com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight|keyBinding
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|680|689|isPressed|method|net.minecraft.client.settings.KeyBinding|isPressed|()Z
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|707|720|AClickerRight|class|com.laybalt.AutoClicker.RightClick.AClickerRight
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|721|739|toggleAutoClicking|method|com.laybalt.AutoClicker.RightClick.AClickerRight|toggleAutoClicking|()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|755|775|AClickerMessageRight|class|com.laybalt.AutoClicker.RightClick.AClickerMessageRight
+      @|com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java|776|787|sendMessage|method|com.laybalt.AutoClicker.RightClick.AClickerMessageRight|sendMessage|()V
+   Method End: onKeyInput(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
+Class End  : com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight
+endProcessing com/laybalt/AutoClicker/RightClick/AClickerKeyBindRight.java
+
+processing com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java
+@|com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java|8|42|com.laybalt.AutoClicker.RightClick|package|com.laybalt.AutoClicker.RightClick|(file)
+Class Start: com.laybalt.AutoClicker.RightClick.AClickerMessageRight
+   Method Start: sendMessage()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java|196|207|sendMessage|method|com.laybalt.AutoClicker.RightClick.AClickerMessageRight|sendMessage|()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java|220|226|String|class|java.lang.String
+      @|com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java|233|246|AClickerRight|class|com.laybalt.AutoClicker.RightClick.AClickerRight
+      @|com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java|247|261|isAutoClicking|method|com.laybalt.AutoClicker.RightClick.AClickerRight|isAutoClicking|()Z
+      @|com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java|338|347|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java|348|360|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java|363|372|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java|373|387|addChatMessage|method|net.minecraft.command.ICommandSender|addChatMessage|(Lnet/minecraft/util/IChatComponent;)V
+      @|com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java|392|416|ChatComponentTranslation|class|net.minecraft.util.ChatComponentTranslation
+   Method End: sendMessage()V
+Class End  : com.laybalt.AutoClicker.RightClick.AClickerMessageRight
+endProcessing com/laybalt/AutoClicker/RightClick/AClickerMessageRight.java
+
+processing com/laybalt/AutoClicker/RightClick/AClickerRight.java
+@|com/laybalt/AutoClicker/RightClick/AClickerRight.java|30|64|com.laybalt.AutoClicker.RightClick|package|com.laybalt.AutoClicker.RightClick|(file)
+Class Start: com.laybalt.AutoClicker.RightClick.AClickerRight
+   @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|274|286|autoClicking|field|com.laybalt.AutoClicker.RightClick.AClickerRight|autoClicking|
+   @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|325|346|MIN_CLICKS_PER_SECOND|field|com.laybalt.AutoClicker.RightClick.AClickerRight|MIN_CLICKS_PER_SECOND|
+   @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|382|403|MAX_CLICKS_PER_SECOND|field|com.laybalt.AutoClicker.RightClick.AClickerRight|MAX_CLICKS_PER_SECOND|
+   @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|427|440|lastClickTime|field|com.laybalt.AutoClicker.RightClick.AClickerRight|lastClickTime|
+   @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|463|476|clickInterval|field|com.laybalt.AutoClicker.RightClick.AClickerRight|clickInterval|
+   @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|496|502|Random|class|java.util.Random
+   @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|503|509|random|field|com.laybalt.AutoClicker.RightClick.AClickerRight|random|
+   @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|516|522|Random|class|java.util.Random
+   @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|538|543|Timer|class|java.util.Timer
+   @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|544|549|timer|field|com.laybalt.AutoClicker.RightClick.AClickerRight|timer|
+   @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|570|583|AClickerRight|class|com.laybalt.AutoClicker.RightClick.AClickerRight
+   @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|584|592|instance|field|com.laybalt.AutoClicker.RightClick.AClickerRight|instance|
+   Method Start: AClickerRight()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|606|619|AClickerRight|method|com.laybalt.AutoClicker.RightClick.AClickerRight|AClickerRight|()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|632|645|clickInterval|field|com.laybalt.AutoClicker.RightClick.AClickerRight|clickInterval
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|648|670|getRandomClickInterval|method|com.laybalt.AutoClicker.RightClick.AClickerRight|getRandomClickInterval|()J
+   Method End: AClickerRight()V
+   Method Start: getInstance()Lcom/laybalt/AutoClicker/RightClick/AClickerRight;
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|713|724|getInstance|method|com.laybalt.AutoClicker.RightClick.AClickerRight|getInstance|()Lcom/laybalt/AutoClicker/RightClick/AClickerRight;
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|699|712|AClickerRight|class|com.laybalt.AutoClicker.RightClick.AClickerRight
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|741|749|instance|field|com.laybalt.AutoClicker.RightClick.AClickerRight|instance
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|773|781|instance|field|com.laybalt.AutoClicker.RightClick.AClickerRight|instance
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|788|801|AClickerRight|class|com.laybalt.AutoClicker.RightClick.AClickerRight
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|830|838|instance|field|com.laybalt.AutoClicker.RightClick.AClickerRight|instance
+   Method End: getInstance()Lcom/laybalt/AutoClicker/RightClick/AClickerRight;
+   Method Start: toggleAutoClicking()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|870|888|toggleAutoClicking|method|com.laybalt.AutoClicker.RightClick.AClickerRight|toggleAutoClicking|()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|901|914|AClickerRight|class|com.laybalt.AutoClicker.RightClick.AClickerRight
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|925|936|getInstance|method|com.laybalt.AutoClicker.RightClick.AClickerRight|getInstance|()Lcom/laybalt/AutoClicker/RightClick/AClickerRight;
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|948|960|autoClicking|field|com.laybalt.AutoClicker.RightClick.AClickerRight|autoClicking
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|964|976|autoClicking|field|com.laybalt.AutoClicker.RightClick.AClickerRight|autoClicking
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|990|1002|autoClicking|field|com.laybalt.AutoClicker.RightClick.AClickerRight|autoClicking
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1026|1040|startAutoClick|method|com.laybalt.AutoClicker.RightClick.AClickerRight|startAutoClick|()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1081|1094|stopAutoClick|method|com.laybalt.AutoClicker.RightClick.AClickerRight|stopAutoClick|()V
+   Method End: toggleAutoClicking()V
+   Method Start: isAutoClicking()Z
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1141|1155|isAutoClicking|method|com.laybalt.AutoClicker.RightClick.AClickerRight|isAutoClicking|()Z
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1175|1187|autoClicking|field|com.laybalt.AutoClicker.RightClick.AClickerRight|autoClicking
+   Method End: isAutoClicking()Z
+   Method Start: getRandomClickInterval()J
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1213|1235|getRandomClickInterval|method|com.laybalt.AutoClicker.RightClick.AClickerRight|getRandomClickInterval|()J
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1270|1276|random|field|com.laybalt.AutoClicker.RightClick.AClickerRight|random
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1277|1284|nextInt|method|java.util.Random|nextInt|(I)I
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1286|1307|MAX_CLICKS_PER_SECOND|field|com.laybalt.AutoClicker.RightClick.AClickerRight|MAX_CLICKS_PER_SECOND
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1310|1331|MIN_CLICKS_PER_SECOND|field|com.laybalt.AutoClicker.RightClick.AClickerRight|MIN_CLICKS_PER_SECOND
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1340|1361|MIN_CLICKS_PER_SECOND|field|com.laybalt.AutoClicker.RightClick.AClickerRight|MIN_CLICKS_PER_SECOND
+   Method End: getRandomClickInterval()J
+   Method Start: startAutoClick()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1425|1439|startAutoClick|method|com.laybalt.AutoClicker.RightClick.AClickerRight|startAutoClick|()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1452|1457|timer|field|com.laybalt.AutoClicker.RightClick.AClickerRight|timer
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1464|1469|Timer|class|java.util.Timer
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1481|1486|timer|field|com.laybalt.AutoClicker.RightClick.AClickerRight|timer
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1487|1506|scheduleAtFixedRate|method|java.util.Timer|scheduleAtFixedRate|(Ljava/util/TimerTask;JJ)V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1511|1520|TimerTask|class|java.util.TimerTask
+      Anon Class Start: com.laybalt.AutoClicker.RightClick.AClickerRight$1
+         Method Start: run()V
+            @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1571|1574|run|method|java.lang.Runnable|run|()V
+            @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1595|1604|autoClick|method|com.laybalt.AutoClicker.RightClick.AClickerRight|autoClick|()V
+         Method End: run()V
+      Anon Class End: com.laybalt.AutoClicker.RightClick.AClickerRight$1
+   Method End: startAutoClick()V
+   Method Start: stopAutoClick()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1663|1676|stopAutoClick|method|com.laybalt.AutoClicker.RightClick.AClickerRight|stopAutoClick|()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1693|1698|timer|field|com.laybalt.AutoClicker.RightClick.AClickerRight|timer
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1722|1727|timer|field|com.laybalt.AutoClicker.RightClick.AClickerRight|timer
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1728|1734|cancel|method|java.util.Timer|cancel|()V
+   Method End: stopAutoClick()V
+   Method Start: autoClick()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1771|1780|autoClick|method|com.laybalt.AutoClicker.RightClick.AClickerRight|autoClick|()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1812|1818|System|class|java.lang.System
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1819|1836|currentTimeMillis|method|java.lang.System|currentTimeMillis|()J
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1852|1864|autoClicking|field|com.laybalt.AutoClicker.RightClick.AClickerRight|autoClicking
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1883|1896|lastClickTime|field|com.laybalt.AutoClicker.RightClick.AClickerRight|lastClickTime
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1900|1913|clickInterval|field|com.laybalt.AutoClicker.RightClick.AClickerRight|clickInterval
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1930|1939|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1945|1954|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|1955|1967|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|2004|2013|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|2067|2073|Method|class|java.lang.reflect.Method
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|2092|2101|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|2108|2125|getDeclaredMethod|method|java.lang.Class|getDeclaredMethod|(Ljava/lang/String;[Ljava/lang/Class;)Ljava/lang/reflect/Method;
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|2182|2195|setAccessible|method|java.lang.reflect.AccessibleObject|setAccessible|(Z)V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|2239|2245|invoke|method|java.lang.reflect.Method|invoke|(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|2276|2285|Exception|class|java.lang.Exception
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|2313|2328|printStackTrace|method|java.lang.Throwable|printStackTrace|()V
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|2366|2379|lastClickTime|field|com.laybalt.AutoClicker.RightClick.AClickerRight|lastClickTime
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|2411|2424|clickInterval|field|com.laybalt.AutoClicker.RightClick.AClickerRight|clickInterval
+      @|com/laybalt/AutoClicker/RightClick/AClickerRight.java|2427|2449|getRandomClickInterval|method|com.laybalt.AutoClicker.RightClick.AClickerRight|getRandomClickInterval|()J
+   Method End: autoClick()V
+Class End  : com.laybalt.AutoClicker.RightClick.AClickerRight
+endProcessing com/laybalt/AutoClicker/RightClick/AClickerRight.java
+
+processing com/laybalt/AutoFishing/AFish.java
+@|com/laybalt/AutoFishing/AFish.java|8|31|com.laybalt.AutoFishing|package|com.laybalt.AutoFishing|(file)
 Class Start: com.laybalt.AutoFishing.AFish
-   @|com\laybalt\AutoFishing\AFish.java|548|561|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing|
+   @|com/laybalt/AutoFishing/AFish.java|548|561|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing|
    Method Start: toggleAutoFishing()V
-      @|com\laybalt\AutoFishing\AFish.java|595|612|toggleAutoFishing|method|com.laybalt.AutoFishing.AFish|toggleAutoFishing|()V
-      @|com\laybalt\AutoFishing\AFish.java|625|638|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing
-      @|com\laybalt\AutoFishing\AFish.java|642|655|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing
+      @|com/laybalt/AutoFishing/AFish.java|595|612|toggleAutoFishing|method|com.laybalt.AutoFishing.AFish|toggleAutoFishing|()V
+      @|com/laybalt/AutoFishing/AFish.java|625|638|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing
+      @|com/laybalt/AutoFishing/AFish.java|642|655|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing
    Method End: toggleAutoFishing()V
    Method Start: isAutoFishing()Z
-      @|com\laybalt\AutoFishing\AFish.java|690|703|isAutoFishing|method|com.laybalt.AutoFishing.AFish|isAutoFishing|()Z
-      @|com\laybalt\AutoFishing\AFish.java|723|736|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing
+      @|com/laybalt/AutoFishing/AFish.java|690|703|isAutoFishing|method|com.laybalt.AutoFishing.AFish|isAutoFishing|()Z
+      @|com/laybalt/AutoFishing/AFish.java|723|736|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing
    Method End: isAutoFishing()Z
-   @|com\laybalt\AutoFishing\AFish.java|760|769|casttimer|field|com.laybalt.AutoFishing.AFish|casttimer|
-   @|com\laybalt\AutoFishing\AFish.java|795|804|isReeling|field|com.laybalt.AutoFishing.AFish|isReeling|
+   @|com/laybalt/AutoFishing/AFish.java|760|769|casttimer|field|com.laybalt.AutoFishing.AFish|casttimer|
+   @|com/laybalt/AutoFishing/AFish.java|795|804|isReeling|field|com.laybalt.AutoFishing.AFish|isReeling|
    Method Start: ReelRod()V
-      @|com\laybalt\AutoFishing\AFish.java|831|838|ReelRod|method|com.laybalt.AutoFishing.AFish|ReelRod|()V
-      @|com\laybalt\AutoFishing\AFish.java|885|894|ItemStack|class|net.minecraft.item.ItemStack
-      @|com\laybalt\AutoFishing\AFish.java|907|916|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|917|929|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|932|941|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
-      @|com\laybalt\AutoFishing\AFish.java|942|953|getHeldItem|method|net.minecraft.entity.EntityLivingBase|getHeldItem|()Lnet/minecraft/item/ItemStack;
-      @|com\laybalt\AutoFishing\AFish.java|965|974|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|975|987|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|990|1006|playerController|field|net.minecraft.client.Minecraft|playerController
-      @|com\laybalt\AutoFishing\AFish.java|1007|1018|sendUseItem|method|net.minecraft.client.multiplayer.PlayerControllerMP|sendUseItem|(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;Lnet/minecraft/item/ItemStack;)Z
-      @|com\laybalt\AutoFishing\AFish.java|1019|1028|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|1029|1041|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|1044|1053|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
-      @|com\laybalt\AutoFishing\AFish.java|1055|1064|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|1065|1077|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|1080|1088|theWorld|field|net.minecraft.client.Minecraft|theWorld
+      @|com/laybalt/AutoFishing/AFish.java|831|838|ReelRod|method|com.laybalt.AutoFishing.AFish|ReelRod|()V
+      @|com/laybalt/AutoFishing/AFish.java|885|894|ItemStack|class|net.minecraft.item.ItemStack
+      @|com/laybalt/AutoFishing/AFish.java|907|916|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|917|929|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|932|941|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoFishing/AFish.java|942|953|getHeldItem|method|net.minecraft.entity.EntityLivingBase|getHeldItem|()Lnet/minecraft/item/ItemStack;
+      @|com/laybalt/AutoFishing/AFish.java|965|974|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|975|987|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|990|1006|playerController|field|net.minecraft.client.Minecraft|playerController
+      @|com/laybalt/AutoFishing/AFish.java|1007|1018|sendUseItem|method|net.minecraft.client.multiplayer.PlayerControllerMP|sendUseItem|(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;Lnet/minecraft/item/ItemStack;)Z
+      @|com/laybalt/AutoFishing/AFish.java|1019|1028|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|1029|1041|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|1044|1053|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoFishing/AFish.java|1055|1064|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|1065|1077|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|1080|1088|theWorld|field|net.minecraft.client.Minecraft|theWorld
    Method End: ReelRod()V
    Method Start: CastRod()V
-      @|com\laybalt\AutoFishing\AFish.java|1125|1132|CastRod|method|com.laybalt.AutoFishing.AFish|CastRod|()V
-      @|com\laybalt\AutoFishing\AFish.java|1145|1159|EntityFishHook|class|net.minecraft.entity.projectile.EntityFishHook
-      @|com\laybalt\AutoFishing\AFish.java|1171|1180|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|1181|1193|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|1196|1205|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
-      @|com\laybalt\AutoFishing\AFish.java|1206|1216|fishEntity|field|net.minecraft.entity.player.EntityPlayer|fishEntity
-      @|com\laybalt\AutoFishing\AFish.java|1226|1235|casttimer|field|com.laybalt.AutoFishing.AFish|casttimer
-      @|com\laybalt\AutoFishing\AFish.java|1251|1260|casttimer|field|com.laybalt.AutoFishing.AFish|casttimer
-      @|com\laybalt\AutoFishing\AFish.java|1302|1311|ItemStack|class|net.minecraft.item.ItemStack
-      @|com\laybalt\AutoFishing\AFish.java|1324|1333|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|1334|1346|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|1349|1358|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
-      @|com\laybalt\AutoFishing\AFish.java|1359|1370|getHeldItem|method|net.minecraft.entity.EntityLivingBase|getHeldItem|()Lnet/minecraft/item/ItemStack;
-      @|com\laybalt\AutoFishing\AFish.java|1386|1395|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|1396|1408|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|1411|1427|playerController|field|net.minecraft.client.Minecraft|playerController
-      @|com\laybalt\AutoFishing\AFish.java|1428|1439|sendUseItem|method|net.minecraft.client.multiplayer.PlayerControllerMP|sendUseItem|(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;Lnet/minecraft/item/ItemStack;)Z
-      @|com\laybalt\AutoFishing\AFish.java|1440|1449|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|1450|1462|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|1465|1474|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
-      @|com\laybalt\AutoFishing\AFish.java|1476|1485|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|1486|1498|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|1501|1509|theWorld|field|net.minecraft.client.Minecraft|theWorld
-      @|com\laybalt\AutoFishing\AFish.java|1535|1544|casttimer|field|com.laybalt.AutoFishing.AFish|casttimer
+      @|com/laybalt/AutoFishing/AFish.java|1125|1132|CastRod|method|com.laybalt.AutoFishing.AFish|CastRod|()V
+      @|com/laybalt/AutoFishing/AFish.java|1145|1159|EntityFishHook|class|net.minecraft.entity.projectile.EntityFishHook
+      @|com/laybalt/AutoFishing/AFish.java|1171|1180|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|1181|1193|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|1196|1205|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoFishing/AFish.java|1206|1216|fishEntity|field|net.minecraft.entity.player.EntityPlayer|fishEntity
+      @|com/laybalt/AutoFishing/AFish.java|1226|1235|casttimer|field|com.laybalt.AutoFishing.AFish|casttimer
+      @|com/laybalt/AutoFishing/AFish.java|1251|1260|casttimer|field|com.laybalt.AutoFishing.AFish|casttimer
+      @|com/laybalt/AutoFishing/AFish.java|1302|1311|ItemStack|class|net.minecraft.item.ItemStack
+      @|com/laybalt/AutoFishing/AFish.java|1324|1333|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|1334|1346|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|1349|1358|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoFishing/AFish.java|1359|1370|getHeldItem|method|net.minecraft.entity.EntityLivingBase|getHeldItem|()Lnet/minecraft/item/ItemStack;
+      @|com/laybalt/AutoFishing/AFish.java|1386|1395|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|1396|1408|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|1411|1427|playerController|field|net.minecraft.client.Minecraft|playerController
+      @|com/laybalt/AutoFishing/AFish.java|1428|1439|sendUseItem|method|net.minecraft.client.multiplayer.PlayerControllerMP|sendUseItem|(Lnet/minecraft/entity/player/EntityPlayer;Lnet/minecraft/world/World;Lnet/minecraft/item/ItemStack;)Z
+      @|com/laybalt/AutoFishing/AFish.java|1440|1449|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|1450|1462|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|1465|1474|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoFishing/AFish.java|1476|1485|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|1486|1498|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|1501|1509|theWorld|field|net.minecraft.client.Minecraft|theWorld
+      @|com/laybalt/AutoFishing/AFish.java|1535|1544|casttimer|field|com.laybalt.AutoFishing.AFish|casttimer
    Method End: CastRod()V
    Method Start: onTick(Lnet/minecraftforge/fml/common/gameevent/TickEvent$ClientTickEvent;)V
-      @|com\laybalt\AutoFishing\AFish.java|1603|1609|onTick|method|com.laybalt.AutoFishing.AFish|onTick|(Lnet/minecraftforge/fml/common/gameevent/TickEvent$ClientTickEvent;)V
-      @|com\laybalt\AutoFishing\AFish.java|1610|1635|TickEvent.ClientTickEvent|class|net.minecraftforge.fml.common.gameevent.TickEvent.ClientTickEvent
-      @|com\laybalt\AutoFishing\AFish.java|1636|1641|event|param|com.laybalt.AutoFishing.AFish|onTick|(Lnet/minecraftforge/fml/common/gameevent/TickEvent$ClientTickEvent;)V|event|0
-      @|com\laybalt\AutoFishing\AFish.java|1657|1670|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing
-      @|com\laybalt\AutoFishing\AFish.java|1686|1698|EntityPlayer|class|net.minecraft.entity.player.EntityPlayer
-      @|com\laybalt\AutoFishing\AFish.java|1708|1717|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|1718|1730|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|1733|1742|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
-      @|com\laybalt\AutoFishing\AFish.java|1794|1803|ItemStack|class|net.minecraft.item.ItemStack
-      @|com\laybalt\AutoFishing\AFish.java|1816|1825|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|1826|1838|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|1841|1850|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
-      @|com\laybalt\AutoFishing\AFish.java|1851|1862|getHeldItem|method|net.minecraft.entity.EntityLivingBase|getHeldItem|()Lnet/minecraft/item/ItemStack;
-      @|com\laybalt\AutoFishing\AFish.java|1917|1924|getItem|method|net.minecraft.item.ItemStack|getItem|()Lnet/minecraft/item/Item;
-      @|com\laybalt\AutoFishing\AFish.java|1930|1935|Items|class|net.minecraft.init.Items
-      @|com\laybalt\AutoFishing\AFish.java|1936|1947|fishing_rod|field|net.minecraft.init.Items|fishing_rod
-      @|com\laybalt\AutoFishing\AFish.java|1971|1985|EntityFishHook|class|net.minecraft.entity.projectile.EntityFishHook
-      @|com\laybalt\AutoFishing\AFish.java|1997|2006|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|2007|2019|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|2022|2031|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
-      @|com\laybalt\AutoFishing\AFish.java|2032|2042|fishEntity|field|net.minecraft.entity.player.EntityPlayer|fishEntity
-      @|com\laybalt\AutoFishing\AFish.java|2097|2106|isInWater|method|net.minecraft.entity.Entity|isInWater|()Z
-      @|com\laybalt\AutoFishing\AFish.java|2156|2160|posX|field|net.minecraft.entity.Entity|posX
-      @|com\laybalt\AutoFishing\AFish.java|2206|2210|posY|field|net.minecraft.entity.Entity|posY
-      @|com\laybalt\AutoFishing\AFish.java|2256|2260|posZ|field|net.minecraft.entity.Entity|posZ
-      @|com\laybalt\AutoFishing\AFish.java|2292|2298|Entity|class|net.minecraft.entity.Entity
-      @|com\laybalt\AutoFishing\AFish.java|2308|2317|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFish.java|2318|2330|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFish.java|2333|2341|theWorld|field|net.minecraft.client.Minecraft|theWorld
-      @|com\laybalt\AutoFishing\AFish.java|2342|2363|getEntitiesWithinAABB|method|net.minecraft.world.World|getEntitiesWithinAABB|(Ljava/lang/Class;Lnet/minecraft/util/AxisAlignedBB;)Ljava/util/List;
-      @|com\laybalt\AutoFishing\AFish.java|2364|2380|EntityArmorStand|class|net.minecraft.entity.item.EntityArmorStand
-      @|com\laybalt\AutoFishing\AFish.java|2392|2405|AxisAlignedBB|class|net.minecraft.util.AxisAlignedBB
-      @|com\laybalt\AutoFishing\AFish.java|2502|2518|EntityArmorStand|class|net.minecraft.entity.item.EntityArmorStand
-      @|com\laybalt\AutoFishing\AFish.java|2529|2545|getCustomNameTag|method|net.minecraft.entity.Entity|getCustomNameTag|()Ljava/lang/String;
-      @|com\laybalt\AutoFishing\AFish.java|2548|2556|contains|method|java.lang.String|contains|(Ljava/lang/CharSequence;)Z
-      @|com\laybalt\AutoFishing\AFish.java|2599|2606|ReelRod|method|com.laybalt.AutoFishing.AFish|ReelRod|()V
-      @|com\laybalt\AutoFishing\AFish.java|2642|2651|isReeling|field|com.laybalt.AutoFishing.AFish|isReeling
-      @|com\laybalt\AutoFishing\AFish.java|2783|2792|isReeling|field|com.laybalt.AutoFishing.AFish|isReeling
-      @|com\laybalt\AutoFishing\AFish.java|2824|2831|CastRod|method|com.laybalt.AutoFishing.AFish|CastRod|()V
-      @|com\laybalt\AutoFishing\AFish.java|2863|2872|isReeling|field|com.laybalt.AutoFishing.AFish|isReeling
+      @|com/laybalt/AutoFishing/AFish.java|1603|1609|onTick|method|com.laybalt.AutoFishing.AFish|onTick|(Lnet/minecraftforge/fml/common/gameevent/TickEvent$ClientTickEvent;)V
+      @|com/laybalt/AutoFishing/AFish.java|1610|1635|TickEvent.ClientTickEvent|class|net.minecraftforge.fml.common.gameevent.TickEvent.ClientTickEvent
+      @|com/laybalt/AutoFishing/AFish.java|1636|1641|event|param|com.laybalt.AutoFishing.AFish|onTick|(Lnet/minecraftforge/fml/common/gameevent/TickEvent$ClientTickEvent;)V|event|0
+      @|com/laybalt/AutoFishing/AFish.java|1657|1670|isAutoFishing|field|com.laybalt.AutoFishing.AFish|isAutoFishing
+      @|com/laybalt/AutoFishing/AFish.java|1686|1698|EntityPlayer|class|net.minecraft.entity.player.EntityPlayer
+      @|com/laybalt/AutoFishing/AFish.java|1708|1717|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|1718|1730|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|1733|1742|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoFishing/AFish.java|1794|1803|ItemStack|class|net.minecraft.item.ItemStack
+      @|com/laybalt/AutoFishing/AFish.java|1816|1825|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|1826|1838|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|1841|1850|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoFishing/AFish.java|1851|1862|getHeldItem|method|net.minecraft.entity.EntityLivingBase|getHeldItem|()Lnet/minecraft/item/ItemStack;
+      @|com/laybalt/AutoFishing/AFish.java|1917|1924|getItem|method|net.minecraft.item.ItemStack|getItem|()Lnet/minecraft/item/Item;
+      @|com/laybalt/AutoFishing/AFish.java|1930|1935|Items|class|net.minecraft.init.Items
+      @|com/laybalt/AutoFishing/AFish.java|1936|1947|fishing_rod|field|net.minecraft.init.Items|fishing_rod
+      @|com/laybalt/AutoFishing/AFish.java|1971|1985|EntityFishHook|class|net.minecraft.entity.projectile.EntityFishHook
+      @|com/laybalt/AutoFishing/AFish.java|1997|2006|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|2007|2019|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|2022|2031|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoFishing/AFish.java|2032|2042|fishEntity|field|net.minecraft.entity.player.EntityPlayer|fishEntity
+      @|com/laybalt/AutoFishing/AFish.java|2097|2106|isInWater|method|net.minecraft.entity.Entity|isInWater|()Z
+      @|com/laybalt/AutoFishing/AFish.java|2156|2160|posX|field|net.minecraft.entity.Entity|posX
+      @|com/laybalt/AutoFishing/AFish.java|2206|2210|posY|field|net.minecraft.entity.Entity|posY
+      @|com/laybalt/AutoFishing/AFish.java|2256|2260|posZ|field|net.minecraft.entity.Entity|posZ
+      @|com/laybalt/AutoFishing/AFish.java|2292|2298|Entity|class|net.minecraft.entity.Entity
+      @|com/laybalt/AutoFishing/AFish.java|2308|2317|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFish.java|2318|2330|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFish.java|2333|2341|theWorld|field|net.minecraft.client.Minecraft|theWorld
+      @|com/laybalt/AutoFishing/AFish.java|2342|2363|getEntitiesWithinAABB|method|net.minecraft.world.World|getEntitiesWithinAABB|(Ljava/lang/Class;Lnet/minecraft/util/AxisAlignedBB;)Ljava/util/List;
+      @|com/laybalt/AutoFishing/AFish.java|2364|2380|EntityArmorStand|class|net.minecraft.entity.item.EntityArmorStand
+      @|com/laybalt/AutoFishing/AFish.java|2392|2405|AxisAlignedBB|class|net.minecraft.util.AxisAlignedBB
+      @|com/laybalt/AutoFishing/AFish.java|2502|2518|EntityArmorStand|class|net.minecraft.entity.item.EntityArmorStand
+      @|com/laybalt/AutoFishing/AFish.java|2529|2545|getCustomNameTag|method|net.minecraft.entity.Entity|getCustomNameTag|()Ljava/lang/String;
+      @|com/laybalt/AutoFishing/AFish.java|2548|2556|contains|method|java.lang.String|contains|(Ljava/lang/CharSequence;)Z
+      @|com/laybalt/AutoFishing/AFish.java|2599|2606|ReelRod|method|com.laybalt.AutoFishing.AFish|ReelRod|()V
+      @|com/laybalt/AutoFishing/AFish.java|2642|2651|isReeling|field|com.laybalt.AutoFishing.AFish|isReeling
+      @|com/laybalt/AutoFishing/AFish.java|2783|2792|isReeling|field|com.laybalt.AutoFishing.AFish|isReeling
+      @|com/laybalt/AutoFishing/AFish.java|2824|2831|CastRod|method|com.laybalt.AutoFishing.AFish|CastRod|()V
+      @|com/laybalt/AutoFishing/AFish.java|2863|2872|isReeling|field|com.laybalt.AutoFishing.AFish|isReeling
    Method End: onTick(Lnet/minecraftforge/fml/common/gameevent/TickEvent$ClientTickEvent;)V
 Class End  : com.laybalt.AutoFishing.AFish
-endProcessing com\laybalt\AutoFishing\AFish.java
+endProcessing com/laybalt/AutoFishing/AFish.java
 
-processing com\laybalt\AutoFishing\AFishKeyBind.java
-@|com\laybalt\AutoFishing\AFishKeyBind.java|8|31|com.laybalt.AutoFishing|package|com.laybalt.AutoFishing|(file)
+processing com/laybalt/AutoFishing/AFishKeyBind.java
+@|com/laybalt/AutoFishing/AFishKeyBind.java|8|31|com.laybalt.AutoFishing|package|com.laybalt.AutoFishing|(file)
 Class Start: com.laybalt.AutoFishing.AFishKeyBind
-   @|com\laybalt\AutoFishing\AFishKeyBind.java|350|360|KeyBinding|class|net.minecraft.client.settings.KeyBinding
-   @|com\laybalt\AutoFishing\AFishKeyBind.java|361|371|keyBinding|field|com.laybalt.AutoFishing.AFishKeyBind|keyBinding|
+   @|com/laybalt/AutoFishing/AFishKeyBind.java|350|360|KeyBinding|class|net.minecraft.client.settings.KeyBinding
+   @|com/laybalt/AutoFishing/AFishKeyBind.java|361|371|keyBinding|field|com.laybalt.AutoFishing.AFishKeyBind|keyBinding|
    Method Start: AFishKeyBind()V
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|385|397|AFishKeyBind|method|com.laybalt.AutoFishing.AFishKeyBind|AFishKeyBind|()V
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|410|420|keyBinding|field|com.laybalt.AutoFishing.AFishKeyBind|keyBinding
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|427|437|KeyBinding|class|net.minecraft.client.settings.KeyBinding
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|453|461|Keyboard|class|org.lwjgl.input.Keyboard
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|462|467|KEY_F|field|org.lwjgl.input.Keyboard|KEY_F
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|489|503|ClientRegistry|class|net.minecraftforge.fml.client.registry.ClientRegistry
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|504|522|registerKeyBinding|method|net.minecraftforge.fml.client.registry.ClientRegistry|registerKeyBinding|(Lnet/minecraft/client/settings/KeyBinding;)V
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|523|533|keyBinding|field|com.laybalt.AutoFishing.AFishKeyBind|keyBinding
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|385|397|AFishKeyBind|method|com.laybalt.AutoFishing.AFishKeyBind|AFishKeyBind|()V
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|410|420|keyBinding|field|com.laybalt.AutoFishing.AFishKeyBind|keyBinding
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|427|437|KeyBinding|class|net.minecraft.client.settings.KeyBinding
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|453|461|Keyboard|class|org.lwjgl.input.Keyboard
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|462|467|KEY_F|field|org.lwjgl.input.Keyboard|KEY_F
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|489|503|ClientRegistry|class|net.minecraftforge.fml.client.registry.ClientRegistry
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|504|522|registerKeyBinding|method|net.minecraftforge.fml.client.registry.ClientRegistry|registerKeyBinding|(Lnet/minecraft/client/settings/KeyBinding;)V
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|523|533|keyBinding|field|com.laybalt.AutoFishing.AFishKeyBind|keyBinding
    Method End: AFishKeyBind()V
    Method Start: onKeyInput(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|579|589|onKeyInput|method|com.laybalt.AutoFishing.AFishKeyBind|onKeyInput|(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|590|614|InputEvent.KeyInputEvent|class|net.minecraftforge.fml.common.gameevent.InputEvent.KeyInputEvent
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|615|620|event|param|com.laybalt.AutoFishing.AFishKeyBind|onKeyInput|(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V|event|0
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|636|646|keyBinding|field|com.laybalt.AutoFishing.AFishKeyBind|keyBinding
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|647|656|isPressed|method|net.minecraft.client.settings.KeyBinding|isPressed|()Z
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|674|679|AFish|class|com.laybalt.AutoFishing.AFish
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|680|697|toggleAutoFishing|method|com.laybalt.AutoFishing.AFish|toggleAutoFishing|()V
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|713|725|AFishMessage|class|com.laybalt.AutoFishing.AFishMessage
-      @|com\laybalt\AutoFishing\AFishKeyBind.java|726|737|sendMessage|method|com.laybalt.AutoFishing.AFishMessage|sendMessage|()V
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|579|589|onKeyInput|method|com.laybalt.AutoFishing.AFishKeyBind|onKeyInput|(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|590|614|InputEvent.KeyInputEvent|class|net.minecraftforge.fml.common.gameevent.InputEvent.KeyInputEvent
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|615|620|event|param|com.laybalt.AutoFishing.AFishKeyBind|onKeyInput|(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V|event|0
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|636|646|keyBinding|field|com.laybalt.AutoFishing.AFishKeyBind|keyBinding
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|647|656|isPressed|method|net.minecraft.client.settings.KeyBinding|isPressed|()Z
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|674|679|AFish|class|com.laybalt.AutoFishing.AFish
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|680|697|toggleAutoFishing|method|com.laybalt.AutoFishing.AFish|toggleAutoFishing|()V
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|713|725|AFishMessage|class|com.laybalt.AutoFishing.AFishMessage
+      @|com/laybalt/AutoFishing/AFishKeyBind.java|726|737|sendMessage|method|com.laybalt.AutoFishing.AFishMessage|sendMessage|()V
    Method End: onKeyInput(Lnet/minecraftforge/fml/common/gameevent/InputEvent$KeyInputEvent;)V
 Class End  : com.laybalt.AutoFishing.AFishKeyBind
-endProcessing com\laybalt\AutoFishing\AFishKeyBind.java
+endProcessing com/laybalt/AutoFishing/AFishKeyBind.java
 
-processing com\laybalt\AutoFishing\AFishMessage.java
-@|com\laybalt\AutoFishing\AFishMessage.java|8|31|com.laybalt.AutoFishing|package|com.laybalt.AutoFishing|(file)
+processing com/laybalt/AutoFishing/AFishMessage.java
+@|com/laybalt/AutoFishing/AFishMessage.java|8|31|com.laybalt.AutoFishing|package|com.laybalt.AutoFishing|(file)
 Class Start: com.laybalt.AutoFishing.AFishMessage
    Method Start: sendMessage()V
-      @|com\laybalt\AutoFishing\AFishMessage.java|177|188|sendMessage|method|com.laybalt.AutoFishing.AFishMessage|sendMessage|()V
-      @|com\laybalt\AutoFishing\AFishMessage.java|201|207|String|class|java.lang.String
-      @|com\laybalt\AutoFishing\AFishMessage.java|214|219|AFish|class|com.laybalt.AutoFishing.AFish
-      @|com\laybalt\AutoFishing\AFishMessage.java|220|233|isAutoFishing|method|com.laybalt.AutoFishing.AFish|isAutoFishing|()Z
-      @|com\laybalt\AutoFishing\AFishMessage.java|298|307|Minecraft|class|net.minecraft.client.Minecraft
-      @|com\laybalt\AutoFishing\AFishMessage.java|308|320|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
-      @|com\laybalt\AutoFishing\AFishMessage.java|323|332|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
-      @|com\laybalt\AutoFishing\AFishMessage.java|333|347|addChatMessage|method|net.minecraft.command.ICommandSender|addChatMessage|(Lnet/minecraft/util/IChatComponent;)V
-      @|com\laybalt\AutoFishing\AFishMessage.java|352|376|ChatComponentTranslation|class|net.minecraft.util.ChatComponentTranslation
+      @|com/laybalt/AutoFishing/AFishMessage.java|177|188|sendMessage|method|com.laybalt.AutoFishing.AFishMessage|sendMessage|()V
+      @|com/laybalt/AutoFishing/AFishMessage.java|201|207|String|class|java.lang.String
+      @|com/laybalt/AutoFishing/AFishMessage.java|214|219|AFish|class|com.laybalt.AutoFishing.AFish
+      @|com/laybalt/AutoFishing/AFishMessage.java|220|233|isAutoFishing|method|com.laybalt.AutoFishing.AFish|isAutoFishing|()Z
+      @|com/laybalt/AutoFishing/AFishMessage.java|298|307|Minecraft|class|net.minecraft.client.Minecraft
+      @|com/laybalt/AutoFishing/AFishMessage.java|308|320|getMinecraft|method|net.minecraft.client.Minecraft|getMinecraft|()Lnet/minecraft/client/Minecraft;
+      @|com/laybalt/AutoFishing/AFishMessage.java|323|332|thePlayer|field|net.minecraft.client.Minecraft|thePlayer
+      @|com/laybalt/AutoFishing/AFishMessage.java|333|347|addChatMessage|method|net.minecraft.command.ICommandSender|addChatMessage|(Lnet/minecraft/util/IChatComponent;)V
+      @|com/laybalt/AutoFishing/AFishMessage.java|352|376|ChatComponentTranslation|class|net.minecraft.util.ChatComponentTranslation
    Method End: sendMessage()V
 Class End  : com.laybalt.AutoFishing.AFishMessage
-endProcessing com\laybalt\AutoFishing\AFishMessage.java
+endProcessing com/laybalt/AutoFishing/AFishMessage.java
 
-processing com\laybalt\Main.java
-@|com\laybalt\Main.java|8|19|com.laybalt|package|com.laybalt|(file)
+processing com/laybalt/Main.java
+@|com/laybalt/Main.java|8|19|com.laybalt|package|com.laybalt|(file)
 Class Start: com.laybalt.Main
-   @|com\laybalt\Main.java|457|463|String|class|java.lang.String
-   @|com\laybalt\Main.java|464|469|MODID|field|com.laybalt.Main|MODID|
-   @|com\laybalt\Main.java|507|513|String|class|java.lang.String
-   @|com\laybalt\Main.java|514|521|VERSION|field|com.laybalt.Main|VERSION|
+   @|com/laybalt/Main.java|821|827|String|class|java.lang.String
+   @|com/laybalt/Main.java|828|833|MODID|field|com.laybalt.Main|MODID|
+   @|com/laybalt/Main.java|871|877|String|class|java.lang.String
+   @|com/laybalt/Main.java|878|885|VERSION|field|com.laybalt.Main|VERSION|
    Method Start: init(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V
-      @|com\laybalt\Main.java|566|570|init|method|com.laybalt.Main|init|(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V
-      @|com\laybalt\Main.java|571|593|FMLInitializationEvent|class|net.minecraftforge.fml.common.event.FMLInitializationEvent
-      @|com\laybalt\Main.java|594|599|event|param|com.laybalt.Main|init|(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V|event|0
-      @|com\laybalt\Main.java|611|623|AFishKeyBind|class|com.laybalt.AutoFishing.AFishKeyBind
-      @|com\laybalt\Main.java|643|655|AFishKeyBind|class|com.laybalt.AutoFishing.AFishKeyBind
-      @|com\laybalt\Main.java|667|679|AFishMessage|class|com.laybalt.AutoFishing.AFishMessage
-      @|com\laybalt\Main.java|699|711|AFishMessage|class|com.laybalt.AutoFishing.AFishMessage
-      @|com\laybalt\Main.java|723|728|AFish|class|com.laybalt.AutoFishing.AFish
-      @|com\laybalt\Main.java|741|746|AFish|class|com.laybalt.AutoFishing.AFish
-      @|com\laybalt\Main.java|759|773|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
-      @|com\laybalt\Main.java|774|783|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
-      @|com\laybalt\Main.java|784|792|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
-      @|com\laybalt\Main.java|816|830|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
-      @|com\laybalt\Main.java|831|840|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
-      @|com\laybalt\Main.java|841|849|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
-      @|com\laybalt\Main.java|873|887|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
-      @|com\laybalt\Main.java|888|897|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
-      @|com\laybalt\Main.java|898|906|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
+      @|com/laybalt/Main.java|930|934|init|method|com.laybalt.Main|init|(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V
+      @|com/laybalt/Main.java|935|957|FMLInitializationEvent|class|net.minecraftforge.fml.common.event.FMLInitializationEvent
+      @|com/laybalt/Main.java|958|963|event|param|com.laybalt.Main|init|(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V|event|0
+      @|com/laybalt/Main.java|975|987|AFishKeyBind|class|com.laybalt.AutoFishing.AFishKeyBind
+      @|com/laybalt/Main.java|1007|1019|AFishKeyBind|class|com.laybalt.AutoFishing.AFishKeyBind
+      @|com/laybalt/Main.java|1031|1043|AFishMessage|class|com.laybalt.AutoFishing.AFishMessage
+      @|com/laybalt/Main.java|1063|1075|AFishMessage|class|com.laybalt.AutoFishing.AFishMessage
+      @|com/laybalt/Main.java|1087|1092|AFish|class|com.laybalt.AutoFishing.AFish
+      @|com/laybalt/Main.java|1105|1110|AFish|class|com.laybalt.AutoFishing.AFish
+      @|com/laybalt/Main.java|1123|1142|AClickerKeyBindLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft
+      @|com/laybalt/Main.java|1165|1184|AClickerKeyBindLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft
+      @|com/laybalt/Main.java|1196|1215|AClickerMessageLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerMessageLeft
+      @|com/laybalt/Main.java|1238|1257|AClickerMessageLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerMessageLeft
+      @|com/laybalt/Main.java|1269|1281|AClickerLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerLeft
+      @|com/laybalt/Main.java|1297|1309|AClickerLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerLeft
+      @|com/laybalt/Main.java|1322|1342|AClickerKeyBindRight|class|com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight
+      @|com/laybalt/Main.java|1370|1390|AClickerKeyBindRight|class|com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight
+      @|com/laybalt/Main.java|1402|1422|AClickerMessageRight|class|com.laybalt.AutoClicker.RightClick.AClickerMessageRight
+      @|com/laybalt/Main.java|1450|1470|AClickerMessageRight|class|com.laybalt.AutoClicker.RightClick.AClickerMessageRight
+      @|com/laybalt/Main.java|1482|1495|AClickerRight|class|com.laybalt.AutoClicker.RightClick.AClickerRight
+      @|com/laybalt/Main.java|1516|1529|AClickerRight|class|com.laybalt.AutoClicker.RightClick.AClickerRight
+      @|com/laybalt/Main.java|1542|1556|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
+      @|com/laybalt/Main.java|1557|1566|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
+      @|com/laybalt/Main.java|1567|1575|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
+      @|com/laybalt/Main.java|1599|1613|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
+      @|com/laybalt/Main.java|1614|1623|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
+      @|com/laybalt/Main.java|1624|1632|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
+      @|com/laybalt/Main.java|1656|1670|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
+      @|com/laybalt/Main.java|1671|1680|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
+      @|com/laybalt/Main.java|1681|1689|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
+      @|com/laybalt/Main.java|1707|1721|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
+      @|com/laybalt/Main.java|1722|1731|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
+      @|com/laybalt/Main.java|1732|1740|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
+      @|com/laybalt/Main.java|1767|1781|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
+      @|com/laybalt/Main.java|1782|1791|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
+      @|com/laybalt/Main.java|1792|1800|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
+      @|com/laybalt/Main.java|1827|1841|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
+      @|com/laybalt/Main.java|1842|1851|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
+      @|com/laybalt/Main.java|1852|1860|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
+      @|com/laybalt/Main.java|1881|1895|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
+      @|com/laybalt/Main.java|1896|1905|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
+      @|com/laybalt/Main.java|1906|1914|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
+      @|com/laybalt/Main.java|1946|1960|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
+      @|com/laybalt/Main.java|1961|1970|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
+      @|com/laybalt/Main.java|1971|1979|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
+      @|com/laybalt/Main.java|2011|2025|MinecraftForge|class|net.minecraftforge.common.MinecraftForge
+      @|com/laybalt/Main.java|2026|2035|EVENT_BUS|field|net.minecraftforge.common.MinecraftForge|EVENT_BUS
+      @|com/laybalt/Main.java|2036|2044|register|method|net.minecraftforge.fml.common.eventhandler.EventBus|register|(Ljava/lang/Object;)V
    Method End: init(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V
+   Method Start: preInit(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V
+      @|com/laybalt/Main.java|2102|2109|preInit|method|com.laybalt.Main|preInit|(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V
+      @|com/laybalt/Main.java|2110|2132|FMLInitializationEvent|class|net.minecraftforge.fml.common.event.FMLInitializationEvent
+      @|com/laybalt/Main.java|2133|2138|event|param|com.laybalt.Main|preInit|(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V|event|0
+      @|com/laybalt/Main.java|2154|2166|AClickerLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerLeft
+      @|com/laybalt/Main.java|2167|2181|isAutoClicking|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|isAutoClicking|()Z
+      @|com/laybalt/Main.java|2199|2211|AClickerLeft|class|com.laybalt.AutoClicker.LeftClick.AClickerLeft
+      @|com/laybalt/Main.java|2212|2230|toggleAutoClicking|method|com.laybalt.AutoClicker.LeftClick.AClickerLeft|toggleAutoClicking|()V
+      @|com/laybalt/Main.java|2256|2269|AClickerRight|class|com.laybalt.AutoClicker.RightClick.AClickerRight
+      @|com/laybalt/Main.java|2270|2284|isAutoClicking|method|com.laybalt.AutoClicker.RightClick.AClickerRight|isAutoClicking|()Z
+      @|com/laybalt/Main.java|2302|2315|AClickerRight|class|com.laybalt.AutoClicker.RightClick.AClickerRight
+      @|com/laybalt/Main.java|2316|2334|toggleAutoClicking|method|com.laybalt.AutoClicker.RightClick.AClickerRight|toggleAutoClicking|()V
+      @|com/laybalt/Main.java|2360|2365|AFish|class|com.laybalt.AutoFishing.AFish
+      @|com/laybalt/Main.java|2366|2379|isAutoFishing|method|com.laybalt.AutoFishing.AFish|isAutoFishing|()Z
+      @|com/laybalt/Main.java|2397|2402|AFish|class|com.laybalt.AutoFishing.AFish
+      @|com/laybalt/Main.java|2403|2420|toggleAutoFishing|method|com.laybalt.AutoFishing.AFish|toggleAutoFishing|()V
+   Method End: preInit(Lnet/minecraftforge/fml/common/event/FMLInitializationEvent;)V
 Class End  : com.laybalt.Main
-endProcessing com\laybalt\Main.java
+endProcessing com/laybalt/Main.java
 

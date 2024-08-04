@@ -5,6 +5,9 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/LayBalt.api.iml" filepath="$PROJECT_DIR$/.idea/modules/LayBalt.api.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/LayBalt.main.iml" filepath="$PROJECT_DIR$/.idea/modules/LayBalt.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/LayBalt.test.iml" filepath="$PROJECT_DIR$/.idea/modules/LayBalt.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.smyy.laybalt.LayBalt.api.iml" filepath="$PROJECT_DIR$/.idea/modules/com.smyy.laybalt.LayBalt.api.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.smyy.laybalt.LayBalt.main.iml" filepath="$PROJECT_DIR$/.idea/modules/com.smyy.laybalt.LayBalt.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/com.smyy.laybalt.LayBalt.test.iml" filepath="$PROJECT_DIR$/.idea/modules/com.smyy.laybalt.LayBalt.test.iml" />
     </modules>
   </component>
 </project>

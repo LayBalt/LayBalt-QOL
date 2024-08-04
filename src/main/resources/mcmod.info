@@ -2,7 +2,7 @@
 {
   "modid": "laybalt",
   "name": "Not Enough Easily",
-  "description": "QOL improvements for Minecraft",
+  "description": "QOL improvements for Minecraft, \nHypixel Functions only!",
   "version": "${version}",
   "mcversion": "${mcversion}",
   "url": "",
