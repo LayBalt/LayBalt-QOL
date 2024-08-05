@@ -29,8 +29,3 @@ More links coming soon...
 <p align="center">
 Pull requests are welcome. We recomend using <a href="https://bell-sw.com">BellSoft JDK</a> with this project.
 For more info: <a href="https://github.com/LayBalt/LayBalt-QOL/blob/main/ContributingGuide.md">Contributor Guide</a>.
-
-</p>
-<p align="center">
-Thank you for contributing to this project with us.
-</p>
