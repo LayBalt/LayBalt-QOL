@@ -22,6 +22,6 @@ Soon...
 
   <h3 align="center">Contribution Information :</h3>
 <h4>You will only need a JDK 1.8 (For SDK aswell as JVM)</h4>
-<h4>We do recommend using [BellSoft's](https://bell-sw.com) JDK, but others will work aswell.</h4>
+<h4>We do recommend using [BellSoft](https://bell-sw.com) JDK, but others will work aswell.</h4>
 <h5>Also thanks for contributing on this project with us.</h5>
 
