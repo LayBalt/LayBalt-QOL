@@ -27,7 +27,9 @@ More links coming soon...
 
 <h3 align="center">Contribution Information</h3>
 <p align="center">
-To contribute, you will only need JDK 1.8 (for SDK as well as JVM). We recommend using <a href="https://bell-sw.com">BellSoft JDK</a>, but other JDKs will work as well.
+Pull requests are welcome. We recomend using <a href="https://bell-sw.com">BellSoft JDK</a> with this project.
+For more info: <a href="https://github.com/LayBalt/LayBalt-QOL/blob/main/ContributingGuide.md">Contributor Guide</a>.
+
 </p>
 <p align="center">
 Thank you for contributing to this project with us.
