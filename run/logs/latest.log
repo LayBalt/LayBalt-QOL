@@ -1,26 +1,33 @@
-[15:59:25] [main/INFO] (LaunchWrapper) Loading tweak class name net.minecraftforge.fml.common.launcher.FMLTweaker
-[15:59:25] [main/INFO] (LaunchWrapper) Using primary tweak class name net.minecraftforge.fml.common.launcher.FMLTweaker
-[15:59:25] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.common.launcher.FMLTweaker
-[15:59:25] [main/INFO] (FML) Forge Mod Loader version 11.15.1.2318 for Minecraft 1.8.9 loading
-[15:59:25] [main/INFO] (FML) Java is OpenJDK 64-Bit Server VM, version 1.8.0_422, running on Mac OS X:aarch64:14.5, installed at /Users/kirillsevcenko/Library/Java/JavaVirtualMachines/liberica-1.8.0_422/jre
-[15:59:25] [main/INFO] (FML) Managed to load a deobfuscated Minecraft name- we are in a deobfuscated environment. Skipping runtime deobfuscation
-[15:59:25] [main/WARN] (FML) The coremod me.djtheredstoner.devauth.forge.legacy.DevAuthLoadingPlugin does not have a MCVersion annotation, it may cause issues with this version of Minecraft
-[15:59:25] [main/INFO] (LaunchWrapper) Loading tweak class name net.minecraftforge.fml.common.launcher.FMLInjectionAndSortingTweaker
-[15:59:25] [main/INFO] (LaunchWrapper) Loading tweak class name net.minecraftforge.fml.common.launcher.FMLDeobfTweaker
-[15:59:25] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.common.launcher.FMLInjectionAndSortingTweaker
-[15:59:25] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.common.launcher.FMLInjectionAndSortingTweaker
-[15:59:25] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.relauncher.CoreModManager$FMLPluginWrapper
-[15:59:25] [main/ERROR] (FML) The binary patch set is missing. Either you are in a development environment, or things are not going to work!
-[15:59:26] [main/ERROR] (FML) FML appears to be missing any signature data. This is not a good thing
-[15:59:26] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.relauncher.CoreModManager$FMLPluginWrapper
-[15:59:26] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.relauncher.CoreModManager$FMLPluginWrapper
-[15:59:26] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.common.launcher.FMLDeobfTweaker
-[15:59:26] [main/INFO] (LaunchWrapper) Loading tweak class name net.minecraftforge.fml.common.launcher.TerminalTweaker
-[15:59:26] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.common.launcher.TerminalTweaker
-[15:59:26] [main/INFO] (LaunchWrapper) Launching wrapped minecraft {net.minecraft.client.main.Main}
-[15:59:26] [main/INFO] (DevAuth) DevAuth disabled, not logging in!
-[15:59:26] [main/ERROR] (LaunchWrapper) Unable to launch
-java.lang.reflect.InvocationTargetException: null
+[21:19:27] [main/INFO] (LaunchWrapper) Loading tweak class name net.minecraftforge.fml.common.launcher.FMLTweaker
+[21:19:27] [main/INFO] (LaunchWrapper) Using primary tweak class name net.minecraftforge.fml.common.launcher.FMLTweaker
+[21:19:27] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.common.launcher.FMLTweaker
+[21:19:27] [main/INFO] (FML) Forge Mod Loader version 11.15.1.2318 for Minecraft 1.8.9 loading
+[21:19:27] [main/INFO] (FML) Java is OpenJDK 64-Bit Server VM, version 1.8.0_422, running on Mac OS X:aarch64:14.5, installed at /Users/kirillsevcenko/Library/Java/JavaVirtualMachines/liberica-1.8.0_422/jre
+[21:19:27] [main/INFO] (FML) Managed to load a deobfuscated Minecraft name- we are in a deobfuscated environment. Skipping runtime deobfuscation
+[21:19:27] [main/WARN] (FML) The coremod me.djtheredstoner.devauth.forge.legacy.DevAuthLoadingPlugin does not have a MCVersion annotation, it may cause issues with this version of Minecraft
+[21:19:27] [main/INFO] (LaunchWrapper) Loading tweak class name net.minecraftforge.fml.common.launcher.FMLInjectionAndSortingTweaker
+[21:19:27] [main/INFO] (LaunchWrapper) Loading tweak class name net.minecraftforge.fml.common.launcher.FMLDeobfTweaker
+[21:19:27] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.common.launcher.FMLInjectionAndSortingTweaker
+[21:19:27] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.common.launcher.FMLInjectionAndSortingTweaker
+[21:19:27] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.relauncher.CoreModManager$FMLPluginWrapper
+[21:19:27] [main/ERROR] (FML) The binary patch set is missing. Either you are in a development environment, or things are not going to work!
+[21:19:27] [main/ERROR] (FML) FML appears to be missing any signature data. This is not a good thing
+[21:19:27] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.relauncher.CoreModManager$FMLPluginWrapper
+[21:19:27] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.relauncher.CoreModManager$FMLPluginWrapper
+[21:19:27] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.common.launcher.FMLDeobfTweaker
+[21:19:27] [main/INFO] (LaunchWrapper) Loading tweak class name net.minecraftforge.fml.common.launcher.TerminalTweaker
+[21:19:27] [main/INFO] (LaunchWrapper) Calling tweak class net.minecraftforge.fml.common.launcher.TerminalTweaker
+[21:19:27] [main/INFO] (LaunchWrapper) Launching wrapped minecraft {net.minecraft.client.main.Main}
+[21:19:28] [main/ERROR] (DevAuth/Microsoft) Failed to parse microsoft_accounts.json
+java.io.FileNotFoundException: File '/Users/kirillsevcenko/.devauth/microsoft_accounts.json' does not exist
+	at org.apache.commons.io.FileUtils.openInputStream(FileUtils.java:299) ~[commons-io-2.4.jar:2.4]
+	at org.apache.commons.io.FileUtils.readFileToString(FileUtils.java:1711) ~[commons-io-2.4.jar:2.4]
+	at me.djtheredstoner.devauth.common.auth.microsoft.MicrosoftAuthProvider.readAccountsJson(MicrosoftAuthProvider.java:213) [MicrosoftAuthProvider.class:?]
+	at me.djtheredstoner.devauth.common.auth.microsoft.MicrosoftAuthProvider.login(MicrosoftAuthProvider.java:169) [MicrosoftAuthProvider.class:?]
+	at me.djtheredstoner.devauth.common.DevAuth.login(DevAuth.java:62) [DevAuth.class:?]
+	at me.djtheredstoner.devauth.common.DevAuth.processArguments(DevAuth.java:35) [DevAuth.class:?]
+	at me.djtheredstoner.devauth.forge.legacy.ForgeLegacyBootstrap.processArguments(ForgeLegacyBootstrap.java:18) [ForgeLegacyBootstrap.class:?]
+	at net.minecraft.client.main.Main.main(Main.java) [Main.class:?]
 	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method) ~[?:1.8.0_422]
 	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62) ~[?:1.8.0_422]
 	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43) ~[?:1.8.0_422]
@@ -28,36 +35,79 @@ java.lang.reflect.InvocationTargetException: null
 	at net.minecraft.launchwrapper.Launch.launch(Launch.java:135) [launchwrapper-1.12.jar:?]
 	at net.minecraft.launchwrapper.Launch.main(Launch.java:28) [launchwrapper-1.12.jar:?]
 	at net.fabricmc.devlaunchinjector.Main.main(Main.java:86) [dev-launch-injector-0.2.1+build.8.jar:?]
-Caused by: java.lang.ExceptionInInitializerError
-	at org.lwjgl.Sys.createImplementation(Sys.java:124) ~[lwjgl-2.9.2-nightly-20140822.jar:?]
-	at org.lwjgl.Sys.<clinit>(Sys.java:111) ~[lwjgl-2.9.2-nightly-20140822.jar:?]
-	at net.minecraft.client.Minecraft.getSystemTime(Minecraft.java:2756) ~[Minecraft.class:?]
-	at net.minecraft.client.main.Main.main(Main.java:41) ~[Main.class:?]
-	... 7 more
-Caused by: java.lang.SecurityException: sealing violation: package org.lwjgl is sealed
-	at java.net.URLClassLoader.getAndVerifyPackage(URLClassLoader.java:405) ~[?:1.8.0_422]
-	at java.net.URLClassLoader.definePackageInternal(URLClassLoader.java:425) ~[?:1.8.0_422]
-	at java.net.URLClassLoader.defineClass(URLClassLoader.java:457) ~[?:1.8.0_422]
-	at java.net.URLClassLoader.access$100(URLClassLoader.java:74) ~[?:1.8.0_422]
-	at java.net.URLClassLoader$1.run(URLClassLoader.java:369) ~[?:1.8.0_422]
-	at java.net.URLClassLoader$1.run(URLClassLoader.java:363) ~[?:1.8.0_422]
-	at java.security.AccessController.doPrivileged(Native Method) ~[?:1.8.0_422]
-	at java.net.URLClassLoader.findClass(URLClassLoader.java:362) ~[?:1.8.0_422]
-	at java.lang.ClassLoader.loadClass(ClassLoader.java:418) ~[?:1.8.0_422]
-	at sun.misc.Launcher$AppClassLoader.loadClass(Launcher.java:352) ~[?:1.8.0_422]
-	at java.lang.ClassLoader.loadClass(ClassLoader.java:351) ~[?:1.8.0_422]
-	at org.lwjgl.LWJGLUtil.loadIcon(LWJGLUtil.java:285) ~[lwjgl-2.9.2-nightly-20140822.jar:?]
-	at org.lwjgl.LWJGLUtil.<clinit>(LWJGLUtil.java:259) ~[lwjgl-2.9.2-nightly-20140822.jar:?]
-	at org.lwjgl.Sys.createImplementation(Sys.java:124) ~[lwjgl-2.9.2-nightly-20140822.jar:?]
-	at org.lwjgl.Sys.<clinit>(Sys.java:111) ~[lwjgl-2.9.2-nightly-20140822.jar:?]
-	at net.minecraft.client.Minecraft.getSystemTime(Minecraft.java:2756) ~[Minecraft.class:?]
-	at net.minecraft.client.main.Main.main(Main.java:41) ~[Main.class:?]
-	... 7 more
-[15:59:26] [main/INFO] (STDERR) [java.lang.ThreadGroup:uncaughtException:1052]: net.minecraftforge.fml.relauncher.FMLSecurityManager$ExitTrappedException
-[15:59:26] [main/INFO] (STDERR) [java.lang.ThreadGroup:uncaughtException:1052]: 	at net.minecraftforge.fml.relauncher.FMLSecurityManager.checkPermission(FMLSecurityManager.java:30)
-[15:59:26] [main/INFO] (STDERR) [java.lang.ThreadGroup:uncaughtException:1052]: 	at java.lang.SecurityManager.checkExit(SecurityManager.java:761)
-[15:59:26] [main/INFO] (STDERR) [java.lang.ThreadGroup:uncaughtException:1052]: 	at java.lang.Runtime.exit(Runtime.java:101)
-[15:59:26] [main/INFO] (STDERR) [java.lang.ThreadGroup:uncaughtException:1052]: 	at java.lang.System.exit(System.java:987)
-[15:59:26] [main/INFO] (STDERR) [java.lang.ThreadGroup:uncaughtException:1052]: 	at net.minecraft.launchwrapper.Launch.launch(Launch.java:138)
-[15:59:26] [main/INFO] (STDERR) [java.lang.ThreadGroup:uncaughtException:1052]: 	at net.minecraft.launchwrapper.Launch.main(Launch.java:28)
-[15:59:26] [main/INFO] (STDERR) [java.lang.ThreadGroup:uncaughtException:1052]: 	at net.fabricmc.devlaunchinjector.Main.main(Main.java:86)
+[21:19:28] [main/INFO] (DevAuth/Microsoft) Fetching token session
+[21:19:28] [main/INFO] (DevAuth/Microsoft) Fetching token xsts
+[21:19:28] [main/INFO] (DevAuth/Microsoft) Fetching token xbl
+[21:19:28] [main/INFO] (DevAuth/Microsoft) Fetching token oauth
+[21:19:28] [main/INFO] (DevAuth/Microsoft) OAuth URL, open this in a browser to complete authentication: https://login.live.com/oauth20_authorize.srf?client_id=757bb3b3-b7ca-4bcd-a160-c92e6379c263&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A3000&scope=XboxLive.signin+XboxLive.offline_access&prompt=select_account&code_challenge=F_VoEAP3HMC6SMEFnHgfns0VYnNPajuk3QSb1k4YMjY&code_challenge_method=S256
+[21:22:23] [main/INFO] (DevAuth/Microsoft) Fetched token oauth (Expiry: 2024-08-05T20:22:23Z or in 00:00:59:59)
+[21:22:29] [main/INFO] (DevAuth/Microsoft) Fetched token xbl (Expiry: 2024-08-09T19:22:28Z or in 03:23:59:58)
+[21:22:30] [main/INFO] (DevAuth/Microsoft) Fetched token xsts (Expiry: 2024-08-06T11:22:30Z or in 00:15:59:59)
+[21:22:31] [main/INFO] (DevAuth/Microsoft) Fetched token session (Expiry: 2024-08-06T19:22:31Z or in 00:23:59:59)
+[21:22:32] [main/INFO] (DevAuth) Successfully logged in as btwdeath
+[21:22:32] [main/INFO] (Minecraft) Setting user: btwdeath
+[21:22:33] [main/INFO] (Minecraft) LWJGL Version: 2.9.2
+[21:22:33] [main/INFO] (FML) MinecraftForge v11.15.1.2318 Initialized
+[21:22:33] [main/INFO] (FML) Replaced 229 ore recipies
+[21:22:33] [main/INFO] (FML) Found 0 mods from the command line. Injecting into mod discoverer
+[21:22:33] [main/INFO] (FML) Searching /Users/kirillsevcenko/IdeaProjects/LayBalt/run/mods for mods
+[21:22:34] [main/INFO] (laybalt) Mod laybalt is missing the required element 'name'. Substituting laybalt
+[21:22:34] [main/INFO] (FML) Forge Mod Loader has identified 4 mods to load
+[21:22:34] [main/INFO] (FML) Attempting connection with missing mods [mcp, FML, Forge, laybalt] at CLIENT
+[21:22:34] [main/INFO] (FML) Attempting connection with missing mods [mcp, FML, Forge, laybalt] at SERVER
+[21:22:34] [main/INFO] (Minecraft) Reloading ResourceManager: Default, FMLFileResourcePack:Forge Mod Loader, FMLFileResourcePack:Minecraft Forge, FMLFileResourcePack:laybalt
+[21:22:34] [main/INFO] (FML) Processing ObjectHolder annotations
+[21:22:34] [main/INFO] (FML) Found 384 ObjectHolder annotations
+[21:22:34] [main/INFO] (FML) Identifying ItemStackHolder annotations
+[21:22:34] [main/INFO] (FML) Found 0 ItemStackHolder annotations
+[21:22:34] [main/INFO] (FML) Configured a dormant chunk cache size of 0
+[21:22:34] [Forge Version Check/INFO] (ForgeVersionCheck) [Forge] Starting version check at http://files.minecraftforge.net/maven/net/minecraftforge/forge/promotions_slim.json
+[21:22:34] [main/INFO] (FML) Applying holder lookups
+[21:22:34] [main/INFO] (FML) Holder lookups applied
+[21:22:34] [main/INFO] (FML) Injecting itemstacks
+[21:22:34] [main/INFO] (FML) Itemstack injection complete
+[21:22:35] [main/INFO] (STDOUT) [tv.twitch.StandardCoreAPI:<init>:16]: If on Windows, make sure to provide all of the necessary dll's as specified in the twitchsdk README. Also, make sure to set the PATH environment variable to point to the directory containing the dll's.
+[21:22:35] [main/ERROR] (Minecraft) Couldn't initialize twitch stream
+[21:22:35] [Sound Library Loader/INFO] (Minecraft) Starting up SoundSystem...
+[21:22:35] [Thread-6/INFO] (Minecraft) Initializing LWJGL OpenAL
+[21:22:35] [Thread-6/INFO] (Minecraft) (The LWJGL binding of OpenAL.  For more information, see http://www.lwjgl.org)
+[21:22:35] [Thread-6/INFO] (Minecraft) OpenAL initialized.
+[21:22:35] [Sound Library Loader/INFO] (Minecraft) Sound engine started
+[21:22:36] [main/INFO] (FML) Max texture size: 16384
+[21:22:36] [main/INFO] (Minecraft) Created: 16x16 textures-atlas
+[21:22:36] [main/INFO] (FML) Injecting itemstacks
+[21:22:36] [main/INFO] (FML) Itemstack injection complete
+[21:22:36] [main/INFO] (FML) Forge Mod Loader has successfully loaded 4 mods
+[21:22:36] [main/INFO] (Minecraft) Reloading ResourceManager: Default, FMLFileResourcePack:Forge Mod Loader, FMLFileResourcePack:Minecraft Forge, FMLFileResourcePack:laybalt
+[21:22:36] [main/INFO] (Minecraft) SoundSystem shutting down...
+[21:22:36] [main/WARN] (Minecraft) Author: Paul Lamb, www.paulscode.com
+[21:22:36] [Sound Library Loader/INFO] (Minecraft) Starting up SoundSystem...
+[21:22:37] [Thread-8/INFO] (Minecraft) Initializing LWJGL OpenAL
+[21:22:37] [Thread-8/INFO] (Minecraft) (The LWJGL binding of OpenAL.  For more information, see http://www.lwjgl.org)
+[21:22:37] [Thread-8/INFO] (Minecraft) OpenAL initialized.
+[21:22:37] [Sound Library Loader/INFO] (Minecraft) Sound engine started
+[21:22:38] [main/INFO] (FML) Max texture size: 16384
+[21:22:38] [main/INFO] (Minecraft) Created: 512x512 textures-atlas
+[21:22:43] [main/WARN] (Minecraft) Unable to start LAN server detection: Can't assign requested address
+[21:22:50] [main/INFO] (Minecraft) Connecting to mc.hypixel.net., 25565
+[21:22:51] [Netty Client IO #1/INFO] (FML) Server FML protocol version 1, no additional data received
+[21:22:51] [Netty Client IO #1/INFO] (FML) Server protocol version 1
+[21:22:52] [Netty Client IO #1/INFO] (FML) Attempting connection with missing mods [mcp, FML, Forge, laybalt] at SERVER
+[21:22:52] [Netty Client IO #1/INFO] (FML) Injecting existing block and item data into this client instance
+[21:22:52] [Netty Client IO #1/INFO] (FML) Applying holder lookups
+[21:22:52] [Netty Client IO #1/INFO] (FML) Holder lookups applied
+[21:22:52] [Netty Client IO #1/INFO] (FML) [Netty Client IO #1] Client side modded connection established
+[21:22:53] [main/INFO] (Minecraft) [CHAT]                          
+[21:22:55] [main/INFO] (Minecraft) [CHAT] §aYou have §b6 §aunclaimed leveling rewards!
+[21:22:55] [main/INFO] (Minecraft) [CHAT] §eClick here to view them!
+[21:22:55] [main/INFO] (Minecraft) [CHAT] §aYou have §65 §aunclaimed achievement rewards!
+[21:22:55] [main/INFO] (Minecraft) [CHAT] §eClick here to view them!
+[21:22:58] [Chunk Batcher 0/WARN] (Minecraft) Needed to grow BufferBuilder buffer: Old size 524288 bytes, new size 2621440 bytes.
+[21:22:58] [Chunk Batcher 1/WARN] (Minecraft) Needed to grow BufferBuilder buffer: Old size 524288 bytes, new size 2621440 bytes.
+[21:22:58] [Chunk Batcher 0/WARN] (Minecraft) Needed to grow BufferBuilder buffer: Old size 524288 bytes, new size 2621440 bytes.
+[21:22:58] [Chunk Batcher 1/WARN] (Minecraft) Needed to grow BufferBuilder buffer: Old size 524288 bytes, new size 2621440 bytes.
+[21:23:03] [main/INFO] (Minecraft) [CHAT]  §b>§c>§a>§r §6[MVP§2++§6] NOTMISSKA§f §6joined the lobby! §a<§c<§b<
+[21:23:04] [main/INFO] (Minecraft) [CHAT] Sending to server mini62DC...
+[21:23:04] [main/INFO] (Minecraft) [CHAT]        
+[21:23:04] [main/INFO] (Minecraft) [CHAT] You haven't claimed your Summer Rewards yet!
+[21:23:04] [main/INFO] (Minecraft) [CHAT] Talk to the Summer Sloth in the Hub!

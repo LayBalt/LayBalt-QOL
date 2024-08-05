@@ -3,6 +3,7 @@ import org.apache.commons.lang3.SystemUtils
 plugins {
     idea
     java
+    kotlin("jvm") version "1.8.0"
     id("gg.essential.loom") version "0.10.0.+"
     id("dev.architectury.architectury-pack200") version "0.1.3"
     id("com.github.johnrengelman.shadow") version "8.1.1"
@@ -25,9 +26,6 @@ loom {
     log4jConfigs.from(file("log4j2.xml"))
     launchConfigs {
         "client" {
-            // If you don't want mixins, remove these lines
-            // property("mixin.debug", "true")
-            // arg("--tweakClass", "org.spongepowered.asm.launch.MixinTweaker")
         }
     }
     runConfigs {
@@ -41,17 +39,26 @@ loom {
     }
     forge {
         pack200Provider.set(dev.architectury.pack200.java.Pack200Adapter())
-        // If you don't want mixins, remove these lines
-        // mixinConfig("mixins.$modid.json")
     }
-    // If you don't want mixins, remove these lines
-    // mixin {
-    //     defaultRefmapName.set("mixins.$modid.refmap.json")
-    // }
 }
 
-sourceSets.main {
-    output.setResourcesDir(sourceSets.main.flatMap { it.java.classesDirectory })
+sourceSets {
+    main {
+        java {
+            setSrcDirs(listOf("src/main/java"))
+        }
+        kotlin {
+            setSrcDirs(listOf("src/main/kotlin")) // Добавить папку kotlin
+        }
+    }
+    test {
+        java {
+            setSrcDirs(listOf("src/test/java"))
+        }
+        kotlin {
+            setSrcDirs(listOf("src/test/kotlin")) // Добавить папку kotlin для тестов
+        }
+    }
 }
 
 // Dependencies:
@@ -72,26 +79,9 @@ dependencies {
     mappings("de.oceanlabs.mcp:mcp_stable:22-1.8.9")
     forge("net.minecraftforge:forge:1.8.9-11.15.1.2318-1.8.9")
 
-    implementation("org.lwjgl:lwjgl:3.3.1")
-    implementation("org.lwjgl:lwjgl-openal:3.3.1")
-    implementation("org.lwjgl:lwjgl-glfw:3.3.1")
-    implementation("org.lwjgl:lwjgl-opengl:3.3.1")
-    runtimeOnly("org.lwjgl:lwjgl:3.3.1:natives-macos-arm64")
-    runtimeOnly("org.lwjgl:lwjgl-openal:3.3.1:natives-macos-arm64")
-    runtimeOnly("org.lwjgl:lwjgl-glfw:3.3.1:natives-macos-arm64")
-    runtimeOnly("org.lwjgl:lwjgl-opengl:3.3.1:natives-macos-arm64")
-
-
-
-    // If you don't want mixins, remove these lines
-    // shadowImpl("org.spongepowered:mixin:0.7.11-SNAPSHOT") {
-    //     isTransitive = false
-    // }
-    // annotationProcessor("org.spongepowered:mixin:0.8.5-SNAPSHOT")
-
     // If you don't want to log in with your real minecraft account, remove this line
     runtimeOnly("me.djtheredstoner:DevAuth-forge-legacy:1.2.1")
-
+    implementation(kotlin("stdlib"))
 }
 
 // Tasks:
@@ -105,10 +95,6 @@ tasks.withType(org.gradle.jvm.tasks.Jar::class) {
     manifest.attributes.run {
         this["FMLCorePluginContainsFMLMod"] = "true"
         this["ForceLoadAsMod"] = "true"
-
-        // If you don't want mixins, remove these lines
-        // this["TweakClass"] = "org.spongepowered.asm.launch.MixinTweaker"
-        // this["MixinConfigs"] = "mixins.$modid.json"
     }
 }
 
@@ -118,7 +104,7 @@ tasks.processResources {
     inputs.property("modid", modid)
     inputs.property("basePackage", baseGroup)
 
-    filesMatching(listOf("mcmod.info", "mixins.$modid.json")) {
+    filesMatching(listOf("mcmod.info")) {
         expand(inputs.properties)
     }
 
