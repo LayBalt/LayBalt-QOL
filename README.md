@@ -19,7 +19,7 @@ LayBalt mod is a Minecraft Mod made by LayBalt for Hypixel QOL. This mod is a <i
 
 <h3 align="center">Official Links</h3>
 <p align="center">
-Discord: [discord.gg/555QWxv6nS](https://discord.gg/555QWxv6nS)<br>
+Discord: <a href="https://discord.gg/555QWxv6nS">discord.gg/555QWxv6nS</a><br>
 More links coming soon...
 </p>
 
@@ -27,7 +27,7 @@ More links coming soon...
 
 <h3 align="center">Contribution Information</h3>
 <p align="center">
-To contribute, you will only need JDK 1.8 (for SDK as well as JVM). We recommend using [BellSoft JDK](https://bell-sw.com), but other JDKs will work as well.
+To contribute, you will only need JDK 1.8 (for SDK as well as JVM). We recommend using <a href="https://bell-sw.com">BellSoft JDK</a>, but other JDKs will work as well.
 </p>
 <p align="center">
 Thank you for contributing to this project with us.
