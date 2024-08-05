@@ -1,24 +1,36 @@
 <!-- markdownlint-disable-file MD001 MD033 -->
-<h2 align="center">LayBalt repository</h2>
-<h2 align="center">version 1.2</h2>
-<h4 align="center">LayBaltQOL (LBQ) is a feature rich 1.8.9 Minecraft forge mod for Hypixel Skyblock.</h4>
-\
-<h3 align="center">Mod Information :</h3>
-<h4>LayBalt mod is a Minecraft Mod made by LayBalt for Hypixel QOL .</h4>
-<h4>This mod is a _free access mod_, _aswell as free sourcecode_.</h4>
-<h4>This mod is only supported at version 1.8.9 of Minecraft.</h4>
-<h4>This mod have functions like:</h4>
-* Auto Fishing
-* Auto Clicker
-* Auction Sniper (Only Discord version for now.)
-* Soon...
-\
-<h3 align="center">Official links :</h3>
-Discord: discord.gg/555QWxv6nS  \
-Soon...  
-\
-  <h3 align="center">Contribution Information :</h3>
-<h4>You will only need a JDK 1.8 (For SDK aswell as JVM)</h4>
-<h4>We do recommend using [BellSoft's](https://bell-sw.com) JDK, but others will work aswell.</h4>
-<h5>Also thanks for contributing on this project with us.</h5>
+<h2 align="center">LayBalt Repository</h2>
+<h2 align="center">Version 1.2</h2>
+<h4 align="center">LayBaltQOL (LBQ) is a feature-rich 1.8.9 Minecraft Forge mod for Hypixel Skyblock.</h4>
 
+---
+
+<h3 align="center">Mod Information</h3>
+<p align="center">
+LayBalt mod is a Minecraft Mod made by LayBalt for Hypixel QOL. This mod is a <i>free access mod</i>, as well as <i>free source code</i>. It is only supported on version 1.8.9 of Minecraft. This mod includes features like:
+</p>
+
+- Auto Fishing
+- Auto Clicker
+- Auction Sniper (Only Discord version for now)
+- Soon...
+
+---
+
+<h3 align="center">Official Links</h3>
+<p align="center">
+Discord: <a href="https://discord.gg/555QWxv6nS">discord.gg/555QWxv6nS</a><br>
+More links coming soon...
+</p>
+
+---
+
+<h3 align="center">Contribution Information</h3>
+<p align="center">
+Pull requests are welcome. We recomend using <a href="https://bell-sw.com">BellSoft JDK</a> with this project.
+For more info: <a href="https://github.com/LayBalt/LayBalt-QOL/blob/main/ContributingGuide.md">Contributor Guide</a>.
+
+</p>
+<p align="center">
+Thank you for contributing to this project with us.
+</p>
