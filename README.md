@@ -1,27 +1,34 @@
 <!-- markdownlint-disable-file MD001 MD033 -->
-<h2 align="center">LayBalt repository</h2>
-<h2 align="center">version 1.2</h2>
-<h4 align="center">LayBaltQOL (LBQ) is a feature rich 1.8.9 Minecraft forge mod for Hypixel Skyblock.</h4>
+<h2 align="center">LayBalt Repository</h2>
+<h2 align="center">Version 1.2</h2>
+<h4 align="center">LayBaltQOL (LBQ) is a feature-rich 1.8.9 Minecraft Forge mod for Hypixel Skyblock.</h4>
 
+---
 
-<h3 align="center">Mod Information :</h3>
-<h4>LayBalt mod is a Minecraft Mod made by LayBalt for Hypixel QOL .</h4>
-<h4>This mod is a _free access mod_, _aswell as free sourcecode_.</h4>
-<h4>This mod is only supported at version 1.8.9 of Minecraft.</h4>
-<h4>This mod have functions like:</h4>
-* Auto Fishing
-* Auto Clicker
-* Auction Sniper (Only Discord version for now.)
-* Soon...
+<h3 align="center">Mod Information</h3>
+<p align="center">
+LayBalt mod is a Minecraft Mod made by LayBalt for Hypixel QOL. This mod is a <i>free access mod</i>, as well as <i>free source code</i>. It is only supported on version 1.8.9 of Minecraft. This mod includes features like:
+</p>
 
+- Auto Fishing
+- Auto Clicker
+- Auction Sniper (Only Discord version for now)
+- Soon...
 
-<h3 align="center">Official links :</h3>
-Discord: discord.gg/555QWxv6nS  
-Soon...
+---
 
+<h3 align="center">Official Links</h3>
+<p align="center">
+Discord: [discord.gg/555QWxv6nS](https://discord.gg/555QWxv6nS)<br>
+More links coming soon...
+</p>
 
-  <h3 align="center">Contribution Information :</h3>
-<h4>You will only need a JDK 1.8 (For SDK aswell as JVM)</h4>
-<h4>We do recommend using [BellSoft](https://bell-sw.com) JDK, but others will work aswell.</h4>
-<h5>Also thanks for contributing on this project with us.</h5>
+---
 
+<h3 align="center">Contribution Information</h3>
+<p align="center">
+To contribute, you will only need JDK 1.8 (for SDK as well as JVM). We recommend using [BellSoft JDK](https://bell-sw.com), but other JDKs will work as well.
+</p>
+<p align="center">
+Thank you for contributing to this project with us.
+</p>
