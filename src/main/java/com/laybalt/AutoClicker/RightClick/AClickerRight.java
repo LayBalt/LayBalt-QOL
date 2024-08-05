@@ -1,4 +1,3 @@
-// AClickerRight.java
 package com.laybalt.AutoClicker.RightClick;
 
 import net.minecraft.client.Minecraft;

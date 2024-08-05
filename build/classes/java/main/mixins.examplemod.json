@@ -1,0 +1,8 @@
+{
+  "package": "com.example.mixin",
+  "plugin": "com.example.init.AutoDiscoveryMixinPlugin",
+  "refmap": "mixins.examplemod.refmap.json",
+  "minVersion": "0.7",
+  "compatibilityLevel": "JAVA_8",
+  "__comment": "You do not need to manually register mixins in this template. Check the auto discovery mixin plugin for more info."
+}
