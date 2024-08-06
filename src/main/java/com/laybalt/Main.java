@@ -9,6 +9,8 @@ import com.laybalt.AutoClicker.RightClick.AClickerRight;
 import com.laybalt.AutoFishing.AFishMessage;
 import com.laybalt.AutoFishing.AFish;
 import com.laybalt.AutoFishing.AFishKeyBind;
+import com.laybalt.GUI.Gui;
+import com.laybalt.GUI.GuiKeyBind;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
@@ -22,6 +24,11 @@ public class Main
 
     @EventHandler
     public void init(FMLInitializationEvent event) {
+        Gui gui = new Gui();
+        GuiKeyBind guiKeyBind = new GuiKeyBind(gui);
+
+        MinecraftForge.EVENT_BUS.register(guiKeyBind);
+
         AFishKeyBind aFishKeyBind = new AFishKeyBind();
         AFishMessage aFishMessage = new AFishMessage();
         AFish aFish = new AFish();

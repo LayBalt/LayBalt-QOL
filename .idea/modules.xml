@@ -3,8 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/LayBalt.api.iml" filepath="$PROJECT_DIR$/.idea/modules/LayBalt.api.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/LayBalt.main.iml" filepath="$PROJECT_DIR$/.idea/modules/LayBalt.main.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/modules/LayBalt.test.iml" filepath="$PROJECT_DIR$/.idea/modules/LayBalt.test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/LayBalt.examplemod.main.iml" filepath="$PROJECT_DIR$/.idea/modules/LayBalt.examplemod.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/LayBalt.examplemod.test.iml" filepath="$PROJECT_DIR$/.idea/modules/LayBalt.examplemod.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/examplemod.main.iml" filepath="$PROJECT_DIR$/.idea/modules/examplemod.main.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/examplemod.test.iml" filepath="$PROJECT_DIR$/.idea/modules/examplemod.test.iml" />
     </modules>

@@ -1,9 +1,9 @@
 [
   {
-    "modid": "laybalt",
+    "modid": "${modid}",
     "name": "LayBalt QOL",
     "description": "Not Enough Easily",
-    "version": "1.2-SNAPSHOT-1",
+    "version": "${version}",
     "mcversion": "${mcversion}",
     "url": "https://github.com/LayBalt/LayBalt-QOL",
     "updateUrl": "",
