@@ -1,6 +1,29 @@
+# eclipse
+bin
+*.launch
+.settings
+.metadata
+.classpath
+.project
 
-/run
-/build
-/.vscode
-/.gradle
-/.idea
+# idea
+out
+*.ipr
+*.iws
+*.iml
+.idea/*
+!.idea/codeStyles
+!.idea/copyright
+
+# gradle
+build
+gradle.properties
+.gradle
+
+# other
+eclipse
+run
+.vscode
+infer-out/
+ciwork/
+.DS_STORE
