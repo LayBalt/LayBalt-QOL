@@ -23,11 +23,9 @@ public class AFish {
 
     public static void toggleAutoFishing() {
         isAutoFishing = !isAutoFishing;
-        System.out.println("toggleAutoFishing");
     }
 
     public static boolean isAutoFishing() {
-        System.out.println("isautofishing");
         return isAutoFishing;
     }
     private int casttimer = 0;
@@ -37,7 +35,6 @@ public class AFish {
         // minecraft reel the rod
         ItemStack itemStack = Minecraft.getMinecraft().thePlayer.getHeldItem();
         Minecraft.getMinecraft().playerController.sendUseItem(Minecraft.getMinecraft().thePlayer, Minecraft.getMinecraft().theWorld, itemStack);
-        System.out.println("reelrod");
         isReelingScheduled = false;
     }
 
@@ -49,7 +46,6 @@ public class AFish {
             Minecraft.getMinecraft().playerController.sendUseItem(Minecraft.getMinecraft().thePlayer, Minecraft.getMinecraft().theWorld, itemStack);
             casttimer = 0;
         }
-        System.out.println("castrod");
         isCastingScheduled = false;
     }
 

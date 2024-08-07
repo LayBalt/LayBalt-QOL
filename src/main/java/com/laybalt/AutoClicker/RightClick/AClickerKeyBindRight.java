@@ -10,7 +10,7 @@ public class AClickerKeyBindRight {
     public static KeyBinding keyBinding;
 
     public AClickerKeyBindRight() {
-        keyBinding = new KeyBinding("Right AutoClicker", Keyboard.KEY_C, "LayBalt");
+        keyBinding = new KeyBinding("Right AutoClicker", Keyboard.KEY_G, "LayBalt");
         ClientRegistry.registerKeyBinding(keyBinding);
     }
 

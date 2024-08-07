@@ -1,24 +1,26 @@
-package com.laybalt.AutoClicker.LeftClick;
+package com.laybalt.AutoMelody;
 
+import com.laybalt.AutoFishing.AFish;
+import com.laybalt.AutoFishing.AFishMessage;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.InputEvent;
 import org.lwjgl.input.Keyboard;
 
-public class AClickerKeyBindLeft {
+public class AMelodyKeyBind {
     public static KeyBinding keyBinding;
 
-    public AClickerKeyBindLeft() {
-        keyBinding = new KeyBinding("Left AutoClicker", Keyboard.KEY_H, "LayBalt");
+    public AMelodyKeyBind() {
+        keyBinding = new KeyBinding("AutoMelody", Keyboard.KEY_P, "LayBalt");
         ClientRegistry.registerKeyBinding(keyBinding);
     }
 
     @SubscribeEvent
     public void onKeyInput(InputEvent.KeyInputEvent event) {
         if (keyBinding.isPressed()) {
-            AClickerLeft.toggleAutoClicking();
-            AClickerMessageLeft.sendMessage();
+            AMelody.toggleAutoMelody();
+            AMelodyMessage.sendMessage();
         }
     }
 }

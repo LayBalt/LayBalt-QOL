@@ -9,6 +9,9 @@ import com.laybalt.AutoClicker.RightClick.AClickerRight;
 import com.laybalt.AutoFishing.AFishMessage;
 import com.laybalt.AutoFishing.AFish;
 import com.laybalt.AutoFishing.AFishKeyBind;
+import com.laybalt.AutoMelody.AMelody;
+import com.laybalt.AutoMelody.AMelodyKeyBind;
+import com.laybalt.AutoMelody.AMelodyMessage;
 import com.laybalt.GUI.ExampleConfig;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
@@ -22,7 +25,7 @@ import org.lwjgl.input.Keyboard;
 public class Main
 {
     public static final String MODID = "laybalt";
-    public static final String VERSION = "1.2-SNAPSHOT-2";
+    public static final String VERSION = "1.2-SNAPSHOT-3";
 
     private static final int keyBinding = Keyboard.KEY_RSHIFT;
 
@@ -42,6 +45,10 @@ public class Main
         AClickerMessageRight aClickerMessageRight = new AClickerMessageRight();
         AClickerRight aClickerRight = new AClickerRight();
 
+        AMelodyKeyBind aMelodyKeyBind = new AMelodyKeyBind();
+        AMelodyMessage aMelodyMessage = new AMelodyMessage();
+        AMelody aMelody = new AMelody();
+
         MinecraftForge.EVENT_BUS.register(aFishKeyBind);
         MinecraftForge.EVENT_BUS.register(aFishMessage);
         MinecraftForge.EVENT_BUS.register(aFish);
@@ -53,6 +60,10 @@ public class Main
         MinecraftForge.EVENT_BUS.register(aClickerKeyBindRight);
         MinecraftForge.EVENT_BUS.register(aClickerMessageRight);
         MinecraftForge.EVENT_BUS.register(aClickerRight);
+
+        MinecraftForge.EVENT_BUS.register(aMelodyKeyBind);
+        MinecraftForge.EVENT_BUS.register(aMelodyMessage);
+        MinecraftForge.EVENT_BUS.register(aMelody);
     }
 
     @SubscribeEvent
@@ -72,6 +83,9 @@ public class Main
         }
         if (AFish.isAutoFishing()) {
             AFish.toggleAutoFishing();
+        }
+        if (AMelody.isAutoMelody()) {
+            AMelody.toggleAutoMelody();
         }
     }
 }
