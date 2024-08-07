@@ -9,12 +9,14 @@ import com.laybalt.AutoClicker.RightClick.AClickerRight;
 import com.laybalt.AutoFishing.AFishMessage;
 import com.laybalt.AutoFishing.AFish;
 import com.laybalt.AutoFishing.AFishKeyBind;
-import com.laybalt.GUI.Gui;
-import com.laybalt.GUI.GuiKeyBind;
+import com.laybalt.GUI.ExampleConfig;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.InputEvent;
+import org.lwjgl.input.Keyboard;
 
 @Mod(modid = Main.MODID, version = Main.VERSION)
 public class Main
@@ -22,12 +24,11 @@ public class Main
     public static final String MODID = "laybalt";
     public static final String VERSION = "1.2-SNAPSHOT-1";
 
+    private static final int keyBinding = Keyboard.KEY_RSHIFT;
+
     @EventHandler
     public void init(FMLInitializationEvent event) {
-        Gui gui = new Gui();
-        GuiKeyBind guiKeyBind = new GuiKeyBind(gui);
-
-        MinecraftForge.EVENT_BUS.register(guiKeyBind);
+        MinecraftForge.EVENT_BUS.register(this);
 
         AFishKeyBind aFishKeyBind = new AFishKeyBind();
         AFishMessage aFishMessage = new AFishMessage();
@@ -52,6 +53,13 @@ public class Main
         MinecraftForge.EVENT_BUS.register(aClickerKeyBindRight);
         MinecraftForge.EVENT_BUS.register(aClickerMessageRight);
         MinecraftForge.EVENT_BUS.register(aClickerRight);
+    }
+
+    @SubscribeEvent
+    public void onKeyInput(InputEvent.KeyInputEvent event) {
+        if (Keyboard.isKeyDown(keyBinding)) {
+            ExampleConfig.INSTANCE.gui();
+        }
     }
 
     @EventHandler

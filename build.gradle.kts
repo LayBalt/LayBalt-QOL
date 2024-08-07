@@ -84,7 +84,7 @@ dependencies {
     runtimeOnly("me.djtheredstoner:DevAuth-forge-legacy:1.2.1")
     implementation(kotlin("stdlib"))
 
-    implementation("gg.essential:elementa-$mcVersion-forge:657")
+    implementation("gg.essential:vigilance-$mcVersion-forge:299")
 }
 
 // Tasks:
