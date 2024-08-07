@@ -15,11 +15,11 @@ import java.util.*;
 public class AMelody {
     private static boolean isAutoMelody = false;
     private static final List<String> HARP_MELODIES = Arrays.asList(
-            "Hymn to the Joy", "Frère Jacques", "Amazing Grace", "Brahm's Lullaby",
+            "Hymn to the Joy", "Frère Jacques", "Amazing Grace", "Brahms' Lullaby",
             "Happy Birthday to You", "Greensleeves", "Geothermy?", "Minuet",
             "Joy to the World", "Godly Imagination", "La Vie en Rose"
     );
-    private static final String COLOR_CODES = "dcaebf123456789";
+    private static final String COLOR_CODES = "dcaebf123456789klmnor";
     private long lastClickTime = 0;
     private static final long CLICK_DELAY = 50; // 50 миллисекунд между кликами
 
