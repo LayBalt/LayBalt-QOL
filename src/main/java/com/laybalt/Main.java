@@ -77,7 +77,9 @@ public class Main
     public void onKeyInput(InputEvent.KeyInputEvent event) {
         if (Keyboard.isKeyDown(keyBinding)) {
             Minecraft.getMinecraft().displayGuiScreen(LBQConfig.INSTANCE.gui());
-        }
+        } //else if (Keyboard.isKeyDown(Keyboard.KEY_B)) {
+//            Minecraft.getMinecraft().displayGuiScreen(ExampleConfig.INSTANCE.gui());
+//        }
     }
 
     @EventHandler
