@@ -1,5 +1,6 @@
 package com.laybalt.AutoClicker.LeftClick;
 
+import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -17,8 +18,15 @@ public class AClickerKeyBindLeft {
     @SubscribeEvent
     public void onKeyInput(InputEvent.KeyInputEvent event) {
         if (keyBinding.isPressed()) {
-            AClickerLeft.toggleAutoClicking();
+            LBQConfig.INSTANCE.setLeftClickerSwitch(!LBQConfig.INSTANCE.getLeftClickerSwitch());
             AClickerMessageLeft.sendMessage();
+
+            AClickerLeft clicker = AClickerLeft.getInstance();
+            if (LBQConfig.INSTANCE.getLeftClickerSwitch()) {
+                clicker.startAutoClick();
+            } else {
+                clicker.stopAutoClick();
+            }
         }
     }
 }

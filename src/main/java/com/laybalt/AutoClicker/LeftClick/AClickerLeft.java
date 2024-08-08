@@ -1,5 +1,6 @@
 package com.laybalt.AutoClicker.LeftClick;
 
+import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.Minecraft;
 
 import java.lang.reflect.Method;
@@ -8,9 +9,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 public class AClickerLeft {
-    private static boolean autoClicking = false;
-    private static final int MIN_CLICKS_PER_SECOND = 13;
-    private static final int MAX_CLICKS_PER_SECOND = 16;
     private long lastClickTime = 0;
     private long clickInterval;
     private final Random random = new Random();
@@ -28,22 +26,11 @@ public class AClickerLeft {
         return instance;
     }
 
-    public static void toggleAutoClicking() {
-        AClickerLeft clicker = getInstance();
-        autoClicking = !autoClicking;
-        if (autoClicking) {
-            clicker.startAutoClick();
-        } else {
-            clicker.stopAutoClick();
-        }
-    }
-
-    public static boolean isAutoClicking() {
-        return autoClicking;
-    }
-
     private long getRandomClickInterval() {
-        int clicksPerSecond = random.nextInt((MAX_CLICKS_PER_SECOND - MIN_CLICKS_PER_SECOND) + 1) + MIN_CLICKS_PER_SECOND;
+        int baseClicksPerSecond = LBQConfig.INSTANCE.getLeftClickNumber();
+        int minCPS = Math.max(baseClicksPerSecond - 2, 1);
+        int maxCPS = baseClicksPerSecond + 2;
+        int clicksPerSecond = random.nextInt((maxCPS - minCPS) + 1) + minCPS;
         return 1000 / clicksPerSecond;
     }
 
@@ -63,9 +50,9 @@ public class AClickerLeft {
         }
     }
 
-    public void autoClick() {
+    public synchronized void autoClick() {
         long currentTime = System.currentTimeMillis();
-        if (autoClicking && (currentTime - lastClickTime >= clickInterval)) {
+        if (LBQConfig.INSTANCE.getLeftClickerSwitch() && (currentTime - lastClickTime >= clickInterval)) {
             Minecraft mc = Minecraft.getMinecraft();
             if (mc != null && mc.thePlayer != null) {
                 try {

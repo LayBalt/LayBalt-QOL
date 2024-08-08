@@ -1,5 +1,6 @@
 package com.laybalt.AutoFishing;
 
+import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -17,7 +18,7 @@ public class AFishKeyBind {
     @SubscribeEvent
     public void onKeyInput(InputEvent.KeyInputEvent event) {
         if (keyBinding.isPressed()) {
-            AFish.toggleAutoFishing();
+            LBQConfig.INSTANCE.setFishingSwitch(!LBQConfig.INSTANCE.getFishingSwitch());
             AFishMessage.sendMessage();
         }
     }

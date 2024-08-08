@@ -1,19 +1,18 @@
 package com.laybalt.AutoMelody;
 
+import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.inventory.GuiChest;
 import net.minecraft.inventory.ContainerChest;
 import net.minecraft.item.ItemStack;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.Item;
-import net.minecraft.util.ChatComponentText;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import java.util.*;
 
 public class AMelody {
-    private static boolean isAutoMelody = false;
     private static final List<String> HARP_MELODIES = Arrays.asList(
             "Hymn to the Joy", "Frère Jacques", "Amazing Grace", "Brahms' Lullaby",
             "Happy Birthday to You", "Greensleeves", "Geothermy?", "Minuet",
@@ -21,19 +20,10 @@ public class AMelody {
     );
     private static final String COLOR_CODES = "dcaebf123456789klmnor";
     private long lastClickTime = 0;
-    private static final long CLICK_DELAY = 50; // 50 миллисекунд между кликами
-
-    public static void toggleAutoMelody() {
-        isAutoMelody = !isAutoMelody;
-    }
-
-    public static boolean isAutoMelody() {
-        return isAutoMelody;
-    }
 
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || !isAutoMelody) return;
+        if (event.phase != TickEvent.Phase.START || !LBQConfig.INSTANCE.getMelodySwitch()) return;
 
         Minecraft mc = Minecraft.getMinecraft();
         if (!(mc.currentScreen instanceof GuiChest)) return;
@@ -45,7 +35,7 @@ public class AMelody {
         if (!isHarpMelody(chestName)) return;
 
         long currentTime = System.currentTimeMillis();
-        if (currentTime - lastClickTime < CLICK_DELAY) return;
+        if (currentTime - lastClickTime < LBQConfig.INSTANCE.getMelodyDelay()) return;
 
         for (int i = 37; i <= 43; i++) {
             ItemStack itemStack = container.getLowerChestInventory().getStackInSlot(i);
@@ -60,7 +50,7 @@ public class AMelody {
                             mc.thePlayer
                     );
                     lastClickTime = currentTime;
-                    return; // Выходим после первого клика
+                    return;
                 }
             }
         }
@@ -68,7 +58,7 @@ public class AMelody {
 
     private boolean isHarpMelody(String chestName) {
         if (!chestName.startsWith("Harp - ")) return false;
-        String melodyName = chestName.substring(7); // Remove "Harp - " prefix
+        String melodyName = chestName.substring(7);
         return HARP_MELODIES.contains(melodyName);
     }
 
@@ -77,7 +67,7 @@ public class AMelody {
         for (int i = 0; i < input.length(); i++) {
             char c = input.charAt(i);
             if (c == '§' && i + 1 < input.length() && COLOR_CODES.indexOf(input.charAt(i + 1)) != -1) {
-                i++; // пропускаем следующий символ
+                i++;
             } else {
                 result.append(c);
             }

@@ -13,6 +13,8 @@ import com.laybalt.AutoMelody.AMelody;
 import com.laybalt.AutoMelody.AMelodyKeyBind;
 import com.laybalt.AutoMelody.AMelodyMessage;
 import com.laybalt.GUI.ExampleConfig;
+import com.laybalt.GUI.LBQConfig;
+import net.minecraft.client.Minecraft;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.EventHandler;
@@ -21,17 +23,22 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.InputEvent;
 import org.lwjgl.input.Keyboard;
 
+@SuppressWarnings("InstantiationOfUtilityClass")
 @Mod(modid = Main.MODID, version = Main.VERSION)
 public class Main
 {
     public static final String MODID = "laybalt";
-    public static final String VERSION = "1.2-SNAPSHOT-3";
+    public static final String VERSION = "1.3";
 
     private static final int keyBinding = Keyboard.KEY_RSHIFT;
+
 
     @EventHandler
     public void init(FMLInitializationEvent event) {
         MinecraftForge.EVENT_BUS.register(this);
+
+        ExampleConfig.INSTANCE.initialize();
+        LBQConfig.INSTANCE.initialize();
 
         AFishKeyBind aFishKeyBind = new AFishKeyBind();
         AFishMessage aFishMessage = new AFishMessage();
@@ -69,23 +76,12 @@ public class Main
     @SubscribeEvent
     public void onKeyInput(InputEvent.KeyInputEvent event) {
         if (Keyboard.isKeyDown(keyBinding)) {
-            ExampleConfig.INSTANCE.gui();
+            Minecraft.getMinecraft().displayGuiScreen(LBQConfig.INSTANCE.gui());
         }
     }
 
     @EventHandler
     public void preInit(FMLInitializationEvent event) {
-        if (AClickerLeft.isAutoClicking()) {
-            AClickerLeft.toggleAutoClicking();
-        }
-        if (AClickerRight.isAutoClicking()) {
-            AClickerRight.toggleAutoClicking();
-        }
-        if (AFish.isAutoFishing()) {
-            AFish.toggleAutoFishing();
-        }
-        if (AMelody.isAutoMelody()) {
-            AMelody.toggleAutoMelody();
-        }
+        MinecraftForge.EVENT_BUS.register(this);
     }
 }

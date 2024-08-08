@@ -1,5 +1,6 @@
 package com.laybalt.AutoFishing;
 
+import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityArmorStand;
@@ -16,26 +17,22 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class AFish {
-    private static boolean isAutoFishing = false;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private boolean isReelingScheduled = false;
     private boolean isCastingScheduled = false;
-
-    public static void toggleAutoFishing() {
-        isAutoFishing = !isAutoFishing;
-    }
-
-    public static boolean isAutoFishing() {
-        return isAutoFishing;
-    }
     private int casttimer = 0;
     private boolean isReeling = false;
+    private boolean isCasting = false;
+    private boolean isReelingInProgress = false;
 
     public void ReelRod() {
-        // minecraft reel the rod
+        if (isReelingInProgress) return;
+        isReelingInProgress = true;
         ItemStack itemStack = Minecraft.getMinecraft().thePlayer.getHeldItem();
         Minecraft.getMinecraft().playerController.sendUseItem(Minecraft.getMinecraft().thePlayer, Minecraft.getMinecraft().theWorld, itemStack);
         isReelingScheduled = false;
+        isReeling = false;
+        scheduler.schedule(() -> isReelingInProgress = false, LBQConfig.INSTANCE.getFishingReelDelayNumber(), TimeUnit.MILLISECONDS);
     }
 
     public void CastRod() {
@@ -47,11 +44,12 @@ public class AFish {
             casttimer = 0;
         }
         isCastingScheduled = false;
+        isCasting = false;
     }
 
     @SubscribeEvent
     public void onTick(TickEvent.ClientTickEvent event) {
-        if (isAutoFishing) {
+        if (LBQConfig.INSTANCE.getFishingSwitch()) {
             EntityPlayer player = Minecraft.getMinecraft().thePlayer;
             if (player != null) {
                 ItemStack itemStack = Minecraft.getMinecraft().thePlayer.getHeldItem();
@@ -65,18 +63,19 @@ public class AFish {
                         for (Entity entity : Minecraft.getMinecraft().theWorld.getEntitiesWithinAABB(EntityArmorStand.class, new AxisAlignedBB(x - 1, y - 1, z - 1, x + 1, y + 1, z + 1))) {
                             if (entity instanceof EntityArmorStand && entity.getCustomNameTag().contains("!!!")) {
                                 isReeling = true;
-                                if (!isReelingScheduled) {
+                                if (!isReelingScheduled && !isCasting) {
                                     isReelingScheduled = true;
-                                    scheduler.schedule(this::ReelRod, 250, TimeUnit.MILLISECONDS);
+                                    scheduler.schedule(this::ReelRod, LBQConfig.INSTANCE.getFishingReelDelayNumber(), TimeUnit.MILLISECONDS);
                                 }
                                 break;
                             }
                         }
                         if (isReeling) {
                             isReeling = false;
-                            if (!isCastingScheduled) {
+                            if (!isCastingScheduled && !isReelingScheduled) {
                                 isCastingScheduled = true;
-                                scheduler.schedule(this::CastRod, 500, TimeUnit.MILLISECONDS);
+                                isCasting = true;
+                                scheduler.schedule(this::CastRod, LBQConfig.INSTANCE.getFishingCastDelayNumber(), TimeUnit.MILLISECONDS);
                             }
                         }
                     }

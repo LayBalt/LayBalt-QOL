@@ -2,6 +2,7 @@ package com.laybalt.AutoMelody;
 
 import com.laybalt.AutoFishing.AFish;
 import com.laybalt.AutoFishing.AFishMessage;
+import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
@@ -19,7 +20,7 @@ public class AMelodyKeyBind {
     @SubscribeEvent
     public void onKeyInput(InputEvent.KeyInputEvent event) {
         if (keyBinding.isPressed()) {
-            AMelody.toggleAutoMelody();
+            LBQConfig.INSTANCE.setMelodySwitch(!LBQConfig.INSTANCE.getMelodySwitch());
             AMelodyMessage.sendMessage();
         }
     }
