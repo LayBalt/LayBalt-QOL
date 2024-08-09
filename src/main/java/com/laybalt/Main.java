@@ -6,6 +6,8 @@ import com.laybalt.AutoClicker.LeftClick.AClickerMessageLeft;
 import com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight;
 import com.laybalt.AutoClicker.RightClick.AClickerMessageRight;
 import com.laybalt.AutoClicker.RightClick.AClickerRight;
+import com.laybalt.AutoExperiments.AExperimentKeyBind;
+import com.laybalt.AutoExperiments.AExperimentMessage;
 import com.laybalt.AutoFishing.AFishMessage;
 import com.laybalt.AutoFishing.AFish;
 import com.laybalt.AutoFishing.AFishKeyBind;
@@ -14,10 +16,10 @@ import com.laybalt.AutoMelody.AMelodyKeyBind;
 import com.laybalt.AutoMelody.AMelodyMessage;
 import com.laybalt.GUI.ExampleConfig;
 import com.laybalt.GUI.LBQConfig;
+import com.laybalt.experiments.AExperiment;
 import net.minecraft.client.Minecraft;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.common.Mod.EventHandler;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.InputEvent;
@@ -33,7 +35,7 @@ public class Main
     private static final int keyBinding = Keyboard.KEY_RSHIFT;
 
 
-    @EventHandler
+    @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
         MinecraftForge.EVENT_BUS.register(this);
 
@@ -56,6 +58,12 @@ public class Main
         AMelodyMessage aMelodyMessage = new AMelodyMessage();
         AMelody aMelody = new AMelody();
 
+        AExperimentKeyBind aExperimentKeyBind = new AExperimentKeyBind();
+        AExperimentMessage aExperimentMessage = new AExperimentMessage();
+        AExperiment aExperiment = new AExperiment(LBQConfig.INSTANCE);
+
+        ConfigKeyBind configKeyBind = new ConfigKeyBind();
+
         MinecraftForge.EVENT_BUS.register(aFishKeyBind);
         MinecraftForge.EVENT_BUS.register(aFishMessage);
         MinecraftForge.EVENT_BUS.register(aFish);
@@ -71,18 +79,25 @@ public class Main
         MinecraftForge.EVENT_BUS.register(aMelodyKeyBind);
         MinecraftForge.EVENT_BUS.register(aMelodyMessage);
         MinecraftForge.EVENT_BUS.register(aMelody);
+
+        MinecraftForge.EVENT_BUS.register(aExperimentKeyBind);
+        MinecraftForge.EVENT_BUS.register(aExperimentMessage);
+        MinecraftForge.EVENT_BUS.register(aExperiment);
+
+        MinecraftForge.EVENT_BUS.register(configKeyBind);
     }
 
-    @SubscribeEvent
-    public void onKeyInput(InputEvent.KeyInputEvent event) {
-        if (Keyboard.isKeyDown(keyBinding)) {
-            Minecraft.getMinecraft().displayGuiScreen(LBQConfig.INSTANCE.gui());
-        } //else if (Keyboard.isKeyDown(Keyboard.KEY_B)) {
+    /*If you need ExapleGui just uncomment this lines.
+    * You can open it by pressing B*/
+
+//    @SubscribeEvent
+//    public void onKeyInput(InputEvent.KeyInputEvent event) {
+//        if (Keyboard.isKeyDown(Keyboard.KEY_B)) {
 //            Minecraft.getMinecraft().displayGuiScreen(ExampleConfig.INSTANCE.gui());
 //        }
-    }
+//    }
 
-    @EventHandler
+    @Mod.EventHandler
     public void preInit(FMLInitializationEvent event) {
         MinecraftForge.EVENT_BUS.register(this);
     }

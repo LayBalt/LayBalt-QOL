@@ -3,6 +3,8 @@ package com.laybalt.GUI
 import gg.essential.vigilance.Vigilant
 import gg.essential.vigilance.data.Property
 import gg.essential.vigilance.data.PropertyType
+import gg.essential.vigilance.gui.SettingsGui
+import net.minecraft.client.gui.GuiScreen
 import java.io.File
 
 object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
@@ -56,6 +58,33 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
         max = 300
     )
     var MelodyDelay = 125
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Enable Dance Room Solver",
+        description = "Soon...",
+        category = "QOL",
+        subcategory = "Dance Room Solver"
+    )
+    var DanseSolverSwitch = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Enable Auto Enchanting",
+        category = "QOL",
+        subcategory = "Auto Enchanting"
+    )
+    var AutoExperimentSwitch = false
+
+    @Property(
+        type = PropertyType.SLIDER,
+        name = "Click delay Auto Enchanting",
+        category = "QOL",
+        subcategory = "Auto Enchanting",
+        min = 100,
+        max = 400
+    )
+    var AutoExperimentSlider = 200
 
     @Property(
         type = PropertyType.SWITCH,
