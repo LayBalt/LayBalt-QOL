@@ -56,7 +56,7 @@ public class AClickerRight {
             Minecraft mc = Minecraft.getMinecraft();
             if (mc != null && mc.thePlayer != null) {
                 try {
-                    Method rightClickMouse = Minecraft.class.getDeclaredMethod("rightClickMouse");
+                    Method rightClickMouse = Minecraft.class.getDeclaredMethod("func_147121_ag");
                     rightClickMouse.setAccessible(true);
                     rightClickMouse.invoke(mc);
                 } catch (Exception e) {

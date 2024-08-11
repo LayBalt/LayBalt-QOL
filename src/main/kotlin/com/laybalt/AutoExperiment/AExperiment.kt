@@ -66,7 +66,7 @@ class AExperiment(
 
     fun getLowerChestInventory(guiChest: GuiChest): IInventory? {
         return try {
-            val field: Field = GuiChest::class.java.getDeclaredField("lowerChestInventory")
+            val field: Field = GuiChest::class.java.getDeclaredField("field_147015_w")
             field.isAccessible = true
             field.get(guiChest) as IInventory
         } catch (e: Exception) {
