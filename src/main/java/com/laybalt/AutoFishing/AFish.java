@@ -2,6 +2,7 @@ package com.laybalt.AutoFishing;
 
 import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityArmorStand;
 import net.minecraft.entity.player.EntityPlayer;
@@ -9,6 +10,7 @@ import net.minecraft.entity.projectile.EntityFishHook;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.AxisAlignedBB;
+import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
@@ -33,8 +35,10 @@ public class AFish {
     public void ReelRod() {
         if (isReelingInProgress) return;
         isReelingInProgress = true;
-        ItemStack itemStack = Minecraft.getMinecraft().thePlayer.getHeldItem();
-        Minecraft.getMinecraft().playerController.sendUseItem(Minecraft.getMinecraft().thePlayer, Minecraft.getMinecraft().theWorld, itemStack);
+
+        // Использование обфусцированного метода для нажатия правой кнопки мыши
+        KeyBinding.onTick(Minecraft.getMinecraft().gameSettings.keyBindUseItem.getKeyCode());
+
         isReelingScheduled = false;
         isReeling = false;
         scheduler.schedule(() -> isReelingInProgress = false, LBQConfig.INSTANCE.getFishingReelDelayNumber(), TimeUnit.MILLISECONDS);
@@ -44,8 +48,9 @@ public class AFish {
         EntityFishHook fishHook = Minecraft.getMinecraft().thePlayer.fishEntity;
         casttimer++;
         if (casttimer >= 20 && fishHook == null) {
-            ItemStack itemStack = Minecraft.getMinecraft().thePlayer.getHeldItem();
-            Minecraft.getMinecraft().playerController.sendUseItem(Minecraft.getMinecraft().thePlayer, Minecraft.getMinecraft().theWorld, itemStack);
+            // Использование обфусцированного метода для нажатия правой кнопки мыши
+            ObfuscationReflectionHelper.setPrivateValue(Minecraft.class, Minecraft.getMinecraft(), true, "field_71425_J", "rightClickDelayTimer");
+            KeyBinding.onTick(Minecraft.getMinecraft().gameSettings.keyBindUseItem.getKeyCode());
             casttimer = 0;
         }
         isCastingScheduled = false;
