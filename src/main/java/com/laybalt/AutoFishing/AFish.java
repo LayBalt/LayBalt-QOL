@@ -12,8 +12,10 @@ import net.minecraft.util.AxisAlignedBB;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 public class AFish {
@@ -24,6 +26,9 @@ public class AFish {
     private boolean isReeling = false;
     private boolean isCasting = false;
     private boolean isReelingInProgress = false;
+    private boolean isShakingHead = false;
+    private boolean isRotating = false;
+    private final Random random = new Random();
 
     public void ReelRod() {
         if (isReelingInProgress) return;
@@ -80,7 +85,71 @@ public class AFish {
                         }
                     }
                 }
+
+                if (LBQConfig.INSTANCE.getFishingShakeHead() && !isShakingHead && !isRotating) {
+                    isShakingHead = true;
+                    scheduler.schedule(this::shakeHead, 20 + random.nextInt(11), TimeUnit.SECONDS);
+                }
             }
+        } else {
+            isShakingHead = false;
+            isRotating = false;
         }
+    }
+
+    private void shakeHead() {
+        if (!LBQConfig.INSTANCE.getFishingSwitch()) return;
+
+        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
+        if (player != null) {
+            float initialYaw = player.rotationYaw;
+            float initialPitch = player.rotationPitch;
+
+            float targetYaw = initialYaw + (random.nextFloat() * 3 - 1.5f);
+            float targetPitch = initialPitch + (random.nextFloat() * 3 - 1.5f);
+
+            smoothRotation(initialYaw, initialPitch, targetYaw, targetPitch);
+        }
+    }
+
+    private void smoothRotation(float startYaw, float startPitch, float endYaw, float endPitch) {
+        long startTime = System.currentTimeMillis();
+        long endTime = startTime + (long) 500;
+        isRotating = true;
+
+        final ScheduledFuture<?>[] rotationTaskRef = new ScheduledFuture<?>[1];
+
+        rotationTaskRef[0] = scheduler.scheduleAtFixedRate(() -> {
+            long currentTime = System.currentTimeMillis();
+            if (currentTime >= endTime || !isRotating) {
+                isRotating = false;
+                scheduler.schedule(() -> isShakingHead = false, 500, TimeUnit.MILLISECONDS);
+                rotationTaskRef[0].cancel(false);
+                return;
+            }
+
+            float progress = (float) (currentTime - startTime) / (long) 500;
+            float easedProgress = easeInOutQuad(progress);
+
+            float newYaw = interpolateAngle(startYaw, endYaw, easedProgress);
+            float newPitch = startPitch + (endPitch - startPitch) * easedProgress;
+
+            EntityPlayer player = Minecraft.getMinecraft().thePlayer;
+            if (player != null) {
+                player.rotationYaw = newYaw;
+                player.rotationPitch = newPitch;
+            }
+        }, 0, 16, TimeUnit.MILLISECONDS);
+    }
+
+    private float easeInOutQuad(float t) {
+        return t < 0.5f ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    }
+
+    private float interpolateAngle(float a, float b, float t) {
+        float diff = b - a;
+        while (diff < -180) diff += 360;
+        while (diff >= 180) diff -= 360;
+        return a + diff * t;
     }
 }

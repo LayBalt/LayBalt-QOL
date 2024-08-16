@@ -42,6 +42,15 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
 
     @Property(
         type = PropertyType.SWITCH,
+        name = "Shake head?",
+        description = "Shakes head every 20-30 seconds when fishing.",
+        category = "Fishing",
+        subcategory = "Auto Fishing"
+    )
+    var FishingShakeHead = false
+
+    @Property(
+        type = PropertyType.SWITCH,
         name = "Enable Auto Melody",
         category = "QOL",
         subcategory = "Auto Melody"
