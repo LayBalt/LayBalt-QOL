@@ -7,7 +7,7 @@ import com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight;
 import com.laybalt.AutoClicker.RightClick.AClickerMessageRight;
 import com.laybalt.AutoClicker.RightClick.AClickerRight;
 import com.laybalt.AutoExperiments.AExperimentKeyBind;
-import com.laybalt.AutoExperiments.AExperimentMessage;
+import com.laybalt.AutoExperiment.AExperimentMessage;
 import com.laybalt.AutoFishing.AFishMessage;
 import com.laybalt.AutoFishing.AFish;
 import com.laybalt.AutoFishing.AFishKeyBind;
@@ -17,23 +17,21 @@ import com.laybalt.AutoMelody.AMelodyMessage;
 import com.laybalt.GUI.ExampleConfig;
 import com.laybalt.GUI.LBQConfig;
 import com.laybalt.experiments.AExperiment;
-import net.minecraft.client.Minecraft;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.InputEvent;
-import org.lwjgl.input.Keyboard;
 
 @SuppressWarnings("InstantiationOfUtilityClass")
 @Mod(modid = Main.MODID, version = Main.VERSION)
 public class Main
 {
     public static final String MODID = "laybalt";
-    public static final String VERSION = "1.3.1";
+    public static final String VERSION = "1.3.11";
+    public static final String PREFIX = "§b§lLay§f§lB§c§lalt §8QOL §4>>> §r";
 
-    private static final int keyBinding = Keyboard.KEY_RSHIFT;
-
+    public static String getModPrefix() {
+        return PREFIX;
+    }
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {

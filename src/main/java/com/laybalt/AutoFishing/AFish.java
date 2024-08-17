@@ -10,9 +10,11 @@ import net.minecraft.entity.projectile.EntityFishHook;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.AxisAlignedBB;
+import net.minecraftforge.client.event.ClientChatReceivedEvent;
 import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraftforge.fml.common.network.FMLNetworkEvent;
 
 import java.util.Random;
 import java.util.concurrent.Executors;
@@ -24,19 +26,18 @@ public class AFish {
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private boolean isReelingScheduled = false;
     private boolean isCastingScheduled = false;
-    private int casttimer = 0;
     private boolean isReeling = false;
     private boolean isCasting = false;
     private boolean isReelingInProgress = false;
     private boolean isShakingHead = false;
     private boolean isRotating = false;
+    private long lastFishingCheck = 0;
     private final Random random = new Random();
 
     public void ReelRod() {
         if (isReelingInProgress) return;
         isReelingInProgress = true;
 
-        // Использование обфусцированного метода для нажатия правой кнопки мыши
         KeyBinding.onTick(Minecraft.getMinecraft().gameSettings.keyBindUseItem.getKeyCode());
 
         isReelingScheduled = false;
@@ -46,15 +47,20 @@ public class AFish {
 
     public void CastRod() {
         EntityFishHook fishHook = Minecraft.getMinecraft().thePlayer.fishEntity;
-        casttimer++;
-        if (casttimer >= 20 && fishHook == null) {
-            // Использование обфусцированного метода для нажатия правой кнопки мыши
+        if (fishHook == null) {
             ObfuscationReflectionHelper.setPrivateValue(Minecraft.class, Minecraft.getMinecraft(), true, "field_71425_J", "rightClickDelayTimer");
             KeyBinding.onTick(Minecraft.getMinecraft().gameSettings.keyBindUseItem.getKeyCode());
-            casttimer = 0;
         }
         isCastingScheduled = false;
         isCasting = false;
+    }
+
+    private void checkFishingRodStatus() {
+        EntityFishHook fishHook = Minecraft.getMinecraft().thePlayer.fishEntity;
+        if (fishHook == null || !fishHook.isInWater()) {
+            // Retry casting the rod if it was not successful
+            scheduler.schedule(this::CastRod, LBQConfig.INSTANCE.getFishingCastDelayNumber(), TimeUnit.MILLISECONDS);
+        }
     }
 
     @SubscribeEvent
@@ -96,9 +102,80 @@ public class AFish {
                     scheduler.schedule(this::shakeHead, 20 + random.nextInt(11), TimeUnit.SECONDS);
                 }
             }
+
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastFishingCheck > 10000) { // 30 секунд
+                checkFishingState();
+                lastFishingCheck = currentTime;
+            }
+
         } else {
             isShakingHead = false;
             isRotating = false;
+        }
+    }
+
+    @SubscribeEvent
+    public void onChatMessage(ClientChatReceivedEvent event) {
+        if (!LBQConfig.INSTANCE.getFishingSwitch()) {
+            return;
+        }
+
+        String message = event.message.getUnformattedText();
+
+        if (message.contains("You") && (
+                message.contains("fell into the void") ||
+                        message.contains("was thrown into the void by") ||
+                        message.contains("was slain by") ||
+                        message.contains("burned to death") ||
+                        message.contains("fell to death") ||
+                        message.contains("fell to their death with help from") ||
+                        message.contains("suffocated.") ||
+                        message.contains("drowned.") ||
+                        message.contains("was pricked to death by a cactus.") ||
+                        message.contains("died.") ||
+                        message.contains("were killed by")
+        )) {
+            disableAutoFishing();
+            AFishMessage.sendDead(message);
+        }
+
+        if (message.contains("Sending to server")) {
+            disableAutoFishing();
+            AFishMessage.sendWarped();
+        }
+    }
+
+    @SubscribeEvent
+    public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        System.out.println("Client disconnected from server");
+        disableAutoFishing();
+    }
+
+    private void disableAutoFishing() {
+        LBQConfig.INSTANCE.setFishingSwitch(false);
+        isReelingScheduled = false;
+        isCastingScheduled = false;
+        isReeling = false;
+        isCasting = false;
+        isReelingInProgress = false;
+        isShakingHead = false;
+        isRotating = false;
+    }
+
+    private void checkFishingState() {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc == null || mc.thePlayer == null) return;
+
+        EntityFishHook fishHook = mc.thePlayer.fishEntity;
+        if (fishHook == null || (fishHook.motionX == 0 && fishHook.motionY == 0 && fishHook.motionZ == 0)) {
+            // if itemstack the player holds is not a fishing rod then do this:
+            ItemStack itemStack = mc.thePlayer.getHeldItem();
+            if (itemStack == null || itemStack.getItem() != Items.fishing_rod) {
+                // Удочка не заброшена или застряла
+                ReelRod();
+                scheduler.schedule(this::CastRod, LBQConfig.INSTANCE.getFishingCastDelayNumber(), TimeUnit.MILLISECONDS);
+            }
         }
     }
 
@@ -114,6 +191,9 @@ public class AFish {
             float targetPitch = initialPitch + (random.nextFloat() * 3 - 1.5f);
 
             smoothRotation(initialYaw, initialPitch, targetYaw, targetPitch);
+
+            // Schedule a task to check if the fishing rod was cast successfully
+            scheduler.schedule(this::checkFishingRodStatus, 350, TimeUnit.MILLISECONDS);
         }
     }
 

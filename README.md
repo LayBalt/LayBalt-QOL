@@ -1,6 +1,6 @@
 <!-- markdownlint-disable-file MD001 MD033 -->
 <h2 align="center">LayBalt Repository</h2>
-<h2 align="center">Version 1.3.1</h2>
+<h2 align="center">Version 1.3.11</h2>
 <h4 align="center">LayBaltQOL (LBQ) is a feature-rich 1.8.9 Minecraft Forge mod for Hypixel Skyblock.</h4>
 
 ---
@@ -12,7 +12,10 @@ LayBalt mod is a Minecraft Mod made by LayBalt for Hypixel QOL. This mod is a <i
 
 - Auto Fishing
 - Auto Clicker
+- Auto Melody
+- Auto Experiment
 - Auction Sniper (Only Discord version for now)
+- [WE DID NOT PAID FOR HOSTING, DONATE US TO GET IT BACK!]
 - Soon...
 
 ---
