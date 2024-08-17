@@ -11,7 +11,7 @@ LayBalt mod is a Minecraft Mod made by LayBalt for Hypixel QOL. This mod is a <i
 </p>
 
 - Auto Fishing
-- Auto Clicker
+- Auto Clicker (Removed from build, but files are still in the source code)
 - Auto Melody
 - Auto Experiment
 - Auction Sniper (Only Discord version for now)

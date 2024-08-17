@@ -1,6 +1,6 @@
-package com.laybalt.AutoExperiments
+package com.laybalt.autoexperiment
 
-import com.laybalt.AutoExperiment.AExperimentMessage.Companion.sendMessage
+import com.laybalt.autoexperiment.AExperimentMessage.Companion.sendMessage
 import com.laybalt.GUI.LBQConfig.AutoExperimentSwitch
 import net.minecraft.client.settings.KeyBinding
 import net.minecraftforge.fml.client.registry.ClientRegistry

@@ -1,4 +1,4 @@
-package com.laybalt.experiments
+package com.laybalt.autoexperiment
 
 import com.laybalt.GUI.LBQConfig
 import net.minecraft.client.Minecraft
