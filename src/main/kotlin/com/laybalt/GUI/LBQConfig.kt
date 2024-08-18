@@ -138,6 +138,44 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
     )
     var AutoExperimentSlider = 200
 
+    @Property(
+            type = PropertyType.SWITCH,
+            name = "Enable Auto Clicker (Left)",
+            category = "Combat",
+            subcategory = "Auto Clicker Left"
+    )
+    var LeftClickerSwitch = false
+
+    @Property(
+            type = PropertyType.NUMBER,
+            name = "Auto Clicker CPS (Left)",
+            category = "Combat",
+            description = "It will have +- 2 CPS every time anyway!",
+            subcategory = "Auto Clicker Left",
+            min = 3,
+            max = 100
+    )
+    var LeftClickNumber = 23
+
+    @Property(
+            type = PropertyType.SWITCH,
+            name = "Enable Auto Clicker (Right)",
+            category = "Combat",
+            subcategory = "Auto Clicker Right"
+    )
+    var RightClickerSwitch = false
+
+    @Property(
+            type = PropertyType.NUMBER,
+            name = "Auto Clicker CPS (Right)",
+            category = "Combat",
+            description = "It will have +- 2 CPS every time anyway!",
+            subcategory = "Auto Clicker Right",
+            min = 3,
+            max = 100
+    )
+    var RightClickNumber = 25
+
     init {
         initialize()
     }

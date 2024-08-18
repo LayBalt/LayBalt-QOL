@@ -46,7 +46,15 @@ public class AFish {
     }
 
     public void CastRod() {
-        EntityFishHook fishHook = Minecraft.getMinecraft().thePlayer.fishEntity;
+        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
+        if (player == null) return;
+
+        ItemStack itemStack = player.getHeldItem();
+        if (itemStack == null || itemStack.getItem() != Items.fishing_rod) {
+            return; // У игрока нет удочки в руке
+        }
+
+        EntityFishHook fishHook = player.fishEntity;
         if (fishHook == null) {
             ObfuscationReflectionHelper.setPrivateValue(Minecraft.class, Minecraft.getMinecraft(), true, "field_71425_J", "rightClickDelayTimer");
             KeyBinding.onTick(Minecraft.getMinecraft().gameSettings.keyBindUseItem.getKeyCode());

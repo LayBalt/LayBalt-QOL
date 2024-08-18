@@ -1,5 +1,11 @@
 package com.laybalt;
 
+import com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft;
+import com.laybalt.AutoClicker.LeftClick.AClickerLeft;
+import com.laybalt.AutoClicker.LeftClick.AClickerMessageLeft;
+import com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight;
+import com.laybalt.AutoClicker.RightClick.AClickerMessageRight;
+import com.laybalt.AutoClicker.RightClick.AClickerRight;
 import com.laybalt.autoexperiment.AExperimentKeyBind;
 import com.laybalt.autoexperiment.AExperimentMessage;
 import com.laybalt.AutoFishing.AFishMessage;
@@ -41,6 +47,15 @@ public class Main {
         AMelodyMessage aMelodyMessage = new AMelodyMessage();
         AMelody aMelody = new AMelody();
 
+        AClickerLeft clickerLeft = AClickerLeft.getInstance();
+        AClickerRight clickerRight = AClickerRight.getInstance();
+
+        AClickerMessageLeft aClickerMessageLeft = new AClickerMessageLeft();
+        AClickerMessageRight aClickerMessageRight = new AClickerMessageRight();
+
+        AClickerKeyBindLeft aClickerKeyBindLeft = new AClickerKeyBindLeft();
+        AClickerKeyBindRight aClickerKeyBindRight = new AClickerKeyBindRight();
+
         AExperimentKeyBind aExperimentKeyBind = new AExperimentKeyBind();
         AExperimentMessage aExperimentMessage = new AExperimentMessage();
         AExperiment aExperiment = new AExperiment(LBQConfig.INSTANCE);
@@ -54,6 +69,15 @@ public class Main {
         MinecraftForge.EVENT_BUS.register(aMelodyKeyBind);
         MinecraftForge.EVENT_BUS.register(aMelodyMessage);
         MinecraftForge.EVENT_BUS.register(aMelody);
+
+        MinecraftForge.EVENT_BUS.register(clickerLeft);
+        MinecraftForge.EVENT_BUS.register(clickerRight);
+
+        MinecraftForge.EVENT_BUS.register(aClickerMessageLeft);
+        MinecraftForge.EVENT_BUS.register(aClickerMessageRight);
+
+        MinecraftForge.EVENT_BUS.register(aClickerKeyBindLeft);
+        MinecraftForge.EVENT_BUS.register(aClickerKeyBindRight);
 
         MinecraftForge.EVENT_BUS.register(aExperimentKeyBind);
         MinecraftForge.EVENT_BUS.register(aExperimentMessage);
