@@ -29,90 +29,103 @@ public class AFish {
     private boolean isReeling = false;
     private boolean isCasting = false;
     private boolean isReelingInProgress = false;
+    private boolean isFishingInProgress = false;
     private boolean isShakingHead = false;
     private boolean isRotating = false;
+    private float originalYaw;
+    private float originalPitch;
     private long lastFishingCheck = 0;
     private final Random random = new Random();
+    private boolean isGuiOpen() {
+        Minecraft mc = Minecraft.getMinecraft();
+        return mc.currentScreen != null;
+    }
 
     public void ReelRod() {
-        if (isReelingInProgress) return;
+        if (isReelingInProgress || isFishingInProgress) return;
         isReelingInProgress = true;
+        isFishingInProgress = true;
 
         KeyBinding.onTick(Minecraft.getMinecraft().gameSettings.keyBindUseItem.getKeyCode());
 
         isReelingScheduled = false;
         isReeling = false;
-        scheduler.schedule(() -> isReelingInProgress = false, LBQConfig.INSTANCE.getFishingReelDelayNumber(), TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> {
+            isReelingInProgress = false;
+            isFishingInProgress = false;
+        }, LBQConfig.INSTANCE.getFishingReelDelayNumber(), TimeUnit.MILLISECONDS);
     }
 
     public void CastRod() {
-        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
-        if (player == null) return;
+        if (isFishingInProgress) return;
+        isFishingInProgress = true;
 
-        ItemStack itemStack = player.getHeldItem();
-        if (itemStack == null || itemStack.getItem() != Items.fishing_rod) {
-            return; // У игрока нет удочки в руке
-        }
-
-        EntityFishHook fishHook = player.fishEntity;
+        EntityFishHook fishHook = Minecraft.getMinecraft().thePlayer.fishEntity;
         if (fishHook == null) {
             ObfuscationReflectionHelper.setPrivateValue(Minecraft.class, Minecraft.getMinecraft(), true, "field_71425_J", "rightClickDelayTimer");
             KeyBinding.onTick(Minecraft.getMinecraft().gameSettings.keyBindUseItem.getKeyCode());
         }
         isCastingScheduled = false;
         isCasting = false;
+        scheduler.schedule(() -> isFishingInProgress = false, LBQConfig.INSTANCE.getFishingCastDelayNumber(), TimeUnit.MILLISECONDS);
     }
 
     private void checkFishingRodStatus() {
         EntityFishHook fishHook = Minecraft.getMinecraft().thePlayer.fishEntity;
         if (fishHook == null || !fishHook.isInWater()) {
-            // Retry casting the rod if it was not successful
             scheduler.schedule(this::CastRod, LBQConfig.INSTANCE.getFishingCastDelayNumber(), TimeUnit.MILLISECONDS);
         }
     }
 
     @SubscribeEvent
     public void onTick(TickEvent.ClientTickEvent event) {
+        if (isGuiOpen()) {
+            AFishMessage.sendGuiOpenMessage();
+            disableAutoFishing();
+            return;
+        }
+
         if (LBQConfig.INSTANCE.getFishingSwitch()) {
             EntityPlayer player = Minecraft.getMinecraft().thePlayer;
             if (player != null) {
-                ItemStack itemStack = Minecraft.getMinecraft().thePlayer.getHeldItem();
-                if (itemStack != null && itemStack.getItem() == Items.fishing_rod) {
-                    EntityFishHook fishHook = Minecraft.getMinecraft().thePlayer.fishEntity;
-                    if (fishHook != null && fishHook.isInWater()) {
-                        double x = fishHook.posX;
-                        double y = fishHook.posY;
-                        double z = fishHook.posZ;
+                if (!isFishingInProgress) {
+                    originalYaw = player.rotationYaw;
+                    originalPitch = player.rotationPitch;
+                }
 
-                        for (Entity entity : Minecraft.getMinecraft().theWorld.getEntitiesWithinAABB(EntityArmorStand.class, new AxisAlignedBB(x - 1, y - 1, z - 1, x + 1, y + 1, z + 1))) {
-                            if (entity instanceof EntityArmorStand && entity.getCustomNameTag().contains("!!!")) {
-                                isReeling = true;
-                                if (!isReelingScheduled && !isCasting) {
-                                    isReelingScheduled = true;
-                                    scheduler.schedule(this::ReelRod, LBQConfig.INSTANCE.getFishingReelDelayNumber(), TimeUnit.MILLISECONDS);
-                                }
-                                break;
+                player.rotationYaw = 0.0f;
+                player.rotationPitch = 0.0f;
+
+                ItemStack itemStack = player.getHeldItem();
+                if (itemStack != null && itemStack.getItem() == Items.fishing_rod) {
+                    for (Entity entity : Minecraft.getMinecraft().theWorld.getEntitiesWithinAABB(EntityArmorStand.class, new AxisAlignedBB(player.posX - 15, player.posY - 15, player.posZ - 15, player.posX + 15, player.posY + 15, player.posZ + 15))) {
+                        if (entity instanceof EntityArmorStand && entity.getCustomNameTag().contains("!!!")) {
+                            isReeling = true;
+                            if (!isReelingScheduled && !isCasting) {
+                                isReelingScheduled = true;
+                                scheduler.schedule(this::ReelRod, LBQConfig.INSTANCE.getFishingReelDelayNumber(), TimeUnit.MILLISECONDS);
                             }
+                            break;
                         }
-                        if (isReeling) {
-                            isReeling = false;
-                            if (!isCastingScheduled && !isReelingScheduled) {
-                                isCastingScheduled = true;
-                                isCasting = true;
-                                scheduler.schedule(this::CastRod, LBQConfig.INSTANCE.getFishingCastDelayNumber(), TimeUnit.MILLISECONDS);
-                            }
+                    }
+                    if (isReeling) {
+                        isReeling = false;
+                        if (!isCastingScheduled && !isReelingScheduled) {
+                            isCastingScheduled = true;
+                            isCasting = true;
+                            scheduler.schedule(this::CastRod, LBQConfig.INSTANCE.getFishingCastDelayNumber(), TimeUnit.MILLISECONDS);
                         }
                     }
                 }
+            }
 
-                if (LBQConfig.INSTANCE.getFishingShakeHead() && !isShakingHead && !isRotating) {
-                    isShakingHead = true;
-                    scheduler.schedule(this::shakeHead, 20 + random.nextInt(11), TimeUnit.SECONDS);
-                }
+            if (LBQConfig.INSTANCE.getFishingShakeHead() && !isShakingHead && !isRotating) {
+                isShakingHead = true;
+                scheduler.schedule(this::shakeHead, 20 + random.nextInt(11), TimeUnit.SECONDS);
             }
 
             long currentTime = System.currentTimeMillis();
-            if (currentTime - lastFishingCheck > 10000) { // 30 секунд
+            if (currentTime - lastFishingCheck > 10000) {
                 checkFishingState();
                 lastFishingCheck = currentTime;
             }
@@ -169,6 +182,12 @@ public class AFish {
         isReelingInProgress = false;
         isShakingHead = false;
         isRotating = false;
+
+        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
+        if (player != null) {
+            player.rotationYaw = originalYaw;
+            player.rotationPitch = originalPitch;
+        }
     }
 
     private void checkFishingState() {
@@ -177,10 +196,8 @@ public class AFish {
 
         EntityFishHook fishHook = mc.thePlayer.fishEntity;
         if (fishHook == null || (fishHook.motionX == 0 && fishHook.motionY == 0 && fishHook.motionZ == 0)) {
-            // if itemstack the player holds is not a fishing rod then do this:
             ItemStack itemStack = mc.thePlayer.getHeldItem();
             if (itemStack == null || itemStack.getItem() != Items.fishing_rod) {
-                // Удочка не заброшена или застряла
                 ReelRod();
                 scheduler.schedule(this::CastRod, LBQConfig.INSTANCE.getFishingCastDelayNumber(), TimeUnit.MILLISECONDS);
             }
@@ -200,7 +217,6 @@ public class AFish {
 
             smoothRotation(initialYaw, initialPitch, targetYaw, targetPitch);
 
-            // Schedule a task to check if the fishing rod was cast successfully
             scheduler.schedule(this::checkFishingRodStatus, 350, TimeUnit.MILLISECONDS);
         }
     }

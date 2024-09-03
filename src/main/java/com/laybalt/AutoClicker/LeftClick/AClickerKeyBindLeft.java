@@ -11,7 +11,7 @@ public class AClickerKeyBindLeft {
     public static KeyBinding keyBinding;
 
     public AClickerKeyBindLeft() {
-        keyBinding = new KeyBinding("Left AutoClicker", Keyboard.KEY_C, "LayBalt");
+        keyBinding = new KeyBinding("Left AutoClicker", Keyboard.KEY_NONE, "LayBalt");
         ClientRegistry.registerKeyBinding(keyBinding);
     }
 

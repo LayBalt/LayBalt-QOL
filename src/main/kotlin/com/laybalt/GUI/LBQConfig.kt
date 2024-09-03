@@ -139,6 +139,70 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
     var AutoExperimentSlider = 200
 
     @Property(
+        type = PropertyType.SWITCH,
+        name = "Enable Custom ESP",
+        category = "QOL",
+        subcategory = "ESP"
+    )
+    var CustomESP = false
+
+    @Property(
+        type = PropertyType.COLOR,
+        name = "ESP Color",
+        description = "Color of the ESP outline",
+        category = "QOL",
+        subcategory = "ESP"
+    )
+    var CustomESPColor = java.awt.Color(255, 0, 0) // Красный цвет по умолчанию
+
+    @Property(
+        type = PropertyType.SLIDER,
+        name = "ESP Line Width",
+        description = "Width of the ESP outline",
+        category = "QOL",
+        subcategory = "ESP",
+        min = 1,
+        max = 5
+    )
+    var CustomESPLineWidth = 2
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "ESP Through Walls",
+        description = "Show ESP through walls",
+        category = "QOL",
+        subcategory = "ESP"
+    )
+    var CustomESPThroughWalls = true
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "ESP for Players",
+        description = "Show ESP for players",
+        category = "QOL",
+        subcategory = "ESP"
+    )
+    var CustomESPPlayers = true
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "ESP for Mobs",
+        description = "Show ESP for mobs",
+        category = "QOL",
+        subcategory = "ESP"
+    )
+    var CustomESPMobs = true
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "ESP for Items",
+        description = "Show ESP for items",
+        category = "QOL",
+        subcategory = "ESP"
+    )
+    var CustomESPItems = false
+
+    @Property(
             type = PropertyType.SWITCH,
             name = "Enable Auto Clicker (Left)",
             category = "Combat",
@@ -175,6 +239,95 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
             max = 100
     )
     var RightClickNumber = 25
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Enable Vampire Slayer Helper",
+        category = "Vampire Slayer",
+        subcategory = "General"
+    )
+    var vampireSlayerHelperEnabled = false
+
+    @Property(
+        type = PropertyType.SLIDER,
+        name = "Sword Slot",
+        description = "Inventory slot number for the sword.",
+        category = "Vampire Slayer",
+        subcategory = "Slots",
+        min = 1,
+        max = 9
+    )
+    var vampireSlayerSwordSlot = 1
+
+    @Property(
+        type = PropertyType.SLIDER,
+        name = "Healing Melon Slot",
+        description = "Inventory slot number for the Healing Melon.",
+        category = "Vampire Slayer",
+        subcategory = "Slots",
+        min = 1,
+        max = 9
+    )
+    var vampireSlayerHealingMelonSlot = 1
+
+    @Property(
+        type = PropertyType.SLIDER,
+        name = "Holy Ice Slot",
+        description = "Inventory slot number for the Holy Ice. (TWINCLAWS)",
+        category = "Vampire Slayer",
+        subcategory = "Slots",
+        min = 1,
+        max = 9
+    )
+    var vampireSlayerHolyIceSlot = 3
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Auto Jump",
+        category = "Vampire Slayer",
+        subcategory = "Actions"
+    )
+    var vampireSlayerAutoJump = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Auto Sneak",
+        category = "Vampire Slayer",
+        subcategory = "Actions"
+    )
+    var vampireSlayerAutoSneak = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Auto Click Up",
+        category = "Vampire Slayer",
+        subcategory = "Actions"
+    )
+    var vampireSlayerAutoClickUp = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Auto Click Down",
+        category = "Vampire Slayer",
+        subcategory = "Actions"
+    )
+    var vampireSlayerAutoClickDown = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Auto Heal",
+        category = "Vampire Slayer",
+        subcategory = "Actions"
+    )
+    var vampireSlayerAutoHeal = false
+
+    @Property(
+        type = PropertyType.SWITCH,
+        name = "Auto Twin Claws",
+        category = "Vampire Slayer",
+        subcategory = "Actions"
+    )
+    var vampireSlayerAutoTwinClaws = false
 
     init {
         initialize()

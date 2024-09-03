@@ -23,4 +23,10 @@ public class AFishMessage {
         String key = Main.getModPrefix() + message;
         Minecraft.getMinecraft().thePlayer.addChatMessage(new ChatComponentTranslation(key));
     }
+
+    public static void sendGuiOpenMessage() {
+        String message = "§7AFishing is now §coff §8[§cGUI Opened§8]";
+        String key = Main.getModPrefix() + message;
+        Minecraft.getMinecraft().thePlayer.addChatMessage(new ChatComponentTranslation(key));
+    }
 }

@@ -11,7 +11,7 @@ public class AMelodyKeyBind {
     public static KeyBinding keyBinding;
 
     public AMelodyKeyBind() {
-        keyBinding = new KeyBinding("AutoMelody", Keyboard.KEY_M, "LayBalt");
+        keyBinding = new KeyBinding("AutoMelody", Keyboard.KEY_NONE, "LayBalt");
         ClientRegistry.registerKeyBinding(keyBinding);
     }
 

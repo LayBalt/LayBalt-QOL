@@ -6,6 +6,7 @@ import com.laybalt.AutoClicker.LeftClick.AClickerMessageLeft;
 import com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight;
 import com.laybalt.AutoClicker.RightClick.AClickerMessageRight;
 import com.laybalt.AutoClicker.RightClick.AClickerRight;
+import com.laybalt.CustomESP.CustomESP;
 import com.laybalt.autoexperiment.AExperimentKeyBind;
 import com.laybalt.autoexperiment.AExperimentMessage;
 import com.laybalt.AutoFishing.AFishMessage;
@@ -17,6 +18,9 @@ import com.laybalt.AutoMelody.AMelodyMessage;
 import com.laybalt.GUI.ExampleConfig;
 import com.laybalt.GUI.LBQConfig;
 import com.laybalt.autoexperiment.AExperiment;
+import com.laybalt.vamphelper.VHelper;
+import com.laybalt.vamphelper.VHelperKeyBind;
+import com.laybalt.vamphelper.VHelperMessage;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -25,7 +29,7 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 public class Main {
     public static final String MODID = "laybalt";
     public static final String NAME = "LayBalt Mod";
-    public static final String VERSION = "1.3.11";
+    public static final String VERSION = "1.4-SNAPSHOT-1";
     public static final String PREFIX = "§b§lLay§f§lB§c§lalt §8QOL §4>>> §r";
 
     public static String getModPrefix() {
@@ -50,6 +54,8 @@ public class Main {
         AClickerLeft clickerLeft = AClickerLeft.getInstance();
         AClickerRight clickerRight = AClickerRight.getInstance();
 
+        CustomESP customESP = new CustomESP();
+
         AClickerMessageLeft aClickerMessageLeft = new AClickerMessageLeft();
         AClickerMessageRight aClickerMessageRight = new AClickerMessageRight();
 
@@ -59,6 +65,10 @@ public class Main {
         AExperimentKeyBind aExperimentKeyBind = new AExperimentKeyBind();
         AExperimentMessage aExperimentMessage = new AExperimentMessage();
         AExperiment aExperiment = new AExperiment(LBQConfig.INSTANCE);
+
+        VHelper vHelper = new VHelper();
+        VHelperKeyBind vHelperKeyBind = new VHelperKeyBind();
+        VHelperMessage vHelperMessage = new VHelperMessage();
 
         ConfigKeyBind configKeyBind = new ConfigKeyBind();
 
@@ -73,6 +83,8 @@ public class Main {
         MinecraftForge.EVENT_BUS.register(clickerLeft);
         MinecraftForge.EVENT_BUS.register(clickerRight);
 
+        MinecraftForge.EVENT_BUS.register(customESP);
+
         MinecraftForge.EVENT_BUS.register(aClickerMessageLeft);
         MinecraftForge.EVENT_BUS.register(aClickerMessageRight);
 
@@ -82,6 +94,10 @@ public class Main {
         MinecraftForge.EVENT_BUS.register(aExperimentKeyBind);
         MinecraftForge.EVENT_BUS.register(aExperimentMessage);
         MinecraftForge.EVENT_BUS.register(aExperiment);
+
+        MinecraftForge.EVENT_BUS.register(vHelper);
+        MinecraftForge.EVENT_BUS.register(vHelperKeyBind);
+        MinecraftForge.EVENT_BUS.register(vHelperMessage);
 
         MinecraftForge.EVENT_BUS.register(configKeyBind);
     }

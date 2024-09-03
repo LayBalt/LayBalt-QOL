@@ -1,14 +1,13 @@
-package com.laybalt.autoexperiment
+package com.laybalt.vamphelper
 
-import com.laybalt.autoexperiment.AExperimentMessage.Companion.sendMessage
-import com.laybalt.GUI.LBQConfig.AutoExperimentSwitch
+import com.laybalt.GUI.LBQConfig
 import net.minecraft.client.settings.KeyBinding
 import net.minecraftforge.fml.client.registry.ClientRegistry
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import net.minecraftforge.fml.common.gameevent.InputEvent.KeyInputEvent
 import org.lwjgl.input.Keyboard
 
-class AExperimentKeyBind {
+class VHelperKeyBind {
     init {
         ClientRegistry.registerKeyBinding(keyBinding)
     }
@@ -16,12 +15,12 @@ class AExperimentKeyBind {
     @SubscribeEvent
     fun onKeyInput(event: KeyInputEvent?) {
         if (keyBinding.isPressed) {
-            AutoExperimentSwitch = !AutoExperimentSwitch
-            sendMessage()
+            LBQConfig.vampireSlayerHelperEnabled = !LBQConfig.vampireSlayerHelperEnabled
+            VHelperMessage.sendToggleMessage()
         }
     }
 
     companion object {
-        var keyBinding: KeyBinding = KeyBinding("AutoExperiment", Keyboard.KEY_NONE, "LayBalt")
+        var keyBinding: KeyBinding = KeyBinding("VampireHelper", Keyboard.KEY_NONE, "LayBalt")
     }
 }

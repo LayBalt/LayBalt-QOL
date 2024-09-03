@@ -1,0 +1,4 @@
+package com.laybalt.CamHack.FreeCam;
+
+public class FreeCamMessage {
+}
