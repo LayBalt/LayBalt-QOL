@@ -2,6 +2,7 @@ package com.laybalt.AutoFishing;
 
 import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.settings.GameSettings;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityArmorStand;
@@ -32,13 +33,29 @@ public class AFish {
     private boolean isFishingInProgress = false;
     private boolean isShakingHead = false;
     private boolean isRotating = false;
-    private float originalYaw;
-    private float originalPitch;
+    private boolean isSensitivityLowered = false;
+    private float originalSensitivity;
     private long lastFishingCheck = 0;
     private final Random random = new Random();
     private boolean isGuiOpen() {
         Minecraft mc = Minecraft.getMinecraft();
         return mc.currentScreen != null;
+    }
+    private void disableMouseMovementCompletely() {
+        if (!isSensitivityLowered) {
+            GameSettings settings = Minecraft.getMinecraft().gameSettings;
+            originalSensitivity = settings.mouseSensitivity;
+            settings.mouseSensitivity = Float.MIN_VALUE; // Practically disable mouse movement
+            isSensitivityLowered = true;
+        }
+    }
+
+    private void restoreSensitivity() {
+        if (isSensitivityLowered) {
+            Minecraft.getMinecraft().gameSettings.mouseSensitivity = originalSensitivity;
+            isSensitivityLowered = false;
+            System.out.println("Original sensitivity " + originalSensitivity);
+        }
     }
 
     public void ReelRod() {
@@ -79,22 +96,17 @@ public class AFish {
 
     @SubscribeEvent
     public void onTick(TickEvent.ClientTickEvent event) {
-        if (isGuiOpen()) {
-            AFishMessage.sendGuiOpenMessage();
-            disableAutoFishing();
-            return;
-        }
-
         if (LBQConfig.INSTANCE.getFishingSwitch()) {
             EntityPlayer player = Minecraft.getMinecraft().thePlayer;
             if (player != null) {
-                if (!isFishingInProgress) {
-                    originalYaw = player.rotationYaw;
-                    originalPitch = player.rotationPitch;
+                if (isGuiOpen()) {
+                    AFishMessage.sendGuiOpenMessage();
+                    disableAutoFishing();
+                    return;
                 }
-
-                player.rotationYaw = 0.0f;
-                player.rotationPitch = 0.0f;
+                if (LBQConfig.INSTANCE.getFishingStopMoveHead()){
+                    disableMouseMovementCompletely();
+                }
 
                 ItemStack itemStack = player.getHeldItem();
                 if (itemStack != null && itemStack.getItem() == Items.fishing_rod) {
@@ -133,6 +145,7 @@ public class AFish {
         } else {
             isShakingHead = false;
             isRotating = false;
+            restoreSensitivity();
         }
     }
 
@@ -182,12 +195,6 @@ public class AFish {
         isReelingInProgress = false;
         isShakingHead = false;
         isRotating = false;
-
-        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
-        if (player != null) {
-            player.rotationYaw = originalYaw;
-            player.rotationPitch = originalPitch;
-        }
     }
 
     private void checkFishingState() {

@@ -1,6 +1,7 @@
 package com.laybalt.CustomESP;
 
 import com.laybalt.GUI.LBQConfig;
+import com.laybalt.Main;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderGlobal;
@@ -23,7 +24,7 @@ import java.util.List;
 import java.io.*;
 
 public class CustomESP {
-    private static final String PREFIX = "§6[CustomESP] §r";
+    private static final String PREFIX = "§5[CustomESP] §r";
     private static List<String> entityIds = new ArrayList<>();
     private boolean wasDown;
     private boolean enabled;
@@ -60,16 +61,16 @@ public class CustomESP {
                         if (!entityIds.contains(entityId)) {
                             entityIds.add(entityId);
                             saveEntityIds();
-                            sendMessage("§aAdded §f" + entity.getName() + "§a to CustomESP");
+                            sendMessage("§aAdded §f" + entity.getName() + "§a to your ESP list");
                         } else {
                             entityIds.remove(entityId);
                             saveEntityIds();
-                            sendMessage("§cRemoved §f" + entity.getName() + "§c from CustomESP");
+                            sendMessage("§cRemoved §f" + entity.getName() + "§c from your ESP list");
                         }
                     } else if (entity instanceof EntityItem && !LBQConfig.INSTANCE.getCustomESPItems()) {
                         sendMessage("§eESP for items is disabled in settings");
                     } else {
-                        sendMessage("§eThis entity cannot be added to ESP");
+                        sendMessage("§eThis entity cannot be added to ESP list");
                     }
                 }
             }
@@ -172,21 +173,21 @@ public class CustomESP {
                 entityIds.add(line.trim());
             }
         } catch (IOException e) {
-            // bet
+            // 123
         }
     }
 
     private void sendMessage(String message) {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.thePlayer != null) {
-            mc.thePlayer.addChatMessage(new ChatComponentText(PREFIX + message));
+            mc.thePlayer.addChatMessage(new ChatComponentText(Main.PREFIX + PREFIX + message));
         }
     }
 
     public void sendActionBar(String message) {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.ingameGUI != null) {
-            mc.ingameGUI.setRecordPlaying(PREFIX + message, false);
+            mc.ingameGUI.setRecordPlaying(Main.PREFIX + PREFIX + message, false);
         }
     }
 

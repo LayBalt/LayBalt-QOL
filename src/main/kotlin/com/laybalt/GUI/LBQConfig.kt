@@ -39,13 +39,22 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
     var FishingCastDelayNumber = 250
 
     @Property(
+        type = PropertyType.SWITCH,
+        name = "Stop moving head?",
+        description = "Sets sensetivity to 0.01 while fishing",
+        category = "Fishing",
+        subcategory = "Auto Fishing"
+    )
+    var FishingStopMoveHead = false
+
+    @Property(
             type = PropertyType.SWITCH,
             name = "Shake head?",
             description = "Shakes head every 20-30 seconds when fishing.",
             category = "Fishing",
             subcategory = "Auto Fishing"
     )
-    var FishingShakeHead = false
+    var FishingShakeHead = true
 
     @Property(
             type = PropertyType.NUMBER,

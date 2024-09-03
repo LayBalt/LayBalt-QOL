@@ -29,7 +29,7 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 public class Main {
     public static final String MODID = "laybalt";
     public static final String NAME = "LayBalt Mod";
-    public static final String VERSION = "1.4-SNAPSHOT-1";
+    public static final String VERSION = "1.4-SNAPSHOT-2";
     public static final String PREFIX = "§b§lLay§f§lB§c§lalt §8QOL §4>>> §r";
 
     public static String getModPrefix() {
