@@ -1,4 +1,4 @@
-package com.laybalt.AutoFishing;
+package com.laybalt.AutoFishing.Fishing;
 
 import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.Minecraft;
@@ -30,7 +30,6 @@ public class AFish {
     private boolean isReeling = false;
     private boolean isCasting = false;
     private boolean isReelingInProgress = false;
-    private boolean isFishingInProgress = false;
     private boolean isShakingHead = false;
     private boolean isRotating = false;
     private boolean isSensitivityLowered = false;
@@ -59,9 +58,8 @@ public class AFish {
     }
 
     public void ReelRod() {
-        if (isReelingInProgress || isFishingInProgress) return;
+        if (isReelingInProgress) return;
         isReelingInProgress = true;
-        isFishingInProgress = true;
 
         KeyBinding.onTick(Minecraft.getMinecraft().gameSettings.keyBindUseItem.getKeyCode());
 
@@ -69,14 +67,11 @@ public class AFish {
         isReeling = false;
         scheduler.schedule(() -> {
             isReelingInProgress = false;
-            isFishingInProgress = false;
+
         }, LBQConfig.INSTANCE.getFishingReelDelayNumber(), TimeUnit.MILLISECONDS);
     }
 
     public void CastRod() {
-        if (isFishingInProgress) return;
-        isFishingInProgress = true;
-
         EntityFishHook fishHook = Minecraft.getMinecraft().thePlayer.fishEntity;
         if (fishHook == null) {
             ObfuscationReflectionHelper.setPrivateValue(Minecraft.class, Minecraft.getMinecraft(), true, "field_71425_J", "rightClickDelayTimer");
@@ -84,7 +79,6 @@ public class AFish {
         }
         isCastingScheduled = false;
         isCasting = false;
-        scheduler.schedule(() -> isFishingInProgress = false, LBQConfig.INSTANCE.getFishingCastDelayNumber(), TimeUnit.MILLISECONDS);
     }
 
     private void checkFishingRodStatus() {

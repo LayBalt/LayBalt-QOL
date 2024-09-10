@@ -1,5 +1,6 @@
 package com.laybalt.AutoFishing;
 
+import com.laybalt.AutoFishing.Fishing.AFishMessage;
 import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.fml.client.registry.ClientRegistry;

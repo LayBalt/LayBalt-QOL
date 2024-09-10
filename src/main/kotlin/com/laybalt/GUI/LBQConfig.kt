@@ -10,7 +10,7 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
             type = PropertyType.SWITCH,
             name = "Enable Auto Fishing",
             category = "Fishing",
-            subcategory = "Auto Fishing"
+            subcategory = "1 Auto Fishing"
     )
     var FishingSwitch = false
 
@@ -19,7 +19,7 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
             name = "Fishing Reel Delay",
             description = "Delay when reeling in the fish (in ms).",
             category = "Fishing",
-            subcategory = "Auto Fishing",
+            subcategory = "1 Auto Fishing",
             min = 150,
             max = 600,
             increment = 25
@@ -31,7 +31,7 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
             name = "Fishing Cast Delay",
             description = "Delay between each cast (in ms).",
             category = "Fishing",
-            subcategory = "Auto Fishing",
+            subcategory = "1 Auto Fishing",
             min = 150,
             max = 600,
             increment = 25
@@ -43,7 +43,7 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
         name = "Stop moving head?",
         description = "Sets sensetivity to 0.01 while fishing",
         category = "Fishing",
-        subcategory = "Auto Fishing"
+        subcategory = "1 Auto Fishing"
     )
     var FishingStopMoveHead = false
 
@@ -52,16 +52,25 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
             name = "Shake head?",
             description = "Shakes head every 20-30 seconds when fishing.",
             category = "Fishing",
-            subcategory = "Auto Fishing"
+            subcategory = "1 Auto Fishing"
     )
     var FishingShakeHead = true
+
+    @Property(
+            type = PropertyType.SWITCH,
+            name = "Enable Auto Mob Killer",
+            description = "Works only while Auto Fishing is enabled.",
+            category = "Fishing",
+            subcategory = "3 Auto Mob Killer"
+    )
+    var FishingMobKillerSwitch = false
 
     @Property(
             type = PropertyType.NUMBER,
             name = "Fishing Attack Delay",
             description = "Delay between attacks during combat (in ms)",
             category = "Fishing",
-            subcategory = "Auto Fishing",
+            subcategory = "3 Auto Mob Killer",
             min = 250,
             max = 1000,
             increment = 50
@@ -73,18 +82,18 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
             name = "Fishing Mob Detection Radius",
             description = "Radius for detecting hostile mobs while fishing",
             category = "Fishing",
-            subcategory = "Auto Fishing",
+            subcategory = "3 Auto Mob Killer",
             min = 1,
-            max = 16
+            max = 6
     )
-    var FishingMobDetectionRadius = 5
+    var FishingMobDetectionRadius = 6
 
     @Property(
             type = PropertyType.NUMBER,
             name = "Fishing Sword Slot",
             description = "Inventory slot number for the sword (1-9)",
             category = "Fishing",
-            subcategory = "Auto Fishing",
+            subcategory = "3 Auto Mob Killer",
             min = 1,
             max = 9
     )
@@ -95,11 +104,39 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
             name = "Fishing Rod Slot",
             description = "Inventory slot number for the fishing rod (1-9)",
             category = "Fishing",
-            subcategory = "Auto Fishing",
+            subcategory = "3 Auto Mob Killer",
             min = 1,
             max = 9
     )
     var FishingRodSlot = 2
+
+    @Property(
+            type = PropertyType.SWITCH,
+            name = "Enable Auto Path",
+            description = "Works only while Auto Fishing is enabled.",
+            category = "Fishing",
+            subcategory = "2 Auto Path"
+    )
+    var AutoPathSwitch = true
+
+    @Property(
+        type = PropertyType.SELECTOR,
+        name = "Choose a path for AutoFishing",
+        description = "Select where you want to fish. The script will automatically go by the path you choose.",
+        category = "Fishing",
+        subcategory = "2 Auto Path",
+        options = [
+            "Hub - Wizard Tower",
+            "Hub - The Barn",
+            "The Park - Pond",
+            "Spider's Den - Pond",
+            "Mushroom Desert - Pond",
+            "Custom - 1",
+            "Custom - 2",
+            "Custom - 3"
+        ]
+    )
+    var largeSelector = 0
 
     @Property(
             type = PropertyType.SWITCH,
@@ -340,5 +377,24 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
 
     init {
         initialize()
+
+        setCategoryDescription("QOL", "Quality of Life settings.\n For more help, go to our discord server. \n [!] discord.gg/laybalt [!]")
+        setCategoryDescription("Fishing", "Settings for the fishing module. \nFor more help, go to our discord server. \n [!] discord.gg/laybalt [!]")
+        setCategoryDescription("Combat", "Settings for the combat module. \nFor more help, go to our discord server. \n [!] discord.gg/laybalt [!]")
+        setCategoryDescription("Vampire Slayer", "Settings for the Vampire Slayer module. \nFor more help, go to our discord server. \n [!] discord.gg/laybalt [!]")
+
+        setSubcategoryDescription("Combat","Auto Clicker Left", "Settings for the left auto clicker. <!> MIGHT BE BANNABLE! <!>")
+        setSubcategoryDescription("Combat","Auto Clicker Right", "Settings for the right auto clicker. <!> MIGHT BE BANNABLE! <!>")
+
+        setSubcategoryDescription("QOL","ESP", "Settings for the ESP module. \nWhen it's on you should MIDDLE CLICK on a mob to add/remove it to ESP.\n For more help, go to our discord server. \n [!] discord.gg/laybalt [!]")
+
+        //Auto Mob Killer
+        addDependency("FishingAttackDelay", "FishingMobKillerSwitch")
+        addDependency("FishingMobDetectionRadius", "FishingMobKillerSwitch")
+        addDependency("FishingSwordSlot", "FishingMobKillerSwitch")
+        addDependency("FishingRodSlot", "FishingMobKillerSwitch")
+
+        //Auto Path
+        addDependency("largeSelector", "AutoPathSwitch")
     }
 }

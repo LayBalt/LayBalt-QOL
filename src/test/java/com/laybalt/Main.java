@@ -2,9 +2,9 @@ package com.laybalt;
 
 import com.laybalt.autoexperiment.AExperimentKeyBind;
 import com.laybalt.autoexperiment.AExperimentMessage;
-import com.laybalt.AutoFishing.AFishMessage;
-import com.laybalt.AutoFishing.AFish;
-import com.laybalt.AutoFishing.AFishKeyBind;
+import com.laybalt.AutoFishing.Fishing.AFishMessage;
+import com.laybalt.AutoFishing.Fishing.AFish;
+import com.laybalt.AutoFishing.Fishing.AFishKeyBind;
 import com.laybalt.AutoMelody.AMelody;
 import com.laybalt.AutoMelody.AMelodyKeyBind;
 import com.laybalt.AutoMelody.AMelodyMessage;

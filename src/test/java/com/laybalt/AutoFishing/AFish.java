@@ -1,5 +1,6 @@
 package com.laybalt.AutoFishing;
 
+import com.laybalt.AutoFishing.Fishing.AFishMessage;
 import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.settings.KeyBinding;
@@ -175,7 +176,7 @@ public class AFish {
                         message.contains("were killed by")
         )) {
             disableAutoFishing();
-            AFishMessage.sendDead(message);
+            com.laybalt.AutoFishing.Fishing.AFishMessage.sendDead(message);
         }
 
         if (message.contains("Sending to server")) {

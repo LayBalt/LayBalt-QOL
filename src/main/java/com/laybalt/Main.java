@@ -9,9 +9,9 @@ import com.laybalt.AutoClicker.RightClick.AClickerRight;
 import com.laybalt.CustomESP.CustomESP;
 import com.laybalt.autoexperiment.AExperimentKeyBind;
 import com.laybalt.autoexperiment.AExperimentMessage;
-import com.laybalt.AutoFishing.AFishMessage;
-import com.laybalt.AutoFishing.AFish;
-import com.laybalt.AutoFishing.AFishKeyBind;
+import com.laybalt.AutoFishing.Fishing.AFishMessage;
+import com.laybalt.AutoFishing.Fishing.AFish;
+import com.laybalt.AutoFishing.Fishing.AFishKeyBind;
 import com.laybalt.AutoMelody.AMelody;
 import com.laybalt.AutoMelody.AMelodyKeyBind;
 import com.laybalt.AutoMelody.AMelodyMessage;
@@ -21,13 +21,18 @@ import com.laybalt.autoexperiment.AExperiment;
 import com.laybalt.vamphelper.VHelper;
 import com.laybalt.vamphelper.VHelperKeyBind;
 import com.laybalt.vamphelper.VHelperMessage;
+import net.minecraft.client.Minecraft;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.common.gameevent.InputEvent;
+import org.lwjgl.input.Keyboard;
 
 @Mod(modid = Main.MODID, name = Main.NAME, version = Main.VERSION)
 public class Main {
-    public static final String MODID = "laybalt";
+    public static final String MODID = "examplemod";
     public static final String NAME = "LayBalt Mod";
     public static final String VERSION = "1.4-SNAPSHOT-2";
     public static final String PREFIX = "§b§lLay§f§lB§c§lalt §8QOL §4>>> §r";
@@ -105,15 +110,15 @@ public class Main {
     /*If you need ExapleGui just uncomment this lines.
     * You can open it by pressing B*/
 
-//    @SubscribeEvent
-//    public void onKeyInput(InputEvent.KeyInputEvent event) {
-//        if (Keyboard.isKeyDown(Keyboard.KEY_B)) {
-//            Minecraft.getMinecraft().displayGuiScreen(ExampleConfig.INSTANCE.gui());
-//        }
-//    }
+    @SubscribeEvent
+    public void onKeyInput(InputEvent.KeyInputEvent event) {
+        if (Keyboard.isKeyDown(Keyboard.KEY_B)) {
+            Minecraft.getMinecraft().displayGuiScreen(ExampleConfig.INSTANCE.gui());
+        }
+    }
 
     @Mod.EventHandler
-    public void preInit(FMLInitializationEvent event) {
+    public void preInit(FMLPreInitializationEvent event) {
         MinecraftForge.EVENT_BUS.register(this);
     }
 }

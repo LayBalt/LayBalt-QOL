@@ -1,4 +1,4 @@
-package com.laybalt.AutoFishing;
+package com.laybalt.AutoFishing.Fishing;
 
 import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.settings.KeyBinding;

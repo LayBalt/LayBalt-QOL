@@ -1,18 +1,15 @@
 [
   {
     "modid": "${modid}",
-    "name": "LayBalt QOL",
-    "description": "Not Enough Easily",
+    "name": "LayBaltQol",
+    "description": "Not Enough LayBalt",
     "version": "${version}",
     "mcversion": "${mcversion}",
     "url": "https://github.com/LayBalt/LayBalt-QOL",
     "updateUrl": "",
     "authorList": [
-      "LayBalt",
-      "Somikyy",
-      "To get in this list, please contribute to the mod."
+      "LayBalt", "Somikyy"
     ],
-    "credits": "",
     "logoFile": "",
     "screenshots": [],
     "dependencies": []
