@@ -1,8 +1,8 @@
-package com.laybalt.AutoFishing;
+package com.laybalt.skyblock.AutoFishing.Fishing;
 
-import com.laybalt.skyblock.AutoFishing.Fishing.AFishMessage;
 import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.settings.GameSettings;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.item.EntityArmorStand;
@@ -32,12 +32,29 @@ public class AFish {
     private boolean isReelingInProgress = false;
     private boolean isShakingHead = false;
     private boolean isRotating = false;
+    private boolean isSensitivityLowered = false;
+    private float originalSensitivity;
     private long lastFishingCheck = 0;
     private final Random random = new Random();
-    private AFishCombat combat;
+    private boolean isGuiOpen() {
+        Minecraft mc = Minecraft.getMinecraft();
+        return mc.currentScreen != null;
+    }
+    private void disableMouseMovementCompletely() {
+        if (!isSensitivityLowered) {
+            GameSettings settings = Minecraft.getMinecraft().gameSettings;
+            originalSensitivity = settings.mouseSensitivity;
+            settings.mouseSensitivity = Float.MIN_VALUE; // Practically disable mouse movement
+            isSensitivityLowered = true;
+        }
+    }
 
-    public AFish() {
-        combat = new AFishCombat();
+    private void restoreSensitivity() {
+        if (isSensitivityLowered) {
+            Minecraft.getMinecraft().gameSettings.mouseSensitivity = originalSensitivity;
+            isSensitivityLowered = false;
+            System.out.println("Original sensitivity " + originalSensitivity);
+        }
     }
 
     public void ReelRod() {
@@ -48,7 +65,10 @@ public class AFish {
 
         isReelingScheduled = false;
         isReeling = false;
-        scheduler.schedule(() -> isReelingInProgress = false, LBQConfig.INSTANCE.getFishingReelDelayNumber(), TimeUnit.MILLISECONDS);
+        scheduler.schedule(() -> {
+            isReelingInProgress = false;
+
+        }, LBQConfig.INSTANCE.getFishingReelDelayNumber(), TimeUnit.MILLISECONDS);
     }
 
     public void CastRod() {
@@ -71,43 +91,20 @@ public class AFish {
     @SubscribeEvent
     public void onTick(TickEvent.ClientTickEvent event) {
         if (LBQConfig.INSTANCE.getFishingSwitch()) {
-            if (combat.isInCombat()) {
-                handleCombat();
-            } else if (combat.checkForHostileMobs()) {
-                combat.startCombat();
-            } else {
-                ensureFishingRodEquipped();
-                handleFishing();
-            }
+            EntityPlayer player = Minecraft.getMinecraft().thePlayer;
+            if (player != null) {
+                if (isGuiOpen()) {
+                    AFishMessage.sendGuiOpenMessage();
+                    disableAutoFishing();
+                    return;
+                }
+                if (LBQConfig.INSTANCE.getFishingStopMoveHead()){
+                    disableMouseMovementCompletely();
+                }
 
-            if (LBQConfig.INSTANCE.getFishingShakeHead() && !isShakingHead && !isRotating) {
-                isShakingHead = true;
-                scheduler.schedule(this::shakeHead, 20 + random.nextInt(11), TimeUnit.SECONDS);
-            }
-
-            long currentTime = System.currentTimeMillis();
-            if (currentTime - lastFishingCheck > 10000) {
-                checkFishingState();
-                lastFishingCheck = currentTime;
-            }
-        } else {
-            isShakingHead = false;
-            isRotating = false;
-        }
-    }
-
-    private void handleFishing() {
-        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
-        if (player != null) {
-            ItemStack itemStack = player.getHeldItem();
-            if (itemStack != null && itemStack.getItem() == Items.fishing_rod) {
-                EntityFishHook fishHook = player.fishEntity;
-                if (fishHook != null && fishHook.isInWater()) {
-                    double x = fishHook.posX;
-                    double y = fishHook.posY;
-                    double z = fishHook.posZ;
-
-                    for (Entity entity : Minecraft.getMinecraft().theWorld.getEntitiesWithinAABB(EntityArmorStand.class, new AxisAlignedBB(x - 1, y - 1, z - 1, x + 1, y + 1, z + 1))) {
+                ItemStack itemStack = player.getHeldItem();
+                if (itemStack != null && itemStack.getItem() == Items.fishing_rod) {
+                    for (Entity entity : Minecraft.getMinecraft().theWorld.getEntitiesWithinAABB(EntityArmorStand.class, new AxisAlignedBB(player.posX - 15, player.posY - 15, player.posZ - 15, player.posX + 15, player.posY + 15, player.posZ + 15))) {
                         if (entity instanceof EntityArmorStand && entity.getCustomNameTag().contains("!!!")) {
                             isReeling = true;
                             if (!isReelingScheduled && !isCasting) {
@@ -127,30 +124,22 @@ public class AFish {
                     }
                 }
             }
-        }
-    }
 
-    private void handleCombat() {
-        if (!combat.checkForHostileMobs()) {
-            combat.endCombat();
-            resumeFishing();
-            return;
-        }
-        combat.attackNearestHostileMob();
-        scheduler.schedule(this::handleCombat, LBQConfig.INSTANCE.getFishingAttackDelay(), TimeUnit.MILLISECONDS);
-    }
+            if (LBQConfig.INSTANCE.getFishingShakeHead() && !isShakingHead && !isRotating) {
+                isShakingHead = true;
+                scheduler.schedule(this::shakeHead, 20 + random.nextInt(11), TimeUnit.SECONDS);
+            }
 
-    private void ensureFishingRodEquipped() {
-        int rodSlot = LBQConfig.INSTANCE.getFishingRodSlot() - 1;
-        if (Minecraft.getMinecraft().thePlayer.inventory.currentItem != rodSlot) {
-            Minecraft.getMinecraft().thePlayer.inventory.currentItem = rodSlot;
-        }
-    }
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastFishingCheck > 10000) {
+                checkFishingState();
+                lastFishingCheck = currentTime;
+            }
 
-    private void resumeFishing() {
-        ensureFishingRodEquipped();
-        if (Minecraft.getMinecraft().thePlayer.fishEntity == null) {
-            CastRod();
+        } else {
+            isShakingHead = false;
+            isRotating = false;
+            restoreSensitivity();
         }
     }
 
@@ -235,7 +224,7 @@ public class AFish {
 
     private void smoothRotation(float startYaw, float startPitch, float endYaw, float endPitch) {
         long startTime = System.currentTimeMillis();
-        long endTime = startTime + 500;
+        long endTime = startTime + (long) 500;
         isRotating = true;
 
         final ScheduledFuture<?>[] rotationTaskRef = new ScheduledFuture<?>[1];
@@ -249,7 +238,7 @@ public class AFish {
                 return;
             }
 
-            float progress = (float) (currentTime - startTime) / 500;
+            float progress = (float) (currentTime - startTime) / (long) 500;
             float easedProgress = easeInOutQuad(progress);
 
             float newYaw = interpolateAngle(startYaw, endYaw, easedProgress);

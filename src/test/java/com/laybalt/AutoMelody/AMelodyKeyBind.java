@@ -1,6 +1,7 @@
 package com.laybalt.AutoMelody;
 
 import com.laybalt.GUI.LBQConfig;
+import com.laybalt.skyblock.AutoMelody.AMelodyMessage;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;

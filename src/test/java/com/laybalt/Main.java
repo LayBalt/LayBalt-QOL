@@ -2,12 +2,12 @@ package com.laybalt;
 
 import com.laybalt.autoexperiment.AExperimentKeyBind;
 import com.laybalt.autoexperiment.AExperimentMessage;
-import com.laybalt.AutoFishing.Fishing.AFishMessage;
-import com.laybalt.AutoFishing.Fishing.AFish;
-import com.laybalt.AutoFishing.Fishing.AFishKeyBind;
-import com.laybalt.AutoMelody.AMelody;
-import com.laybalt.AutoMelody.AMelodyKeyBind;
-import com.laybalt.AutoMelody.AMelodyMessage;
+import com.laybalt.skyblock.AutoFishing.Fishing.AFishMessage;
+import com.laybalt.skyblock.AutoFishing.Fishing.AFish;
+import com.laybalt.skyblock.AutoFishing.Fishing.AFishKeyBind;
+import com.laybalt.skyblock.AutoMelody.AMelody;
+import com.laybalt.skyblock.AutoMelody.AMelodyKeyBind;
+import com.laybalt.skyblock.AutoMelody.AMelodyMessage;
 import com.laybalt.GUI.ExampleConfig;
 import com.laybalt.GUI.LBQConfig;
 import com.laybalt.autoexperiment.AExperiment;
