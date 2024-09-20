@@ -1,6 +1,6 @@
 <!-- markdownlint-disable-file MD001 MD033 -->
 <h2 align="center">LayBalt Repository</h2>
-<h2 align="center">Version 1.3.11</h2>
+<h2 align="center">Version 1.4-SNAPSHOT-3</h2>
 <h4 align="center">LayBaltQOL (LBQ) is a feature-rich 1.8.9 Minecraft Forge mod for Hypixel Skyblock.</h4>
 
 ---
