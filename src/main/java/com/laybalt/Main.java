@@ -1,20 +1,20 @@
 package com.laybalt;
 
-import com.laybalt.AutoClicker.LeftClick.AClickerKeyBindLeft;
-import com.laybalt.AutoClicker.LeftClick.AClickerLeft;
-import com.laybalt.AutoClicker.LeftClick.AClickerMessageLeft;
-import com.laybalt.AutoClicker.RightClick.AClickerKeyBindRight;
-import com.laybalt.AutoClicker.RightClick.AClickerMessageRight;
-import com.laybalt.AutoClicker.RightClick.AClickerRight;
-import com.laybalt.CustomESP.CustomESP;
+import com.laybalt.skyblock.AutoClicker.LeftClick.AClickerKeyBindLeft;
+import com.laybalt.skyblock.AutoClicker.LeftClick.AClickerLeft;
+import com.laybalt.skyblock.AutoClicker.LeftClick.AClickerMessageLeft;
+import com.laybalt.skyblock.AutoClicker.RightClick.AClickerKeyBindRight;
+import com.laybalt.skyblock.AutoClicker.RightClick.AClickerMessageRight;
+import com.laybalt.skyblock.AutoClicker.RightClick.AClickerRight;
+import com.laybalt.skyblock.CustomESP.CustomESP;
 import com.laybalt.autoexperiment.AExperimentKeyBind;
 import com.laybalt.autoexperiment.AExperimentMessage;
-import com.laybalt.AutoFishing.Fishing.AFishMessage;
-import com.laybalt.AutoFishing.Fishing.AFish;
-import com.laybalt.AutoFishing.Fishing.AFishKeyBind;
-import com.laybalt.AutoMelody.AMelody;
-import com.laybalt.AutoMelody.AMelodyKeyBind;
-import com.laybalt.AutoMelody.AMelodyMessage;
+import com.laybalt.skyblock.AutoFishing.Fishing.AFishMessage;
+import com.laybalt.skyblock.AutoFishing.Fishing.AFish;
+import com.laybalt.skyblock.AutoFishing.Fishing.AFishKeyBind;
+import com.laybalt.skyblock.AutoMelody.AMelody;
+import com.laybalt.skyblock.AutoMelody.AMelodyKeyBind;
+import com.laybalt.skyblock.AutoMelody.AMelodyMessage;
 import com.laybalt.GUI.ExampleConfig;
 import com.laybalt.GUI.LBQConfig;
 import com.laybalt.autoexperiment.AExperiment;
@@ -34,7 +34,7 @@ import org.lwjgl.input.Keyboard;
 public class Main {
     public static final String MODID = "examplemod";
     public static final String NAME = "LayBalt Mod";
-    public static final String VERSION = "1.4-SNAPSHOT-2";
+    public static final String VERSION = "1.4-SNAPSHOT-3";
     public static final String PREFIX = "§b§lLay§f§lB§c§lalt §8QOL §4>>> §r";
 
     public static String getModPrefix() {

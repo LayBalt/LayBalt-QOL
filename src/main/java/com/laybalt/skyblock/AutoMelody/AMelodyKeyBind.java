@@ -1,6 +1,5 @@
-package com.laybalt.AutoFishing;
+package com.laybalt.skyblock.AutoMelody;
 
-import com.laybalt.skyblock.AutoFishing.Fishing.AFishMessage;
 import com.laybalt.GUI.LBQConfig;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
@@ -8,19 +7,19 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.InputEvent;
 import org.lwjgl.input.Keyboard;
 
-public class AFishKeyBind {
+public class AMelodyKeyBind {
     public static KeyBinding keyBinding;
 
-    public AFishKeyBind() {
-        keyBinding = new KeyBinding("AutoFishing", Keyboard.KEY_F, "LayBalt");
+    public AMelodyKeyBind() {
+        keyBinding = new KeyBinding("AutoMelody", Keyboard.KEY_NONE, "LayBalt");
         ClientRegistry.registerKeyBinding(keyBinding);
     }
 
     @SubscribeEvent
     public void onKeyInput(InputEvent.KeyInputEvent event) {
         if (keyBinding.isPressed()) {
-            LBQConfig.INSTANCE.setFishingSwitch(!LBQConfig.INSTANCE.getFishingSwitch());
-            AFishMessage.sendMessage();
+            LBQConfig.INSTANCE.setMelodySwitch(!LBQConfig.INSTANCE.getMelodySwitch());
+            AMelodyMessage.sendMessage();
         }
     }
 }
