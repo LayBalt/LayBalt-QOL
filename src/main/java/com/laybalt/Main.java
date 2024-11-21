@@ -18,6 +18,7 @@ import com.laybalt.skyblock.AutoMelody.AMelodyMessage;
 import com.laybalt.GUI.ExampleConfig;
 import com.laybalt.GUI.LBQConfig;
 import com.laybalt.autoexperiment.AExperiment;
+import com.laybalt.vamphelper.TitleChecker;
 import com.laybalt.vamphelper.VHelper;
 import com.laybalt.vamphelper.VHelperKeyBind;
 import com.laybalt.vamphelper.VHelperMessage;
@@ -77,6 +78,8 @@ public class Main {
 
         ConfigKeyBind configKeyBind = new ConfigKeyBind();
 
+        TitleChecker titleChecker = new TitleChecker();
+
         MinecraftForge.EVENT_BUS.register(aFishKeyBind);
         MinecraftForge.EVENT_BUS.register(aFishMessage);
         MinecraftForge.EVENT_BUS.register(aFish);
@@ -105,6 +108,8 @@ public class Main {
         MinecraftForge.EVENT_BUS.register(vHelperMessage);
 
         MinecraftForge.EVENT_BUS.register(configKeyBind);
+
+        MinecraftForge.EVENT_BUS.register(titleChecker);
     }
 
     /*If you need ExapleGui just uncomment this lines.
