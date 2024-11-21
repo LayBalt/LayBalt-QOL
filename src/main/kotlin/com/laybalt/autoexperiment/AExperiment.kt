@@ -12,6 +12,7 @@ import net.minecraft.inventory.IInventory
 import net.minecraftforge.client.event.GuiOpenEvent
 import net.minecraftforge.client.event.GuiScreenEvent
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
+import net.minecraftforge.fml.relauncher.ReflectionHelper
 import java.lang.reflect.Field
 
 class AExperiment(
@@ -66,7 +67,7 @@ class AExperiment(
 
     fun getLowerChestInventory(guiChest: GuiChest): IInventory? {
         return try {
-            val field: Field = GuiChest::class.java.getDeclaredField("field_147015_w")
+            val field: Field = ReflectionHelper.findField(GuiChest::class.java, "field_147015_w", "lowerChestInventory")
             field.isAccessible = true
             field.get(guiChest) as IInventory
         } catch (e: Exception) {
@@ -97,7 +98,7 @@ class AExperiment(
     private fun solveChronomatron(invSlots: List<Slot>) {
         if (invSlots[49].stack?.item == Item.getItemFromBlock(Blocks.glowstone) && invSlots[lastAdded].stack?.isItemEnchanted == false) {
             hasAdded = false
-            if (chronomatronOrder.size > 11) {
+            if (chronomatronOrder.size > 13-LBQConfig.AutoExperimentSerumSlider) {
                 mc.thePlayer?.closeScreen()
             }
         }
@@ -132,7 +133,7 @@ class AExperiment(
                 }
             hasAdded = true
             clicks = 0
-            if (ultrasequencerOrder.size > 9) mc.thePlayer?.closeScreen()
+            if (ultrasequencerOrder.size > 12-LBQConfig.AutoExperimentSerumSlider) mc.thePlayer?.closeScreen()
         }
 
         if (invSlots[49].stack?.item == Items.clock && ultrasequencerOrder.containsKey(clicks) && System.currentTimeMillis() - lastClickTime > delay) {

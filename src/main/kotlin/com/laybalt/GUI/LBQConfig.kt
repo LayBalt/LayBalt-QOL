@@ -175,14 +175,25 @@ object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
     var AutoExperimentSwitch = false
 
     @Property(
-            type = PropertyType.SLIDER,
-            name = "Click delay Auto Enchanting",
-            category = "QOL",
-            subcategory = "Auto Enchanting",
-            min = 100,
-            max = 400
+        type = PropertyType.SLIDER,
+        name = "Click delay Auto Enchanting",
+        category = "QOL",
+        subcategory = "Auto Enchanting",
+        min = 100,
+        max = 400
     )
     var AutoExperimentSlider = 200
+
+    @Property(
+        type = PropertyType.SLIDER,
+        name = "Eated serum(s)",
+        description = "How much serum you eated? (Reduces total clicks in experiments.)",
+        category = "QOL",
+        subcategory = "Auto Enchanting",
+        min = 0,
+        max = 3
+    )
+    var AutoExperimentSerumSlider = 3
 
     @Property(
         type = PropertyType.SWITCH,
