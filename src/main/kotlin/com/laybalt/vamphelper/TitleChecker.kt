@@ -6,21 +6,22 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import net.minecraftforge.fml.common.gameevent.TickEvent
 import net.minecraftforge.fml.relauncher.ReflectionHelper
 import java.lang.reflect.Field
-import java.lang.reflect.Method
 
 class TitleChecker {
     private val mc: Minecraft = Minecraft.getMinecraft()
+
     private var overlayMessageField: Field? = null
     private var displayedTitleField: Field? = null
     private var displayedSubTitleField: Field? = null
-    private var clickMouseMethod: Method? = null
+    private var clickMouseMethod: java.lang.reflect.Method? = null
 
-    private var targetPitch: Float? = null // Целевой угол наклона головы
-    private var targetYaw: Float? = null // Целевой угол поворота головы
-    private var pitchSpeed: Float = 5f    // Скорость изменения угла наклона головы
-    private var yawSpeed: Float = 5f      // Скорость изменения угла поворота головы
-    private var isPerformingClick: Boolean = false
-    private var lastSubtitle: String? = null // Последний зарегистрированный Subtitle
+    private var isClickingUp = false
+    private var tickCounter = 0
+    private var originalPitch: Float = 0f
+    private var lastSubtitle: String? = null
+    private var actionCompleted = false
+    private var delayCounter = 0
+    private var isDelayed = false
 
     init {
         try {
@@ -66,10 +67,12 @@ class TitleChecker {
     private fun checkTitles() {
         val subtitleText = getFieldText(displayedSubTitleField)?.let { cleanText(it) }
 
-        if (!subtitleText.isNullOrEmpty() && subtitleText != lastSubtitle) {
-            println("Новый Subtitle: $subtitleText")
+        if (!subtitleText.isNullOrEmpty() && (!actionCompleted || subtitleText != lastSubtitle)) {
             lastSubtitle = subtitleText
-            performActionBasedOnSubTitle(subtitleText)
+            println("Новый Subtitle: $subtitleText")
+            isDelayed = true
+            delayCounter = 0
+            actionCompleted = true
         }
     }
 
@@ -82,14 +85,18 @@ class TitleChecker {
     }
 
     private fun performAction(action: String) {
+        val player = mc.thePlayer ?: return // Проверка, что игрок существует
         when (action.lowercase()) {
             "clickup" -> {
-                targetPitch = -90f // Устанавливаем цель для движения головы вверх
-                targetYaw = mc.thePlayer.rotationYaw // Сохраняем текущий угол поворота головы
-                isPerformingClick = true
+                if (!isClickingUp) {
+                    isClickingUp = true
+                    tickCounter = 0
+                    originalPitch = player.rotationPitch // Сохранение текущего угла взгляда
+                    player.rotationPitch = -90f // Изменение угла взгляда на верх
+                }
             }
             "jump" -> {
-                mc.thePlayer.jump() // Прыжок
+                player.jump() // Прыжок
             }
             else -> {
                 println("Unknown action: $action")
@@ -101,6 +108,41 @@ class TitleChecker {
     fun onClientTick(event: TickEvent.ClientTickEvent) {
         if (event.phase == TickEvent.Phase.START) {
             checkTitles()
+            handleDelay()
+            handleClickUp()
+        }
+    }
+
+    private fun handleDelay() {
+        if (isDelayed) {
+            delayCounter++
+            if (delayCounter >= 10) { // Задержка в 10 тиков
+                isDelayed = false
+                performActionBasedOnSubTitle(lastSubtitle ?: "")
+            }
+        }
+    }
+
+    private fun handleClickUp() {
+        if (isClickingUp) {
+            tickCounter++
+            when (tickCounter) {
+                6 -> try {
+                    clickMouseMethod?.invoke(mc) // Клик через рефлексию метода clickMouse
+                } catch (e: Exception) {
+                    println("Ошибка при выполнении clickMouse: ${e.message}")
+                }
+                13 -> {
+                    mc.thePlayer?.rotationPitch = originalPitch // Возврат к исходному углу взгляда через 10 тиков
+                    isClickingUp = false
+                    println("CLICK UP выполнен")
+                }
+            }
+        }
+
+        // Сброс actionCompleted, если Subtitle исчез
+        if (lastSubtitle != getFieldText(displayedSubTitleField)?.let { cleanText(it) }) {
+            actionCompleted = false
         }
     }
 }
