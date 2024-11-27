@@ -7,6 +7,8 @@ plugins {
     id("gg.essential.loom") version "0.10.0.+"
     id("dev.architectury.architectury-pack200") version "0.1.3"
     id("com.github.johnrengelman.shadow") version "8.1.1"
+
+    id("net.kyori.blossom") version "1.3.1"
 }
 
 //Constants:
@@ -83,6 +85,13 @@ dependencies {
     // If you don't want to log in with your real minecraft account, remove this line
     runtimeOnly("me.djtheredstoner:DevAuth-forge-legacy:1.2.1")
     implementation(kotlin("stdlib"))
+
+    annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
+    compileOnly("org.spongepowered:mixin:0.8.5")
+
+    shadowImpl("gg.essential:loader-launchwrapper:1.1.3")
+
+    api("com.mojang:brigadier:1.0.18")
 
     implementation("gg.essential:vigilance-$mcVersion-forge:299")
 }
