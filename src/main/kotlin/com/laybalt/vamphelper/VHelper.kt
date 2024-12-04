@@ -9,6 +9,7 @@ import net.minecraft.util.ChatComponentText
 import net.minecraft.util.StringUtils
 import net.minecraftforge.fml.relauncher.ReflectionHelper
 import java.lang.reflect.Field
+import kotlin.random.Random
 
 class VHelper {
     private val mc: Minecraft = Minecraft.getMinecraft()
@@ -103,38 +104,46 @@ class VHelper {
         }
     }
 
+    private fun cleanSubtitle(subtitle: String): String {
+        // Убираем все числа в формате `0.5s`, если они есть в конце строки
+        return subtitle.replace(Regex("\\s\\d+\\.\\d+s$"), "").trim()
+    }
+
     private fun checkTitles() {
         val subtitleText = getFieldText(displayedSubTitleField)?.let { cleanText(it) }
 
-        if (!subtitleText.isNullOrEmpty() && (!actionCompleted || subtitleText != lastSubtitle)) {
-            lastSubtitle = subtitleText
-            println("Новый Subtitle: $subtitleText")
-            isDelayed = true
-            delayCounter = 0
-            actionCompleted = true
+        if (!subtitleText.isNullOrEmpty()) {
+            // Применяем обработку, чтобы убрать секунды
+            val cleanedSubtitle = cleanSubtitle(subtitleText)
+            if (!actionCompleted || cleanedSubtitle != lastSubtitle) {
+                lastSubtitle = cleanedSubtitle
+                println("Новый Subtitle: $cleanedSubtitle")
+                isDelayed = true
+                delayCounter = 0
+                actionCompleted = true
+            }
         }
     }
 
     private fun performActionBasedOnSubTitle(subtitle: String) {
-        when {
-            subtitle.contains("IMPEL: CLICK UP", ignoreCase = true) -> performAction("clickup")
-            subtitle.contains("IMPEL: CLICK DOWN", ignoreCase = true) -> performAction("clickdown")
-            subtitle.contains("IMPEL: JUMP", ignoreCase = true) -> performAction("jump")
-            subtitle.contains("IMPEL: SNEAK", ignoreCase = true) -> performAction("sneak")
-
+        when (cleanSubtitle(subtitle)){
+            "Impel: CLICK UP" -> performAction("clickup")
+            "Impel: CLICK DOWN" -> performAction("clickdown")
+            "Impel: JUMP" -> performAction("jump")
+            "Impel: SNEAK" -> performAction("sneak")
             else -> println("Unknown Impel action: $subtitle")
         }
     }
 
     private fun performAction(action: String) {
-        val player = mc.thePlayer ?: return // Проверка, что игрок существует
+        val player = mc.thePlayer ?: return
         when (action.lowercase()) {
             "clickup" -> {
                 if (!isClickingUp) {
                     isClickingUp = true
                     tickCounter = 0
-                    originalPitch = player.rotationPitch // Сохранение текущего угла взгляда
-                    player.rotationPitch = -90f // Изменение угла взгляда на верх
+                    originalPitch = player.rotationPitch
+                    player.rotationPitch = Random.nextFloat() * (-85f - -90f) + -90f
                 }
             }
             "clickdown" -> {
@@ -142,7 +151,7 @@ class VHelper {
                     isClickingDown = true
                     tickCounter = 0
                     originalPitch = player.rotationPitch
-                    player.rotationPitch = 0f
+                    player.rotationPitch = Random.nextFloat() * (90f - 85f) + 85f
                 }
             }
             "jump" -> {
