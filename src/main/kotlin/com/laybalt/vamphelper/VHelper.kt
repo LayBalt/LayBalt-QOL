@@ -5,8 +5,6 @@ import net.minecraft.client.gui.GuiIngame
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import net.minecraftforge.fml.common.gameevent.TickEvent
 import net.minecraftforge.client.event.RenderGameOverlayEvent
-import net.minecraft.util.ChatComponentText
-import net.minecraft.util.StringUtils
 import net.minecraftforge.fml.relauncher.ReflectionHelper
 import java.lang.reflect.Field
 import kotlin.random.Random
@@ -46,7 +44,8 @@ class VHelper {
         }
 
         try {
-            displayedSubTitleField = ReflectionHelper.findField(GuiIngame::class.java, "field_175200_y", "displayedSubTitle")
+            displayedSubTitleField =
+                ReflectionHelper.findField(GuiIngame::class.java, "field_175200_y", "displayedSubTitle")
         } catch (e: Exception) {
             println("Ошибка при поиске поля Subtitle (displayedSubTitle): ${e.message}")
         }
@@ -104,20 +103,15 @@ class VHelper {
         }
     }
 
-    private fun cleanSubtitle(subtitle: String): String {
-        // Убираем все числа в формате `0.5s`, если они есть в конце строки
-        return subtitle.replace(Regex("\\s\\d+\\.\\d+s$"), "").trim()
-    }
-
     private fun checkTitles() {
+        // Получаем текст подзаголовка и обрабатываем его
         val subtitleText = getFieldText(displayedSubTitleField)?.let { cleanText(it) }
 
         if (!subtitleText.isNullOrEmpty()) {
-            // Применяем обработку, чтобы убрать секунды
-            val cleanedSubtitle = cleanSubtitle(subtitleText)
-            if (!actionCompleted || cleanedSubtitle != lastSubtitle) {
-                lastSubtitle = cleanedSubtitle
-                println("Новый Subtitle: $cleanedSubtitle")
+            // Если обработанный текст отличается от последнего сохранённого подзаголовка
+            if (!actionCompleted || subtitleText != lastSubtitle) {
+                lastSubtitle = subtitleText
+                println("Новый Subtitle: $subtitleText")
                 isDelayed = true
                 delayCounter = 0
                 actionCompleted = true
@@ -126,12 +120,12 @@ class VHelper {
     }
 
     private fun performActionBasedOnSubTitle(subtitle: String) {
-        when (cleanSubtitle(subtitle)){
+        when (cleanText(subtitle)) {
             "Impel: CLICK UP" -> performAction("clickup")
             "Impel: CLICK DOWN" -> performAction("clickdown")
             "Impel: JUMP" -> performAction("jump")
             "Impel: SNEAK" -> performAction("sneak")
-            else -> println("Unknown Impel action: $subtitle")
+            else -> println("Unknown Impel action: ${cleanText(subtitle)}")
         }
     }
 
@@ -146,6 +140,7 @@ class VHelper {
                     player.rotationPitch = Random.nextFloat() * (-85f - -90f) + -90f
                 }
             }
+
             "clickdown" -> {
                 if (!isClickingDown) {
                     isClickingDown = true
@@ -154,12 +149,15 @@ class VHelper {
                     player.rotationPitch = Random.nextFloat() * (90f - 85f) + 85f
                 }
             }
+
             "jump" -> {
                 player.jump() // Прыжок
             }
+
             "sneak" -> {
                 player.isSneaking
             }
+
             else -> {
                 println("Unknown action: $action")
             }
@@ -171,20 +169,23 @@ class VHelper {
             tickCounter++
             when (tickCounter) {
                 6 -> try {
-                    clickMouseMethod?.invoke(mc) // Клик через рефлексию метода clickMouse
+                    clickMouseMethod?.invoke(mc) ?: println("clickMouseMethod is null or not accessible")
                 } catch (e: Exception) {
                     println("Ошибка при выполнении clickMouse: ${e.message}")
                 }
+
                 13 -> {
-                    mc.thePlayer?.rotationPitch = originalPitch // Возврат к исходному углу взгляда через 10 тиков
+                    mc.thePlayer?.rotationPitch = originalPitch // Возврат к исходному углу взгляда
                     isClickingUp = false
+                    tickCounter = 0 // Сброс тик-счётчика
                     println("CLICK UP выполнен")
                 }
             }
         }
 
-        // Сброс actionCompleted, если Subtitle исчез
-        if (lastSubtitle != getFieldText(displayedSubTitleField)?.let { cleanText(it) }) {
+        // Сброс actionCompleted, если Subtitle изменился
+        val currentSubtitle = getFieldText(displayedSubTitleField)?.let { cleanText(it) }
+        if (lastSubtitle != currentSubtitle) {
             actionCompleted = false
         }
     }
@@ -194,23 +195,27 @@ class VHelper {
             tickCounter++
             when (tickCounter) {
                 6 -> try {
-                    clickMouseMethod?.invoke(mc) // Клик через рефлексию метода clickMouse
+                    clickMouseMethod?.invoke(mc) ?: println("clickMouseMethod is null or not accessible")
                 } catch (e: Exception) {
                     println("Ошибка при выполнении clickMouse: ${e.message}")
                 }
+
                 13 -> {
-                    mc.thePlayer?.rotationPitch = originalPitch // Возврат к исходному углу взгляда через 10 тиков
-                    isClickingUp = false
+                    mc.thePlayer?.rotationPitch = originalPitch // Возврат к исходному углу взгляда
+                    isClickingDown = false
+                    tickCounter = 0 // Сброс тик-счётчика
                     println("CLICK DOWN выполнен")
                 }
             }
         }
 
-        // Сброс actionCompleted, если Subtitle исчез
-        if (lastSubtitle != getFieldText(displayedSubTitleField)?.let { cleanText(it) }) {
+        // Сброс actionCompleted, если Subtitle изменился
+        val currentSubtitle = getFieldText(displayedSubTitleField)?.let { cleanText(it) }
+        if (lastSubtitle != currentSubtitle) {
             actionCompleted = false
         }
     }
+
 
     private fun getScoreboardValues(objectiveName: String): List<String> {
         val scoreboard = mc.theWorld?.scoreboard ?: return emptyList()
@@ -227,7 +232,10 @@ class VHelper {
         }
     }
 
-    private fun cleanText(text: String): String {
-        return text.replace(Regex("§[0-9a-fk-or]"), "").trim()
+    private fun cleanText(subtitle: String): String {
+        return subtitle
+            .replace(Regex("§[0-9a-fk-or]"), "")
+            .replace(Regex("\\s\\d+\\.\\d+s$"), "")
+            .trim()
     }
 }
