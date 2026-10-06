@@ -1,25 +1,25 @@
 package com.laybalt.skyblock.AutoFishing.Fishing;
 
 import com.laybalt.GUI.LBQConfig;
-import net.minecraft.client.settings.KeyBinding;
-import net.minecraftforge.fml.client.registry.ClientRegistry;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.InputEvent;
-import org.lwjgl.input.Keyboard;
+import com.laybalt.util.KeyBinds;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.KeyMapping;
+import org.lwjgl.glfw.GLFW;
 
 public class AFishKeyBind {
-    public static KeyBinding keyBinding;
+    public static KeyMapping keyBinding;
 
     public AFishKeyBind() {
-        keyBinding = new KeyBinding("AutoFishing", Keyboard.KEY_F, "LayBalt");
-        ClientRegistry.registerKeyBinding(keyBinding);
+        keyBinding = KeyBinds.register("key.lbqmod.auto_fishing", GLFW.GLFW_KEY_F);
     }
 
-    @SubscribeEvent
-    public void onKeyInput(InputEvent.KeyInputEvent event) {
-        if (keyBinding.isPressed()) {
-            LBQConfig.INSTANCE.setFishingSwitch(!LBQConfig.INSTANCE.getFishingSwitch());
-            AFishMessage.sendMessage();
-        }
+    public void register() {
+        // InputEvent.KeyInputEvent + isPressed() -> end-of-tick consumeClick() loop.
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (keyBinding.consumeClick()) {
+                LBQConfig.INSTANCE.setFishingSwitch(!LBQConfig.INSTANCE.getFishingSwitch());
+                AFishMessage.sendMessage();
+            }
+        });
     }
 }

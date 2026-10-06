@@ -1,25 +1,25 @@
 package com.laybalt.skyblock.AutoMelody;
 
 import com.laybalt.GUI.LBQConfig;
-import net.minecraft.client.settings.KeyBinding;
-import net.minecraftforge.fml.client.registry.ClientRegistry;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.InputEvent;
-import org.lwjgl.input.Keyboard;
+import com.laybalt.util.KeyBinds;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.KeyMapping;
 
 public class AMelodyKeyBind {
-    public static KeyBinding keyBinding;
+    public static KeyMapping keyBinding;
 
     public AMelodyKeyBind() {
-        keyBinding = new KeyBinding("AutoMelody", Keyboard.KEY_NONE, "LayBalt");
-        ClientRegistry.registerKeyBinding(keyBinding);
+        // Keyboard.KEY_NONE -> unbound by default; category "LayBalt" is handled by KeyBinds.
+        keyBinding = KeyBinds.registerUnbound("key.lbqmod.auto_melody");
     }
 
-    @SubscribeEvent
-    public void onKeyInput(InputEvent.KeyInputEvent event) {
-        if (keyBinding.isPressed()) {
-            LBQConfig.INSTANCE.setMelodySwitch(!LBQConfig.INSTANCE.getMelodySwitch());
-            AMelodyMessage.sendMessage();
-        }
+    /** Fabric replacement for the Forge {@code InputEvent.KeyInputEvent} handler. */
+    public void register() {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (keyBinding.consumeClick()) {
+                LBQConfig.INSTANCE.setMelodySwitch(!LBQConfig.INSTANCE.getMelodySwitch());
+                AMelodyMessage.sendMessage();
+            }
+        });
     }
 }

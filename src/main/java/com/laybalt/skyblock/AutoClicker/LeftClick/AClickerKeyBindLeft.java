@@ -1,32 +1,31 @@
 package com.laybalt.skyblock.AutoClicker.LeftClick;
 
 import com.laybalt.GUI.LBQConfig;
-import net.minecraft.client.settings.KeyBinding;
-import net.minecraftforge.fml.client.registry.ClientRegistry;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.InputEvent;
-import org.lwjgl.input.Keyboard;
+import com.laybalt.util.KeyBinds;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.KeyMapping;
 
 public class AClickerKeyBindLeft {
-    public static KeyBinding keyBinding;
+    public static KeyMapping keyBinding;
 
     public AClickerKeyBindLeft() {
-        keyBinding = new KeyBinding("Left AutoClicker", Keyboard.KEY_NONE, "LayBalt");
-        ClientRegistry.registerKeyBinding(keyBinding);
+        // Unbound by default (was Keyboard.KEY_NONE); shown as "Left AutoClicker" in the LayBalt category.
+        keyBinding = KeyBinds.registerUnbound("key.lbqmod.auto_clicker_left");
     }
 
-    @SubscribeEvent
-    public void onKeyInput(InputEvent.KeyInputEvent event) {
-        if (keyBinding.isPressed()) {
-            LBQConfig.INSTANCE.setLeftClickerSwitch(!LBQConfig.INSTANCE.getLeftClickerSwitch());
-            AClickerMessageLeft.sendMessage();
+    public void register() {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (keyBinding.consumeClick()) {
+                LBQConfig.INSTANCE.setLeftClickerSwitch(!LBQConfig.INSTANCE.getLeftClickerSwitch());
+                AClickerMessageLeft.sendMessage();
 
-            AClickerLeft clicker = AClickerLeft.getInstance();
-            if (LBQConfig.INSTANCE.getLeftClickerSwitch()) {
-                clicker.startAutoClick();
-            } else {
-                clicker.stopAutoClick();
+                AClickerLeft clicker = AClickerLeft.getInstance();
+                if (LBQConfig.INSTANCE.getLeftClickerSwitch()) {
+                    clicker.startAutoClick();
+                } else {
+                    clicker.stopAutoClick();
+                }
             }
-        }
+        });
     }
 }

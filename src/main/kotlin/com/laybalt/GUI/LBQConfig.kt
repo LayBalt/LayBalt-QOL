@@ -1,411 +1,416 @@
 package com.laybalt.GUI
 
-import gg.essential.vigilance.Vigilant
-import gg.essential.vigilance.data.Property
-import gg.essential.vigilance.data.PropertyType
-import java.io.File
+import com.laybalt.GUI.clickgui.ClickGuiScreen
+import dev.isxander.yacl3.api.ConfigCategory
+import dev.isxander.yacl3.api.Option
+import dev.isxander.yacl3.api.OptionDescription
+import dev.isxander.yacl3.api.OptionEventListener
+import dev.isxander.yacl3.api.OptionGroup
+import dev.isxander.yacl3.api.YetAnotherConfigLib
+import dev.isxander.yacl3.api.controller.BooleanControllerBuilder
+import dev.isxander.yacl3.api.controller.ColorControllerBuilder
+import dev.isxander.yacl3.api.controller.CyclingListControllerBuilder
+import dev.isxander.yacl3.api.controller.IntegerSliderControllerBuilder
+import dev.isxander.yacl3.config.v2.api.ConfigClassHandler
+import dev.isxander.yacl3.config.v2.api.serializer.GsonConfigSerializerBuilder
+import net.fabricmc.loader.api.FabricLoader
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.Identifier
+import java.awt.Color
 
-object LBQConfig : Vigilant(File("./config/LBQConfig.toml")) {
-    @Property(
-            type = PropertyType.SWITCH,
-            name = "Enable Auto Fishing",
-            category = "Fishing",
-            subcategory = "1 Auto Fishing"
+/**
+ * Mod configuration.
+ *
+ * The 1.8.9 version used Essential Vigilance; this version stores the values in
+ * `config/LBQConfig.json` through YACL and builds the config screen with the YACL API.
+ * The property names are kept identical to the old Vigilance config so the feature code can keep
+ * using `LBQConfig.FishingSwitch` (Kotlin) / `LBQConfig.INSTANCE.getFishingSwitch()` (Java).
+ */
+object LBQConfig {
+    private const val MOD_ID = "lbqmod"
+
+    @JvmField
+    val HANDLER: ConfigClassHandler<LBQConfigData> = ConfigClassHandler.createBuilder(LBQConfigData::class.java)
+        .id(Identifier.fromNamespaceAndPath(MOD_ID, "config"))
+        .serializer { handler ->
+            GsonConfigSerializerBuilder.create(handler)
+                .setPath(FabricLoader.getInstance().configDir.resolve("LBQConfig.json"))
+                .build()
+        }
+        .build()
+
+    /** Names shown for the "Choose a path for AutoFishing" selector; [largeSelector] is an index into it. */
+    @JvmField
+    val AUTO_PATH_OPTIONS: List<String> = listOf(
+        "Hub - Wizard Tower",
+        "Hub - The Barn",
+        "The Park - Pond",
+        "Spider's Den - Pond",
+        "Mushroom Desert - Pond",
+        "Custom - 1",
+        "Custom - 2",
+        "Custom - 3"
     )
-    var FishingSwitch = false
 
-    @Property(
-            type = PropertyType.NUMBER,
-            name = "Fishing Reel Delay",
-            description = "Delay when reeling in the fish (in ms).",
-            category = "Fishing",
-            subcategory = "1 Auto Fishing",
-            min = 150,
-            max = 600,
-            increment = 25
-    )
-    var FishingReelDelayNumber = 250
+    private val data: LBQConfigData get() = HANDLER.instance()
+    private val defaults: LBQConfigData get() = HANDLER.defaults()
 
-    @Property(
-            type = PropertyType.NUMBER,
-            name = "Fishing Cast Delay",
-            description = "Delay between each cast (in ms).",
-            category = "Fishing",
-            subcategory = "1 Auto Fishing",
-            min = 150,
-            max = 600,
-            increment = 25
-    )
-    var FishingCastDelayNumber = 250
+    /** Loads the config from disk (creates it with defaults when missing). Call once at startup. */
+    fun load() {
+        HANDLER.load()
+    }
 
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "Stop moving head?",
-        description = "Sets sensetivity to 0.01 while fishing",
-        category = "Fishing",
-        subcategory = "1 Auto Fishing"
-    )
-    var FishingStopMoveHead = false
+    /** Writes the current values to disk. */
+    fun save() {
+        HANDLER.save()
+    }
 
-    @Property(
-            type = PropertyType.SWITCH,
-            name = "Shake head?",
-            description = "Shakes head every 20-30 seconds when fishing.",
-            category = "Fishing",
-            subcategory = "1 Auto Fishing"
-    )
-    var FishingShakeHead = true
+    // ------------------------------------------------------------------ Fishing
+    var FishingSwitch: Boolean
+        get() = data.fishingSwitch
+        set(value) { data.fishingSwitch = value }
+    var FishingReelDelayNumber: Int
+        get() = data.fishingReelDelayNumber
+        set(value) { data.fishingReelDelayNumber = value }
+    var FishingCastDelayNumber: Int
+        get() = data.fishingCastDelayNumber
+        set(value) { data.fishingCastDelayNumber = value }
+    var FishingStopMoveHead: Boolean
+        get() = data.fishingStopMoveHead
+        set(value) { data.fishingStopMoveHead = value }
+    var FishingShakeHead: Boolean
+        get() = data.fishingShakeHead
+        set(value) { data.fishingShakeHead = value }
+    var FishingMobKillerSwitch: Boolean
+        get() = data.fishingMobKillerSwitch
+        set(value) { data.fishingMobKillerSwitch = value }
+    var FishingAttackDelay: Int
+        get() = data.fishingAttackDelay
+        set(value) { data.fishingAttackDelay = value }
+    var FishingMobDetectionRadius: Int
+        get() = data.fishingMobDetectionRadius
+        set(value) { data.fishingMobDetectionRadius = value }
+    var FishingSwordSlot: Int
+        get() = data.fishingSwordSlot
+        set(value) { data.fishingSwordSlot = value }
+    var FishingRodSlot: Int
+        get() = data.fishingRodSlot
+        set(value) { data.fishingRodSlot = value }
+    var AutoPathSwitch: Boolean
+        get() = data.autoPathSwitch
+        set(value) { data.autoPathSwitch = value }
+    var largeSelector: Int
+        get() = data.largeSelector
+        set(value) { data.largeSelector = value }
 
-    @Property(
-            type = PropertyType.SWITCH,
-            name = "Enable Auto Mob Killer",
-            description = "Works only while Auto Fishing is enabled.",
-            category = "Fishing",
-            subcategory = "3 Auto Mob Killer"
-    )
-    var FishingMobKillerSwitch = false
+    // ------------------------------------------------------------------ QOL
+    var MelodySwitch: Boolean
+        get() = data.melodySwitch
+        set(value) { data.melodySwitch = value }
+    var MelodyDelay: Int
+        get() = data.melodyDelay
+        set(value) { data.melodyDelay = value }
+    var DanseSolverSwitch: Boolean
+        get() = data.danseSolverSwitch
+        set(value) { data.danseSolverSwitch = value }
+    var AutoExperimentSwitch: Boolean
+        get() = data.autoExperimentSwitch
+        set(value) { data.autoExperimentSwitch = value }
+    var AutoExperimentSlider: Int
+        get() = data.autoExperimentSlider
+        set(value) { data.autoExperimentSlider = value }
+    var AutoExperimentSerumSlider: Int
+        get() = data.autoExperimentSerumSlider
+        set(value) { data.autoExperimentSerumSlider = value }
+    var CustomESP: Boolean
+        get() = data.customESP
+        set(value) { data.customESP = value }
+    var CustomESPColor: Color
+        get() = Color(data.customESPColor, true)
+        set(value) { data.customESPColor = value.rgb }
+    var CustomESPLineWidth: Int
+        get() = data.customESPLineWidth
+        set(value) { data.customESPLineWidth = value }
+    var CustomESPThroughWalls: Boolean
+        get() = data.customESPThroughWalls
+        set(value) { data.customESPThroughWalls = value }
+    var CustomESPPlayers: Boolean
+        get() = data.customESPPlayers
+        set(value) { data.customESPPlayers = value }
+    var CustomESPMobs: Boolean
+        get() = data.customESPMobs
+        set(value) { data.customESPMobs = value }
+    var CustomESPItems: Boolean
+        get() = data.customESPItems
+        set(value) { data.customESPItems = value }
 
-    @Property(
-            type = PropertyType.NUMBER,
-            name = "Fishing Attack Delay",
-            description = "Delay between attacks during combat (in ms)",
-            category = "Fishing",
-            subcategory = "3 Auto Mob Killer",
-            min = 250,
-            max = 1000,
-            increment = 50
-    )
-    var FishingAttackDelay = 500
+    // ------------------------------------------------------------------ Combat
+    var LeftClickerSwitch: Boolean
+        get() = data.leftClickerSwitch
+        set(value) { data.leftClickerSwitch = value }
+    var LeftClickNumber: Int
+        get() = data.leftClickNumber
+        set(value) { data.leftClickNumber = value }
+    var RightClickerSwitch: Boolean
+        get() = data.rightClickerSwitch
+        set(value) { data.rightClickerSwitch = value }
+    var RightClickNumber: Int
+        get() = data.rightClickNumber
+        set(value) { data.rightClickNumber = value }
 
-    @Property(
-            type = PropertyType.NUMBER,
-            name = "Fishing Mob Detection Radius",
-            description = "Radius for detecting hostile mobs while fishing",
-            category = "Fishing",
-            subcategory = "3 Auto Mob Killer",
-            min = 1,
-            max = 6
-    )
-    var FishingMobDetectionRadius = 6
+    // ------------------------------------------------------------------ Vampire Slayer
+    var vampireSlayerHelperEnabled: Boolean
+        get() = data.vampireSlayerHelperEnabled
+        set(value) { data.vampireSlayerHelperEnabled = value }
+    var vampireSlayerSwordSlot: Int
+        get() = data.vampireSlayerSwordSlot
+        set(value) { data.vampireSlayerSwordSlot = value }
+    var vampireSlayerHealingMelonSlot: Int
+        get() = data.vampireSlayerHealingMelonSlot
+        set(value) { data.vampireSlayerHealingMelonSlot = value }
+    var vampireSlayerHolyIceSlot: Int
+        get() = data.vampireSlayerHolyIceSlot
+        set(value) { data.vampireSlayerHolyIceSlot = value }
+    var vampireSlayerAutoJump: Boolean
+        get() = data.vampireSlayerAutoJump
+        set(value) { data.vampireSlayerAutoJump = value }
+    var vampireSlayerAutoSneak: Boolean
+        get() = data.vampireSlayerAutoSneak
+        set(value) { data.vampireSlayerAutoSneak = value }
+    var vampireSlayerAutoClickUp: Boolean
+        get() = data.vampireSlayerAutoClickUp
+        set(value) { data.vampireSlayerAutoClickUp = value }
+    var vampireSlayerAutoClickDown: Boolean
+        get() = data.vampireSlayerAutoClickDown
+        set(value) { data.vampireSlayerAutoClickDown = value }
+    var vampireSlayerAutoHeal: Boolean
+        get() = data.vampireSlayerAutoHeal
+        set(value) { data.vampireSlayerAutoHeal = value }
+    var vampireSlayerAutoTwinClaws: Boolean
+        get() = data.vampireSlayerAutoTwinClaws
+        set(value) { data.vampireSlayerAutoTwinClaws = value }
 
-    @Property(
-            type = PropertyType.NUMBER,
-            name = "Fishing Sword Slot",
-            description = "Inventory slot number for the sword (1-9)",
-            category = "Fishing",
-            subcategory = "3 Auto Mob Killer",
-            min = 1,
-            max = 9
-    )
-    var FishingSwordSlot = 1
+    // ------------------------------------------------------------------ Click GUI
+    var ClickGuiAccentColor: Color
+        get() = Color(data.clickGuiAccentColor)
+        set(value) { data.clickGuiAccentColor = value.rgb }
+    var ClickGuiSorting: Int
+        get() = data.clickGuiSorting
+        set(value) { data.clickGuiSorting = value }
 
-    @Property(
-            type = PropertyType.NUMBER,
-            name = "Fishing Rod Slot",
-            description = "Inventory slot number for the fishing rod (1-9)",
-            category = "Fishing",
-            subcategory = "3 Auto Mob Killer",
-            min = 1,
-            max = 9
-    )
-    var FishingRodSlot = 2
+    // ------------------------------------------------------------------ Screen
 
-    @Property(
-            type = PropertyType.SWITCH,
-            name = "Enable Auto Path",
-            description = "Works only while Auto Fishing is enabled.",
-            category = "Fishing",
-            subcategory = "2 Auto Path"
-    )
-    var AutoPathSwitch = true
+    /** Builds the config screen. `parent` is the screen to return to when closed (may be null). */
+    @JvmStatic
+    fun createScreen(parent: Screen?): Screen = ClickGuiScreen(parent)
 
-    @Property(
-        type = PropertyType.SELECTOR,
-        name = "Choose a path for AutoFishing",
-        description = "Select where you want to fish. The script will automatically go by the path you choose.",
-        category = "Fishing",
-        subcategory = "2 Auto Path",
-        options = [
-            "Hub - Wizard Tower",
-            "Hub - The Barn",
-            "The Park - Pond",
-            "Spider's Den - Pond",
-            "Mushroom Desert - Pond",
-            "Custom - 1",
-            "Custom - 2",
-            "Custom - 3"
-        ]
-    )
-    var largeSelector = 0
+    /** The previous YACL list-style screen, still reachable from the click GUI settings. */
+    @JvmStatic
+    fun createClassicScreen(parent: Screen?): Screen = buildYacl().generateScreen(parent)
 
-    @Property(
-            type = PropertyType.SWITCH,
-            name = "Enable Auto Melody",
-            category = "QOL",
-            subcategory = "Auto Melody"
-    )
-    var MelodySwitch = false
+    private fun text(s: String): Component = Component.literal(s)
 
-    @Property(
-            type = PropertyType.SLIDER,
-            name = "Melody Delay",
-            description = "Delay between each click.",
-            category = "QOL",
-            subcategory = "Auto Melody",
-            min = 50,
-            max = 300
-    )
-    var MelodyDelay = 125
+    private fun description(vararg lines: String): OptionDescription =
+        if (lines.isEmpty()) OptionDescription.EMPTY
+        else OptionDescription.of(*lines.map { Component.literal(it) }.toTypedArray())
 
-    @Property(
-            type = PropertyType.SWITCH,
-            name = "Enable Dance Room Solver",
-            description = "Soon...",
-            category = "QOL",
-            subcategory = "Dance Room Solver"
-    )
-    var DanseSolverSwitch = false
+    private fun switch(
+        name: String,
+        description: String?,
+        default: Boolean,
+        getter: () -> Boolean,
+        setter: (Boolean) -> Unit
+    ): Option<Boolean> =
+        Option.createBuilder<Boolean>()
+            .name(text(name))
+            .description(if (description == null) OptionDescription.EMPTY else description(description))
+            .binding(default, { getter() }, { setter(it) })
+            .controller { opt -> BooleanControllerBuilder.create(opt).coloured(true).onOffFormatter() }
+            .build()
 
-    @Property(
-            type = PropertyType.SWITCH,
-            name = "Enable Auto Enchanting",
-            category = "QOL",
-            subcategory = "Auto Enchanting"
-    )
-    var AutoExperimentSwitch = false
+    private fun slider(
+        name: String,
+        description: String?,
+        default: Int,
+        min: Int,
+        max: Int,
+        step: Int,
+        getter: () -> Int,
+        setter: (Int) -> Unit
+    ): Option<Int> =
+        Option.createBuilder<Int>()
+            .name(text(name))
+            .description(if (description == null) OptionDescription.EMPTY else description(description))
+            .binding(default, { getter() }, { setter(it) })
+            .controller { opt -> IntegerSliderControllerBuilder.create(opt).range(min, max).step(step) }
+            .build()
 
-    @Property(
-        type = PropertyType.SLIDER,
-        name = "Click delay Auto Enchanting",
-        category = "QOL",
-        subcategory = "Auto Enchanting",
-        min = 100,
-        max = 400
-    )
-    var AutoExperimentSlider = 200
+    private fun selector(
+        name: String,
+        description: String?,
+        default: Int,
+        options: List<String>,
+        getter: () -> Int,
+        setter: (Int) -> Unit
+    ): Option<Int> =
+        Option.createBuilder<Int>()
+            .name(text(name))
+            .description(if (description == null) OptionDescription.EMPTY else description(description))
+            .binding(default, { getter() }, { setter(it) })
+            .controller { opt ->
+                CyclingListControllerBuilder.create(opt)
+                    .values(options.indices.toList())
+                    .formatValue { index -> text(options.getOrNull(index) ?: "Unknown") }
+            }
+            .build()
 
-    @Property(
-        type = PropertyType.SLIDER,
-        name = "Eated serum(s)",
-        description = "How much serum you eated? (Reduces total clicks in experiments.)",
-        category = "QOL",
-        subcategory = "Auto Enchanting",
-        min = 0,
-        max = 3
-    )
-    var AutoExperimentSerumSlider = 3
+    private fun color(
+        name: String,
+        description: String?,
+        default: Color,
+        getter: () -> Color,
+        setter: (Color) -> Unit
+    ): Option<Color> =
+        Option.createBuilder<Color>()
+            .name(text(name))
+            .description(if (description == null) OptionDescription.EMPTY else description(description))
+            .binding(default, { getter() }, { setter(it) })
+            .controller { opt -> ColorControllerBuilder.create(opt).allowAlpha(true) }
+            .build()
 
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "Enable Custom ESP",
-        category = "QOL",
-        subcategory = "ESP"
-    )
-    var CustomESP = false
+    /** Equivalent of Vigilance `addDependency`: the children are only editable while `parent` is on. */
+    private fun dependOn(parent: Option<Boolean>, parentValue: Boolean, vararg children: Option<*>) {
+        children.forEach { it.setAvailable(parentValue) }
+        parent.addEventListener { option, event ->
+            if (event == OptionEventListener.Event.INITIAL || event == OptionEventListener.Event.STATE_CHANGE) {
+                val value = option.pendingValue()
+                children.forEach { it.setAvailable(value) }
+            }
+        }
+    }
 
-    @Property(
-        type = PropertyType.COLOR,
-        name = "ESP Color",
-        description = "Color of the ESP outline",
-        category = "QOL",
-        subcategory = "ESP"
-    )
-    var CustomESPColor = java.awt.Color(255, 0, 0) // Красный цвет по умолчанию
+    private fun group(name: String, description: OptionDescription, vararg options: Option<*>): OptionGroup =
+        OptionGroup.createBuilder()
+            .name(text(name))
+            .description(description)
+            .options(options.toList())
+            .build()
 
-    @Property(
-        type = PropertyType.SLIDER,
-        name = "ESP Line Width",
-        description = "Width of the ESP outline",
-        category = "QOL",
-        subcategory = "ESP",
-        min = 1,
-        max = 5
-    )
-    var CustomESPLineWidth = 2
+    private fun group(name: String, vararg options: Option<*>): OptionGroup =
+        group(name, OptionDescription.EMPTY, *options)
 
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "ESP Through Walls",
-        description = "Show ESP through walls",
-        category = "QOL",
-        subcategory = "ESP"
-    )
-    var CustomESPThroughWalls = true
+    private const val DISCORD_LINE_1 = "For more help, go to our discord server."
+    private const val DISCORD_LINE_2 = "[!] discord.gg/laybalt [!]"
 
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "ESP for Players",
-        description = "Show ESP for players",
-        category = "QOL",
-        subcategory = "ESP"
-    )
-    var CustomESPPlayers = true
+    private fun buildYacl(): YetAnotherConfigLib {
+        val d = data
+        val def = defaults
 
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "ESP for Mobs",
-        description = "Show ESP for mobs",
-        category = "QOL",
-        subcategory = "ESP"
-    )
-    var CustomESPMobs = true
+        // ---------------------------------------------------------------- Fishing
+        val fishingSwitch = switch("Enable Auto Fishing", null, def.fishingSwitch, { d.fishingSwitch }, { d.fishingSwitch = it })
+        val fishingReelDelay = slider("Fishing Reel Delay", "Delay when reeling in the fish (in ms).", def.fishingReelDelayNumber, 150, 600, 25, { d.fishingReelDelayNumber }, { d.fishingReelDelayNumber = it })
+        val fishingCastDelay = slider("Fishing Cast Delay", "Delay between each cast (in ms).", def.fishingCastDelayNumber, 150, 600, 25, { d.fishingCastDelayNumber }, { d.fishingCastDelayNumber = it })
+        val fishingStopMoveHead = switch("Stop moving head?", "Sets mouse sensitivity to 0 while fishing", def.fishingStopMoveHead, { d.fishingStopMoveHead }, { d.fishingStopMoveHead = it })
+        val fishingShakeHead = switch("Shake head?", "Shakes head every 20-30 seconds when fishing.", def.fishingShakeHead, { d.fishingShakeHead }, { d.fishingShakeHead = it })
 
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "ESP for Items",
-        description = "Show ESP for items",
-        category = "QOL",
-        subcategory = "ESP"
-    )
-    var CustomESPItems = false
+        val autoPathSwitch = switch("Enable Auto Path", "Works only while Auto Fishing is enabled.", def.autoPathSwitch, { d.autoPathSwitch }, { d.autoPathSwitch = it })
+        val autoPathSelector = selector("Choose a path for AutoFishing", "Select where you want to fish. The script will automatically go by the path you choose.", def.largeSelector, AUTO_PATH_OPTIONS, { d.largeSelector }, { d.largeSelector = it })
+        dependOn(autoPathSwitch, d.autoPathSwitch, autoPathSelector)
 
-    @Property(
-            type = PropertyType.SWITCH,
-            name = "Enable Auto Clicker (Left)",
-            category = "Combat",
-            subcategory = "Auto Clicker Left"
-    )
-    var LeftClickerSwitch = false
+        val mobKillerSwitch = switch("Enable Auto Mob Killer", "Works only while Auto Fishing is enabled.", def.fishingMobKillerSwitch, { d.fishingMobKillerSwitch }, { d.fishingMobKillerSwitch = it })
+        val mobKillerAttackDelay = slider("Fishing Attack Delay", "Delay between attacks during combat (in ms)", def.fishingAttackDelay, 250, 1000, 50, { d.fishingAttackDelay }, { d.fishingAttackDelay = it })
+        val mobKillerRadius = slider("Fishing Mob Detection Radius", "Radius for detecting hostile mobs while fishing", def.fishingMobDetectionRadius, 1, 6, 1, { d.fishingMobDetectionRadius }, { d.fishingMobDetectionRadius = it })
+        val mobKillerSwordSlot = slider("Fishing Sword Slot", "Inventory slot number for the sword (1-9)", def.fishingSwordSlot, 1, 9, 1, { d.fishingSwordSlot }, { d.fishingSwordSlot = it })
+        val mobKillerRodSlot = slider("Fishing Rod Slot", "Inventory slot number for the fishing rod (1-9)", def.fishingRodSlot, 1, 9, 1, { d.fishingRodSlot }, { d.fishingRodSlot = it })
+        dependOn(mobKillerSwitch, d.fishingMobKillerSwitch, mobKillerAttackDelay, mobKillerRadius, mobKillerSwordSlot, mobKillerRodSlot)
 
-    @Property(
-            type = PropertyType.NUMBER,
-            name = "Auto Clicker CPS (Left)",
-            category = "Combat",
-            description = "It will have +- 2 CPS every time anyway!",
-            subcategory = "Auto Clicker Left",
-            min = 3,
-            max = 100
-    )
-    var LeftClickNumber = 23
+        val fishingCategory = ConfigCategory.createBuilder()
+            .name(text("Fishing"))
+            .tooltip(text("Settings for the fishing module."), text(DISCORD_LINE_1), text(DISCORD_LINE_2))
+            .group(group("Auto Fishing", fishingSwitch, fishingReelDelay, fishingCastDelay, fishingStopMoveHead, fishingShakeHead))
+            .group(group("Auto Path", autoPathSwitch, autoPathSelector))
+            .group(group("Auto Mob Killer", mobKillerSwitch, mobKillerAttackDelay, mobKillerRadius, mobKillerSwordSlot, mobKillerRodSlot))
+            .build()
 
-    @Property(
-            type = PropertyType.SWITCH,
-            name = "Enable Auto Clicker (Right)",
-            category = "Combat",
-            subcategory = "Auto Clicker Right"
-    )
-    var RightClickerSwitch = false
+        // ---------------------------------------------------------------- QOL
+        val melodySwitch = switch("Enable Auto Melody", null, def.melodySwitch, { d.melodySwitch }, { d.melodySwitch = it })
+        val melodyDelay = slider("Melody Delay", "Delay between each click.", def.melodyDelay, 50, 300, 1, { d.melodyDelay }, { d.melodyDelay = it })
 
-    @Property(
-            type = PropertyType.NUMBER,
-            name = "Auto Clicker CPS (Right)",
-            category = "Combat",
-            description = "It will have +- 2 CPS every time anyway!",
-            subcategory = "Auto Clicker Right",
-            min = 3,
-            max = 100
-    )
-    var RightClickNumber = 25
+        val danceSolverSwitch = switch("Enable Dance Room Solver", "Soon...", def.danseSolverSwitch, { d.danseSolverSwitch }, { d.danseSolverSwitch = it })
 
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "Enable Vampire Slayer Helper",
-        category = "Vampire Slayer",
-        subcategory = "General"
-    )
-    var vampireSlayerHelperEnabled = false
+        val experimentSwitch = switch("Enable Auto Enchanting", null, def.autoExperimentSwitch, { d.autoExperimentSwitch }, { d.autoExperimentSwitch = it })
+        val experimentDelay = slider("Click delay Auto Enchanting", null, def.autoExperimentSlider, 100, 400, 1, { d.autoExperimentSlider }, { d.autoExperimentSlider = it })
+        val experimentSerum = slider("Eated serum(s)", "How much serum you eated? (Reduces total clicks in experiments.)", def.autoExperimentSerumSlider, 0, 3, 1, { d.autoExperimentSerumSlider }, { d.autoExperimentSerumSlider = it })
 
-    @Property(
-        type = PropertyType.SLIDER,
-        name = "Sword Slot",
-        description = "Inventory slot number for the sword.",
-        category = "Vampire Slayer",
-        subcategory = "Slots",
-        min = 1,
-        max = 9
-    )
-    var vampireSlayerSwordSlot = 1
+        val espSwitch = switch("Enable Custom ESP", null, def.customESP, { d.customESP }, { d.customESP = it })
+        val espColor = color("ESP Color", "Color of the ESP outline", Color(def.customESPColor, true), { Color(d.customESPColor, true) }, { d.customESPColor = it.rgb })
+        val espLineWidth = slider("ESP Line Width", "Width of the ESP outline", def.customESPLineWidth, 1, 5, 1, { d.customESPLineWidth }, { d.customESPLineWidth = it })
+        val espThroughWalls = switch("ESP Through Walls", "Show ESP through walls", def.customESPThroughWalls, { d.customESPThroughWalls }, { d.customESPThroughWalls = it })
+        val espPlayers = switch("ESP for Players", "Show ESP for players", def.customESPPlayers, { d.customESPPlayers }, { d.customESPPlayers = it })
+        val espMobs = switch("ESP for Mobs", "Show ESP for mobs", def.customESPMobs, { d.customESPMobs }, { d.customESPMobs = it })
+        val espItems = switch("ESP for Items", "Show ESP for items", def.customESPItems, { d.customESPItems }, { d.customESPItems = it })
 
-    @Property(
-        type = PropertyType.SLIDER,
-        name = "Healing Melon Slot",
-        description = "Inventory slot number for the Healing Melon.",
-        category = "Vampire Slayer",
-        subcategory = "Slots",
-        min = 1,
-        max = 9
-    )
-    var vampireSlayerHealingMelonSlot = 1
+        val qolCategory = ConfigCategory.createBuilder()
+            .name(text("QOL"))
+            .tooltip(text("Quality of Life settings."), text(DISCORD_LINE_1), text(DISCORD_LINE_2))
+            .group(group("Auto Melody", melodySwitch, melodyDelay))
+            .group(group("Dance Room Solver", danceSolverSwitch))
+            .group(group("Auto Enchanting", experimentSwitch, experimentDelay, experimentSerum))
+            .group(
+                group(
+                    "ESP",
+                    description(
+                        "Settings for the ESP module.",
+                        "When it's on you should MIDDLE CLICK on a mob to add/remove it to ESP.",
+                        DISCORD_LINE_1,
+                        DISCORD_LINE_2
+                    ),
+                    espSwitch, espColor, espLineWidth, espThroughWalls, espPlayers, espMobs, espItems
+                )
+            )
+            .build()
 
-    @Property(
-        type = PropertyType.SLIDER,
-        name = "Holy Ice Slot",
-        description = "Inventory slot number for the Holy Ice. (TWINCLAWS)",
-        category = "Vampire Slayer",
-        subcategory = "Slots",
-        min = 1,
-        max = 9
-    )
-    var vampireSlayerHolyIceSlot = 3
+        // ---------------------------------------------------------------- Combat
+        val leftClickerSwitch = switch("Enable Auto Clicker (Left)", null, def.leftClickerSwitch, { d.leftClickerSwitch }, { d.leftClickerSwitch = it })
+        val leftClickerCps = slider("Auto Clicker CPS (Left)", "It will have +- 2 CPS every time anyway!", def.leftClickNumber, 3, 100, 1, { d.leftClickNumber }, { d.leftClickNumber = it })
+        val rightClickerSwitch = switch("Enable Auto Clicker (Right)", null, def.rightClickerSwitch, { d.rightClickerSwitch }, { d.rightClickerSwitch = it })
+        val rightClickerCps = slider("Auto Clicker CPS (Right)", "It will have +- 2 CPS every time anyway!", def.rightClickNumber, 3, 100, 1, { d.rightClickNumber }, { d.rightClickNumber = it })
 
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "Auto Jump",
-        category = "Vampire Slayer",
-        subcategory = "Actions"
-    )
-    var vampireSlayerAutoJump = false
+        val combatCategory = ConfigCategory.createBuilder()
+            .name(text("Combat"))
+            .tooltip(text("Settings for the combat module."), text(DISCORD_LINE_1), text(DISCORD_LINE_2))
+            .group(group("Auto Clicker Left", description("Settings for the left auto clicker. <!> MIGHT BE BANNABLE! <!>"), leftClickerSwitch, leftClickerCps))
+            .group(group("Auto Clicker Right", description("Settings for the right auto clicker. <!> MIGHT BE BANNABLE! <!>"), rightClickerSwitch, rightClickerCps))
+            .build()
 
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "Auto Sneak",
-        category = "Vampire Slayer",
-        subcategory = "Actions"
-    )
-    var vampireSlayerAutoSneak = false
+        // ---------------------------------------------------------------- Vampire Slayer
+        val vampEnabled = switch("Enable Vampire Slayer Helper", null, def.vampireSlayerHelperEnabled, { d.vampireSlayerHelperEnabled }, { d.vampireSlayerHelperEnabled = it })
+        val vampSwordSlot = slider("Sword Slot", "Inventory slot number for the sword.", def.vampireSlayerSwordSlot, 1, 9, 1, { d.vampireSlayerSwordSlot }, { d.vampireSlayerSwordSlot = it })
+        val vampMelonSlot = slider("Healing Melon Slot", "Inventory slot number for the Healing Melon.", def.vampireSlayerHealingMelonSlot, 1, 9, 1, { d.vampireSlayerHealingMelonSlot }, { d.vampireSlayerHealingMelonSlot = it })
+        val vampIceSlot = slider("Holy Ice Slot", "Inventory slot number for the Holy Ice. (TWINCLAWS)", def.vampireSlayerHolyIceSlot, 1, 9, 1, { d.vampireSlayerHolyIceSlot }, { d.vampireSlayerHolyIceSlot = it })
+        val vampAutoJump = switch("Auto Jump", null, def.vampireSlayerAutoJump, { d.vampireSlayerAutoJump }, { d.vampireSlayerAutoJump = it })
+        val vampAutoSneak = switch("Auto Sneak", null, def.vampireSlayerAutoSneak, { d.vampireSlayerAutoSneak }, { d.vampireSlayerAutoSneak = it })
+        val vampAutoClickUp = switch("Auto Click Up", null, def.vampireSlayerAutoClickUp, { d.vampireSlayerAutoClickUp }, { d.vampireSlayerAutoClickUp = it })
+        val vampAutoClickDown = switch("Auto Click Down", null, def.vampireSlayerAutoClickDown, { d.vampireSlayerAutoClickDown }, { d.vampireSlayerAutoClickDown = it })
+        val vampAutoHeal = switch("Auto Heal", null, def.vampireSlayerAutoHeal, { d.vampireSlayerAutoHeal }, { d.vampireSlayerAutoHeal = it })
+        val vampAutoTwinClaws = switch("Auto Twin Claws", null, def.vampireSlayerAutoTwinClaws, { d.vampireSlayerAutoTwinClaws }, { d.vampireSlayerAutoTwinClaws = it })
 
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "Auto Click Up",
-        category = "Vampire Slayer",
-        subcategory = "Actions"
-    )
-    var vampireSlayerAutoClickUp = false
+        val vampireCategory = ConfigCategory.createBuilder()
+            .name(text("Vampire Slayer"))
+            .tooltip(text("Settings for the Vampire Slayer module."), text(DISCORD_LINE_1), text(DISCORD_LINE_2))
+            .group(group("General", vampEnabled))
+            .group(group("Slots", vampSwordSlot, vampMelonSlot, vampIceSlot))
+            .group(group("Actions", vampAutoJump, vampAutoSneak, vampAutoClickUp, vampAutoClickDown, vampAutoHeal, vampAutoTwinClaws))
+            .build()
 
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "Auto Click Down",
-        category = "Vampire Slayer",
-        subcategory = "Actions"
-    )
-    var vampireSlayerAutoClickDown = false
-
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "Auto Heal",
-        category = "Vampire Slayer",
-        subcategory = "Actions"
-    )
-    var vampireSlayerAutoHeal = false
-
-    @Property(
-        type = PropertyType.SWITCH,
-        name = "Auto Twin Claws",
-        category = "Vampire Slayer",
-        subcategory = "Actions"
-    )
-    var vampireSlayerAutoTwinClaws = false
-
-    init {
-        initialize()
-
-        setCategoryDescription("QOL", "Quality of Life settings.\n For more help, go to our discord server. \n [!] discord.gg/laybalt [!]")
-        setCategoryDescription("Fishing", "Settings for the fishing module. \nFor more help, go to our discord server. \n [!] discord.gg/laybalt [!]")
-        setCategoryDescription("Combat", "Settings for the combat module. \nFor more help, go to our discord server. \n [!] discord.gg/laybalt [!]")
-        setCategoryDescription("Vampire Slayer", "Settings for the Vampire Slayer module. \nFor more help, go to our discord server. \n [!] discord.gg/laybalt [!]")
-
-        setSubcategoryDescription("Combat","Auto Clicker Left", "Settings for the left auto clicker. <!> MIGHT BE BANNABLE! <!>")
-        setSubcategoryDescription("Combat","Auto Clicker Right", "Settings for the right auto clicker. <!> MIGHT BE BANNABLE! <!>")
-
-        setSubcategoryDescription("QOL","ESP", "Settings for the ESP module. \nWhen it's on you should MIDDLE CLICK on a mob to add/remove it to ESP.\n For more help, go to our discord server. \n [!] discord.gg/laybalt [!]")
-
-        //Auto Mob Killer
-        addDependency("FishingAttackDelay", "FishingMobKillerSwitch")
-        addDependency("FishingMobDetectionRadius", "FishingMobKillerSwitch")
-        addDependency("FishingSwordSlot", "FishingMobKillerSwitch")
-        addDependency("FishingRodSlot", "FishingMobKillerSwitch")
-
-        //Auto Path
-        addDependency("largeSelector", "AutoPathSwitch")
+        return YetAnotherConfigLib.createBuilder()
+            .title(text("LayBalt QOL"))
+            .category(fishingCategory)
+            .category(qolCategory)
+            .category(combatCategory)
+            .category(vampireCategory)
+            .save { save() }
+            .build()
     }
 }

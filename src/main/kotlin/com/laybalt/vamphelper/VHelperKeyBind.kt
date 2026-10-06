@@ -1,26 +1,26 @@
 package com.laybalt.vamphelper
 
 import com.laybalt.GUI.LBQConfig
-import net.minecraft.client.settings.KeyBinding
-import net.minecraftforge.fml.client.registry.ClientRegistry
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
-import net.minecraftforge.fml.common.gameevent.InputEvent.KeyInputEvent
-import org.lwjgl.input.Keyboard
+import com.laybalt.util.KeyBinds
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.minecraft.client.KeyMapping
 
+/** Unbound by default; toggles the Vampire Slayer helper (same as the Forge version). */
 class VHelperKeyBind {
     init {
-        ClientRegistry.registerKeyBinding(keyBinding)
+        keyBinding = KeyBinds.registerUnbound("key.lbqmod.vampire_helper")
     }
 
-    @SubscribeEvent
-    fun onKeyInput(event: KeyInputEvent?) {
-        if (keyBinding.isPressed) {
-            LBQConfig.vampireSlayerHelperEnabled = !LBQConfig.vampireSlayerHelperEnabled
-            VHelperMessage.sendToggleMessage()
+    fun register() {
+        ClientTickEvents.END_CLIENT_TICK.register { _ ->
+            while (keyBinding.consumeClick()) {
+                LBQConfig.vampireSlayerHelperEnabled = !LBQConfig.vampireSlayerHelperEnabled
+                VHelperMessage.sendToggleMessage()
+            }
         }
     }
 
     companion object {
-        var keyBinding: KeyBinding = KeyBinding("VampireHelper", Keyboard.KEY_NONE, "LayBalt")
+        lateinit var keyBinding: KeyMapping
     }
 }

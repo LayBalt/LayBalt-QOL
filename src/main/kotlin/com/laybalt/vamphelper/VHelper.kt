@@ -1,27 +1,44 @@
 package com.laybalt.vamphelper
 
+import com.laybalt.GUI.LBQConfig
+import com.laybalt.Main
+import com.laybalt.util.ClientActions
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiIngame
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
-import net.minecraftforge.fml.common.gameevent.TickEvent
-import net.minecraftforge.client.event.RenderGameOverlayEvent
-import net.minecraftforge.fml.relauncher.ReflectionHelper
-import java.lang.reflect.Field
+import net.minecraft.network.chat.Component
+import net.minecraft.world.scores.DisplaySlot
+import net.minecraft.world.scores.PlayerTeam
 import kotlin.random.Random
 
+/**
+ * Vampire Slayer helper (Hypixel SkyBlock, Rift): reacts to the "Impel: ..." subtitle shown
+ * during the boss fight by looking up/down + clicking, jumping or sneaking.
+ *
+ * Port notes (Forge 1.8.9 -> Fabric / Minecraft 26.2):
+ * - The scoreboard scan that lived in RenderGameOverlayEvent.Text now runs at the start of
+ *   every client tick, right before the subtitle check.
+ * - The HUD title / subtitle / action-bar fields are read directly (access widener) instead of
+ *   through reflection; they are Components, so `.string` is used.
+ * - clickMouse() reflection -> ClientActions.leftClick().
+ * - INTENTIONAL: everything is additionally gated on LBQConfig.vampireSlayerHelperEnabled (the
+ *   key bind toggles it). The original never checked that switch.
+ * - INTENTIONAL: the original "sneak" action was a no-op (it only read isSneaking); it now
+ *   really holds the sneak key for 6 ticks.
+ */
 class VHelper {
-    private val mc: Minecraft = Minecraft.getMinecraft()
+    private val mc: Minecraft = Minecraft.getInstance()
     private var isInRiftDimension = false
     private var hasActiveSlayerQuest = false
     private var isBossFight = false
 
-    private var overlayMessageField: Field? = null
-    private var displayedTitleField: Field? = null
-    private var displayedSubTitleField: Field? = null
-    private var clickMouseMethod: java.lang.reflect.Method? = null
-
     private var isClickingUp = false
     private var isClickingDown = false
+
+    // Sneak action state (ported from the no-op original, see class comment).
+    private var isSneaking = false
+    private var sneakTickCounter = 0
+    // True only when the helper itself pressed the sneak key (so we never release the player's own sneak).
+    private var sneakForcedByHelper = false
 
     private var tickCounter = 0
     private var originalPitch: Float = 0f
@@ -30,65 +47,40 @@ class VHelper {
     private var delayCounter = 0
     private var isDelayed = false
 
-    init {
-        try {
-            overlayMessageField = ReflectionHelper.findField(GuiIngame::class.java, "field_175199_z", "overlayMessage")
-        } catch (e: Exception) {
-            println("Ошибка при поиске поля ActionBar (overlayMessage): ${e.message}")
-        }
-
-        try {
-            displayedTitleField = ReflectionHelper.findField(GuiIngame::class.java, "field_175201_x", "displayedTitle")
-        } catch (e: Exception) {
-            println("Ошибка при поиске поля Title (displayedTitle): ${e.message}")
-        }
-
-        try {
-            displayedSubTitleField =
-                ReflectionHelper.findField(GuiIngame::class.java, "field_175200_y", "displayedSubTitle")
-        } catch (e: Exception) {
-            println("Ошибка при поиске поля Subtitle (displayedSubTitle): ${e.message}")
-        }
-
-        try {
-            clickMouseMethod = Minecraft::class.java.getDeclaredMethod("clickMouse").apply {
-                isAccessible = true
-            }
-        } catch (e: Exception) {
-            println("Ошибка при поиске метода clickMouse: ${e.message}")
-        }
+    fun register() {
+        ClientTickEvents.START_CLIENT_TICK.register { _ -> onClientTick() }
     }
 
-    @SubscribeEvent
-    fun onRenderGameOverlay(event: RenderGameOverlayEvent.Text) {
-        if (event.type != RenderGameOverlayEvent.ElementType.TEXT) return
+    private fun onClientTick() {
+        // INTENTIONAL CHANGE: the helper only works while enabled in the config / via the key bind.
+        if (!LBQConfig.vampireSlayerHelperEnabled) {
+            resetState()
+            return
+        }
 
+        scanScoreboard()
+        checkTitles()
+        if (isInRiftDimension && hasActiveSlayerQuest && isBossFight) {
+            handleDelay()
+            handleClickUp()
+            handleClickDown()
+        }
+        // Runs outside the boss-fight gate so the sneak key is always released again.
+        handleSneak()
+    }
+
+    /** Old RenderGameOverlayEvent.Text handler: reads the sidebar to detect the Rift boss fight. */
+    private fun scanScoreboard() {
         isInRiftDimension = false
         hasActiveSlayerQuest = false
         isBossFight = false
 
-        val scoreboard = mc.theWorld?.scoreboard ?: return
-        val objective = scoreboard.getObjectiveInDisplaySlot(1) ?: return
-        val scoreboardValues = getScoreboardValues(objective.name)
-
-        for (scoreInfo in scoreboardValues) {
+        for (scoreInfo in getScoreboardValues()) {
             val cleanedText = cleanText(scoreInfo)
             when {
                 cleanedText.contains("Rift Dimension", true) -> isInRiftDimension = true
                 cleanedText.contains("Slayer Quest", true) -> hasActiveSlayerQuest = true
                 cleanedText.contains("Slay the boss!", true) -> isBossFight = true
-            }
-        }
-    }
-
-    @SubscribeEvent
-    fun onClientTick(event: TickEvent.ClientTickEvent) {
-        if (event.phase == TickEvent.Phase.START) {
-            checkTitles()
-            if (isInRiftDimension && hasActiveSlayerQuest && isBossFight) {
-                handleDelay()
-                handleClickUp()
-                handleClickDown()
             }
         }
     }
@@ -105,13 +97,13 @@ class VHelper {
 
     private fun checkTitles() {
         // Получаем текст подзаголовка и обрабатываем его
-        val subtitleText = getFieldText(displayedSubTitleField)?.let { cleanText(it) }
+        val subtitleText = currentSubtitle()
 
         if (!subtitleText.isNullOrEmpty()) {
             // Если обработанный текст отличается от последнего сохранённого подзаголовка
             if (!actionCompleted || subtitleText != lastSubtitle) {
                 lastSubtitle = subtitleText
-                println("Новый Subtitle: $subtitleText")
+                Main.LOGGER.info("Новый Subtitle: {}", subtitleText)
                 isDelayed = true
                 delayCounter = 0
                 actionCompleted = true
@@ -125,19 +117,19 @@ class VHelper {
             "Impel: CLICK DOWN" -> performAction("clickdown")
             "Impel: JUMP" -> performAction("jump")
             "Impel: SNEAK" -> performAction("sneak")
-            else -> println("Unknown Impel action: ${cleanText(subtitle)}")
+            else -> Main.LOGGER.debug("Unknown Impel action: {}", cleanText(subtitle))
         }
     }
 
     private fun performAction(action: String) {
-        val player = mc.thePlayer ?: return
+        val player = mc.player ?: return
         when (action.lowercase()) {
             "clickup" -> {
                 if (!isClickingUp) {
                     isClickingUp = true
                     tickCounter = 0
-                    originalPitch = player.rotationPitch
-                    player.rotationPitch = Random.nextFloat() * (-85f - -90f) + -90f
+                    originalPitch = player.xRot
+                    player.xRot = Random.nextFloat() * (-85f - -90f) + -90f
                 }
             }
 
@@ -145,21 +137,27 @@ class VHelper {
                 if (!isClickingDown) {
                     isClickingDown = true
                     tickCounter = 0
-                    originalPitch = player.rotationPitch
-                    player.rotationPitch = Random.nextFloat() * (90f - 85f) + 85f
+                    originalPitch = player.xRot
+                    player.xRot = Random.nextFloat() * (90f - 85f) + 85f
                 }
             }
 
             "jump" -> {
-                player.jump() // Прыжок
+                player.jumpFromGround() // Прыжок
             }
 
             "sneak" -> {
-                player.isSneaking
+                // The original only read player.isSneaking (no-op); now a real 6-tick sneak.
+                if (!isSneaking) {
+                    isSneaking = true
+                    sneakTickCounter = 0
+                    sneakForcedByHelper = !mc.options.keyShift.isDown
+                    if (sneakForcedByHelper) mc.options.keyShift.setDown(true)
+                }
             }
 
             else -> {
-                println("Unknown action: $action")
+                Main.LOGGER.debug("Unknown action: {}", action)
             }
         }
     }
@@ -168,24 +166,19 @@ class VHelper {
         if (isClickingUp) {
             tickCounter++
             when (tickCounter) {
-                6 -> try {
-                    clickMouseMethod?.invoke(mc) ?: println("clickMouseMethod is null or not accessible")
-                } catch (e: Exception) {
-                    println("Ошибка при выполнении clickMouse: ${e.message}")
-                }
+                6 -> ClientActions.leftClick() // Old: clickMouse() via reflection
 
                 13 -> {
-                    mc.thePlayer?.rotationPitch = originalPitch // Возврат к исходному углу взгляда
+                    mc.player?.xRot = originalPitch // Возврат к исходному углу взгляда
                     isClickingUp = false
                     tickCounter = 0 // Сброс тик-счётчика
-                    println("CLICK UP выполнен")
+                    Main.LOGGER.info("CLICK UP выполнен")
                 }
             }
         }
 
         // Сброс actionCompleted, если Subtitle изменился
-        val currentSubtitle = getFieldText(displayedSubTitleField)?.let { cleanText(it) }
-        if (lastSubtitle != currentSubtitle) {
+        if (lastSubtitle != currentSubtitle()) {
             actionCompleted = false
         }
     }
@@ -194,40 +187,96 @@ class VHelper {
         if (isClickingDown) {
             tickCounter++
             when (tickCounter) {
-                6 -> try {
-                    clickMouseMethod?.invoke(mc) ?: println("clickMouseMethod is null or not accessible")
-                } catch (e: Exception) {
-                    println("Ошибка при выполнении clickMouse: ${e.message}")
-                }
+                6 -> ClientActions.leftClick() // Old: clickMouse() via reflection
 
                 13 -> {
-                    mc.thePlayer?.rotationPitch = originalPitch // Возврат к исходному углу взгляда
+                    mc.player?.xRot = originalPitch // Возврат к исходному углу взгляда
                     isClickingDown = false
                     tickCounter = 0 // Сброс тик-счётчика
-                    println("CLICK DOWN выполнен")
+                    Main.LOGGER.info("CLICK DOWN выполнен")
                 }
             }
         }
 
         // Сброс actionCompleted, если Subtitle изменился
-        val currentSubtitle = getFieldText(displayedSubTitleField)?.let { cleanText(it) }
-        if (lastSubtitle != currentSubtitle) {
+        if (lastSubtitle != currentSubtitle()) {
             actionCompleted = false
         }
     }
 
-
-    private fun getScoreboardValues(objectiveName: String): List<String> {
-        val scoreboard = mc.theWorld?.scoreboard ?: return emptyList()
-        val objective = scoreboard.getObjective(objectiveName) ?: return emptyList()
-        return scoreboard.getSortedScores(objective).map { it.playerName }
+    private fun handleSneak() {
+        if (isSneaking) {
+            sneakTickCounter++
+            if (sneakTickCounter >= 6) {
+                releaseSneak()
+                Main.LOGGER.info("SNEAK выполнен")
+            }
+        }
     }
 
-    private fun getFieldText(field: Field?): String? {
+    /**
+     * Releases the sneak key, but only if the helper pressed it itself (a sneak the player was
+     * already holding / toggled is left untouched). keyShift is a ToggleKeyMapping: with
+     * "toggle crouch" enabled, setDown(false) is a no-op and setDown(true) flips the state, so
+     * both modes are handled.
+     */
+    private fun releaseSneak() {
+        isSneaking = false
+        sneakTickCounter = 0
+        if (!sneakForcedByHelper) return
+        sneakForcedByHelper = false
+        val shift = mc.options.keyShift
+        if (shift.isDown) {
+            shift.setDown(false)
+            if (shift.isDown) shift.setDown(true) // toggle mode: flip it back off
+        }
+    }
+
+    /** Called while the helper is disabled: restore the view / keys if we were mid-action. */
+    private fun resetState() {
+        if (isClickingUp || isClickingDown) {
+            mc.player?.xRot = originalPitch
+            isClickingUp = false
+            isClickingDown = false
+            tickCounter = 0
+        }
+        if (isSneaking) releaseSneak()
+        isDelayed = false
+        delayCounter = 0
+        actionCompleted = false
+        lastSubtitle = null
+        isInRiftDimension = false
+        hasActiveSlayerQuest = false
+        isBossFight = false
+    }
+
+    /**
+     * Visible sidebar lines. On Hypixel the text is team prefix + suffix, so each entry has to be
+     * formatted for its team (the old code only read playerName).
+     */
+    private fun getScoreboardValues(): List<String> {
+        val scoreboard = mc.level?.scoreboard ?: return emptyList()
+        val objective = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR) ?: return emptyList()
+        return scoreboard.listPlayerScores(objective).map { entry ->
+            val name: Component = entry.display() ?: Component.literal(entry.owner())
+            PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(entry.owner()), name).string
+        }
+    }
+
+    /** Replaces the reflective getFieldText(displayedSubTitleField). */
+    private fun currentSubtitle(): String? = hudText(mc.gui.hud.subtitle)?.let { cleanText(it) }
+
+    @Suppress("unused")
+    private fun currentTitle(): String? = hudText(mc.gui.hud.title)?.let { cleanText(it) }
+
+    @Suppress("unused")
+    private fun currentActionBar(): String? = hudText(mc.gui.hud.overlayMessageString)?.let { cleanText(it) }
+
+    private fun hudText(component: Component?): String? {
         return try {
-            field?.get(mc.ingameGUI) as? String
+            component?.string
         } catch (e: Exception) {
-            println("Ошибка при чтении значения поля: ${e.message}")
+            Main.LOGGER.warn("Ошибка при чтении значения поля: {}", e.message)
             null
         }
     }

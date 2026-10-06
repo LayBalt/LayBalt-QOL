@@ -1,14 +1,14 @@
 package com.laybalt.skyblock.AutoMelody;
 
 import com.laybalt.GUI.LBQConfig;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.inventory.GuiChest;
-import net.minecraft.inventory.ContainerChest;
-import net.minecraft.item.ItemStack;
-import net.minecraft.init.Blocks;
-import net.minecraft.item.Item;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraft.client.gui.screens.inventory.ContainerScreen;
+import net.minecraft.world.Container;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.*;
 
@@ -21,16 +21,22 @@ public class AMelody {
     private static final String COLOR_CODES = "dcaebf123456789klmnor";
     private long lastClickTime = 0;
 
-    @SubscribeEvent
-    public void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || !LBQConfig.INSTANCE.getMelodySwitch()) return;
+    /** Fabric replacement for the Forge {@code TickEvent.ClientTickEvent} (Phase.START) handler. */
+    public void register() {
+        ClientTickEvents.START_CLIENT_TICK.register(this::onClientTick);
+    }
 
-        Minecraft mc = Minecraft.getMinecraft();
-        if (!(mc.currentScreen instanceof GuiChest)) return;
+    private void onClientTick(Minecraft mc) {
+        if (!LBQConfig.INSTANCE.getMelodySwitch()) return;
 
-        GuiChest chest = (GuiChest) mc.currentScreen;
-        ContainerChest container = (ContainerChest) chest.inventorySlots;
-        String chestName = stripColor(container.getLowerChestInventory().getDisplayName().getUnformattedText());
+        // 26.2: the current screen lives on the Gui (mc.gui.screen()); GuiChest -> ContainerScreen.
+        if (!(mc.gui.screen() instanceof ContainerScreen chest)) return;
+        if (mc.gameMode == null || mc.player == null) return;
+
+        ChestMenu container = chest.getMenu();
+        // Old getLowerChestInventory() -> menu.getContainer(); chest name comes from the screen title.
+        Container lowerChest = container.getContainer();
+        String chestName = stripColor(chest.getTitle().getString());
 
         if (!isHarpMelody(chestName)) return;
 
@@ -38,16 +44,19 @@ public class AMelody {
         if (currentTime - lastClickTime < LBQConfig.INSTANCE.getMelodyDelay()) return;
 
         for (int i = 37; i <= 43; i++) {
-            ItemStack itemStack = container.getLowerChestInventory().getStackInSlot(i);
-            if (itemStack != null && Item.getItemFromBlock(Blocks.quartz_block) == itemStack.getItem()) {
-                String itemName = stripColor(itemStack.getDisplayName());
+            if (i >= lowerChest.getContainerSize()) break;
+            ItemStack itemStack = lowerChest.getItem(i);
+            // ItemStack is never null any more -> isEmpty(); Item.getItemFromBlock(Blocks.quartz_block) -> Items.QUARTZ_BLOCK
+            if (!itemStack.isEmpty() && itemStack.getItem() == Items.QUARTZ_BLOCK) {
+                String itemName = stripColor(itemStack.getHoverName().getString());
                 if (itemName.equals("| Click!")) {
-                    mc.playerController.windowClick(
-                            container.windowId,
+                    // windowClick(windowId, slot, 0, 0, player) -> handleContainerInput(..., ContainerInput.PICKUP, player)
+                    mc.gameMode.handleContainerInput(
+                            container.containerId,
                             i,
                             0,
-                            0,
-                            mc.thePlayer
+                            ContainerInput.PICKUP,
+                            mc.player
                     );
                     lastClickTime = currentTime;
                     return;

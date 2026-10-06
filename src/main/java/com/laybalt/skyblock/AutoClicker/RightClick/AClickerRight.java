@@ -1,9 +1,9 @@
 package com.laybalt.skyblock.AutoClicker.RightClick;
 
 import com.laybalt.GUI.LBQConfig;
-import net.minecraft.client.Minecraft;
+import com.laybalt.util.ClientActions;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
-import java.lang.reflect.Method;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -13,6 +13,7 @@ public class AClickerRight {
     private long clickInterval;
     private final Random random = new Random();
     private Timer timer;
+    private boolean lastSwitch;
     private static AClickerRight instance;
 
     public AClickerRight() {
@@ -26,6 +27,27 @@ public class AClickerRight {
         return instance;
     }
 
+    /**
+     * Keeps the timer in sync with the config switch, so toggling the clicker from the
+     * config screen (not only via the key bind) starts / stops it as well. New in the Fabric port.
+     * Edge-triggered: a switch persisted as true from a previous session does NOT auto-start the
+     * clicker on launch (like the original, it only starts on an actual toggle).
+     */
+    public void register() {
+        lastSwitch = LBQConfig.INSTANCE.getRightClickerSwitch();
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            boolean now = LBQConfig.INSTANCE.getRightClickerSwitch();
+            if (now != lastSwitch) {
+                lastSwitch = now;
+                if (now) {
+                    startAutoClick();
+                } else {
+                    stopAutoClick();
+                }
+            }
+        });
+    }
+
     private long getRandomClickInterval() {
         int baseClicksPerSecond = LBQConfig.INSTANCE.getRightClickNumber();
         int minCPS = Math.max(baseClicksPerSecond - 2, 1);
@@ -34,8 +56,13 @@ public class AClickerRight {
         return 1000 / clicksPerSecond;
     }
 
-    public void startAutoClick() {
-        timer = new Timer();
+    /** Idempotent: does nothing if the timer is already running. */
+    public synchronized void startAutoClick() {
+        if (timer != null) {
+            return;
+        }
+        // Daemon thread so a running clicker never keeps the JVM alive on exit.
+        timer = new Timer("LBQ-AutoClicker-Right", true);
         timer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
@@ -44,38 +71,23 @@ public class AClickerRight {
         }, 0, 1);
     }
 
-    public void stopAutoClick() {
+    /** Idempotent: cancels and clears the timer if one is running. */
+    public synchronized void stopAutoClick() {
         if (timer != null) {
             timer.cancel();
+            timer = null;
         }
-    }
-
-    private void invokeMethod(Minecraft mc, String... methodNames) throws Exception {
-        for (String methodName : methodNames) {
-            try {
-                Method method = Minecraft.class.getDeclaredMethod(methodName);
-                method.setAccessible(true);
-                method.invoke(mc);
-                return;
-            } catch (NoSuchMethodException ignored) {
-            }
-        }
-        throw new NoSuchMethodException("None of the specified methods were found.");
     }
 
     public synchronized void autoClick() {
         long currentTime = System.currentTimeMillis();
-        if (LBQConfig.INSTANCE.getLeftClickerSwitch() && (currentTime - lastClickTime >= clickInterval)) {
-            Minecraft mc = Minecraft.getMinecraft();
-            if (mc != null && mc.thePlayer != null) {
-                try {
-                    invokeMethod(mc, "func_147116_af", "leftClickMouse");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                lastClickTime = currentTime;
-                clickInterval = getRandomClickInterval();
-            }
+        // INTENTIONAL FIX: the Forge original checked getLeftClickerSwitch() and invoked the LEFT
+        // click (func_147116_af) here - a copy-paste bug. This is the right clicker, so it is gated
+        // on the right switch and performs a right click (use item / interact).
+        if (LBQConfig.INSTANCE.getRightClickerSwitch() && (currentTime - lastClickTime >= clickInterval)) {
+            ClientActions.rightClick();
+            lastClickTime = currentTime;
+            clickInterval = getRandomClickInterval();
         }
     }
 }

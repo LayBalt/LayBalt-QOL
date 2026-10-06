@@ -1,25 +1,24 @@
 package com.laybalt;
 
 import com.laybalt.GUI.LBQConfig;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.settings.KeyBinding;
-import net.minecraftforge.fml.client.registry.ClientRegistry;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.InputEvent;
-import org.lwjgl.input.Keyboard;
+import com.laybalt.util.KeyBinds;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.KeyMapping;
+import org.lwjgl.glfw.GLFW;
 
+/** Right Shift opens the LayBalt config screen (same default as the Forge version). */
 public class ConfigKeyBind {
-    public static KeyBinding keyBinding;
+    public static KeyMapping keyBinding;
 
     public ConfigKeyBind() {
-        keyBinding = new KeyBinding("Open Config", Keyboard.KEY_RSHIFT, "LayBalt");
-        ClientRegistry.registerKeyBinding(keyBinding);
+        keyBinding = KeyBinds.register("key.lbqmod.open_config", GLFW.GLFW_KEY_RIGHT_SHIFT);
     }
 
-    @SubscribeEvent
-    public void onKeyInput(InputEvent.KeyInputEvent event) {
-        if (keyBinding.isPressed()) {
-            Minecraft.getMinecraft().displayGuiScreen(LBQConfig.INSTANCE.gui());
-        }
+    public void register() {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (keyBinding.consumeClick()) {
+                client.gui.setScreen(LBQConfig.INSTANCE.createScreen(client.gui.screen()));
+            }
+        });
     }
 }

@@ -1,19 +1,16 @@
 package com.laybalt.vamphelper
 
-import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiIngame
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
-import net.minecraftforge.fml.common.gameevent.TickEvent
-import net.minecraftforge.fml.relauncher.ReflectionHelper
-import java.lang.reflect.Field
-
+/**
+ * Disabled stub. The whole body was already commented out in the Forge version; it is kept below
+ * (with the names updated to the Fabric / Minecraft 26.2 API) for reference. Main still calls
+ * register(), which does nothing.
+ */
 class TitleChecker {
-//    private val mc: Minecraft = Minecraft.getMinecraft()
-//
-//    private var overlayMessageField: Field? = null
-//    private var displayedTitleField: Field? = null
-//    private var displayedSubTitleField: Field? = null
-//    private var clickMouseMethod: java.lang.reflect.Method? = null
+    fun register() {
+        // intentionally empty - see the commented-out prototype below
+    }
+
+//    private val mc: Minecraft = Minecraft.getInstance()
 //
 //    private var isClickingUp = false
 //    private var tickCounter = 0
@@ -23,39 +20,17 @@ class TitleChecker {
 //    private var delayCounter = 0
 //    private var isDelayed = false
 //
-//    init {
-//        try {
-//            overlayMessageField = ReflectionHelper.findField(GuiIngame::class.java, "field_175199_z", "overlayMessage")
-//        } catch (e: Exception) {
-//            println("Ошибка при поиске поля ActionBar (overlayMessage): ${e.message}")
-//        }
-//
-//        try {
-//            displayedTitleField = ReflectionHelper.findField(GuiIngame::class.java, "field_175201_x", "displayedTitle")
-//        } catch (e: Exception) {
-//            println("Ошибка при поиске поля Title (displayedTitle): ${e.message}")
-//        }
-//
-//        try {
-//            displayedSubTitleField = ReflectionHelper.findField(GuiIngame::class.java, "field_175200_y", "displayedSubTitle")
-//        } catch (e: Exception) {
-//            println("Ошибка при поиске поля Subtitle (displayedSubTitle): ${e.message}")
-//        }
-//
-//        try {
-//            clickMouseMethod = Minecraft::class.java.getDeclaredMethod("clickMouse").apply {
-//                isAccessible = true
-//            }
-//        } catch (e: Exception) {
-//            println("Ошибка при поиске метода clickMouse: ${e.message}")
-//        }
+//    fun register() {
+//        ClientTickEvents.START_CLIENT_TICK.register { _ -> onClientTick() }
 //    }
 //
-//    private fun getFieldText(field: Field?): String? {
+//    // Old: reflection on GuiIngame.displayedTitle / displayedSubTitle / overlayMessage.
+//    // New: the access-widened Hud fields mc.gui.hud.title / .subtitle / .overlayMessageString (Components).
+//    private fun getSubtitleText(): String? {
 //        return try {
-//            field?.get(mc.ingameGUI) as? String
+//            mc.gui.hud.subtitle?.string
 //        } catch (e: Exception) {
-//            println("Ошибка при чтении значения поля: ${e.message}")
+//            Main.LOGGER.warn("Ошибка при чтении значения поля: {}", e.message)
 //            null
 //        }
 //    }
@@ -65,11 +40,11 @@ class TitleChecker {
 //    }
 //
 //    private fun checkTitles() {
-//        val subtitleText = getFieldText(displayedSubTitleField)?.let { cleanText(it) }
+//        val subtitleText = getSubtitleText()?.let { cleanText(it) }
 //
 //        if (!subtitleText.isNullOrEmpty() && (!actionCompleted || subtitleText != lastSubtitle)) {
 //            lastSubtitle = subtitleText
-//            println("Новый Subtitle: $subtitleText")
+//            Main.LOGGER.info("Новый Subtitle: {}", subtitleText)
 //            isDelayed = true
 //            delayCounter = 0
 //            actionCompleted = true
@@ -80,37 +55,34 @@ class TitleChecker {
 //        when {
 //            subtitle.contains("CLICK UP", ignoreCase = true) -> performAction("clickup")
 //            subtitle.contains("JUMP", ignoreCase = true) -> performAction("jump")
-//            else -> println("Нет действий для SubTitle: $subtitle")
+//            else -> Main.LOGGER.debug("Нет действий для SubTitle: {}", subtitle)
 //        }
 //    }
 //
 //    private fun performAction(action: String) {
-//        val player = mc.thePlayer ?: return // Проверка, что игрок существует
+//        val player = mc.player ?: return // Проверка, что игрок существует
 //        when (action.lowercase()) {
 //            "clickup" -> {
 //                if (!isClickingUp) {
 //                    isClickingUp = true
 //                    tickCounter = 0
-//                    originalPitch = player.rotationPitch // Сохранение текущего угла взгляда
-//                    player.rotationPitch = -90f // Изменение угла взгляда на верх
+//                    originalPitch = player.xRot // Сохранение текущего угла взгляда
+//                    player.xRot = -90f // Изменение угла взгляда на верх
 //                }
 //            }
 //            "jump" -> {
-//                player.jump() // Прыжок
+//                player.jumpFromGround() // Прыжок
 //            }
 //            else -> {
-//                println("Unknown action: $action")
+//                Main.LOGGER.debug("Unknown action: {}", action)
 //            }
 //        }
 //    }
 //
-//    @SubscribeEvent
-//    fun onClientTick(event: TickEvent.ClientTickEvent) {
-//        if (event.phase == TickEvent.Phase.START) {
-//            checkTitles()
-//            handleDelay()
-//            handleClickUp()
-//        }
+//    private fun onClientTick() {
+//        checkTitles()
+//        handleDelay()
+//        handleClickUp()
 //    }
 //
 //    private fun handleDelay() {
@@ -127,21 +99,17 @@ class TitleChecker {
 //        if (isClickingUp) {
 //            tickCounter++
 //            when (tickCounter) {
-//                6 -> try {
-//                    clickMouseMethod?.invoke(mc) // Клик через рефлексию метода clickMouse
-//                } catch (e: Exception) {
-//                    println("Ошибка при выполнении clickMouse: ${e.message}")
-//                }
+//                6 -> ClientActions.leftClick() // Old: clickMouse() via reflection
 //                13 -> {
-//                    mc.thePlayer?.rotationPitch = originalPitch // Возврат к исходному углу взгляда через 10 тиков
+//                    mc.player?.xRot = originalPitch // Возврат к исходному углу взгляда через 10 тиков
 //                    isClickingUp = false
-//                    println("CLICK UP выполнен")
+//                    Main.LOGGER.info("CLICK UP выполнен")
 //                }
 //            }
 //        }
 //
 //        // Сброс actionCompleted, если Subtitle исчез
-//        if (lastSubtitle != getFieldText(displayedSubTitleField)?.let { cleanText(it) }) {
+//        if (lastSubtitle != getSubtitleText()?.let { cleanText(it) }) {
 //            actionCompleted = false
 //        }
 //    }

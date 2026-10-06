@@ -1,27 +1,28 @@
 package com.laybalt.autoexperiment
 
+import com.laybalt.GUI.LBQConfig
 import com.laybalt.autoexperiment.AExperimentMessage.Companion.sendMessage
-import com.laybalt.GUI.LBQConfig.AutoExperimentSwitch
-import net.minecraft.client.settings.KeyBinding
-import net.minecraftforge.fml.client.registry.ClientRegistry
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
-import net.minecraftforge.fml.common.gameevent.InputEvent.KeyInputEvent
-import org.lwjgl.input.Keyboard
+import com.laybalt.util.KeyBinds
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.minecraft.client.KeyMapping
 
 class AExperimentKeyBind {
     init {
-        ClientRegistry.registerKeyBinding(keyBinding)
+        // Unbound by default, like Keyboard.KEY_NONE in the Forge version.
+        keyBinding = KeyBinds.registerUnbound("key.lbqmod.auto_experiment")
     }
 
-    @SubscribeEvent
-    fun onKeyInput(event: KeyInputEvent?) {
-        if (keyBinding.isPressed) {
-            AutoExperimentSwitch = !AutoExperimentSwitch
-            sendMessage()
+    /** InputEvent.KeyInputEvent + isPressed() -> END_CLIENT_TICK + consumeClick(). */
+    fun register() {
+        ClientTickEvents.END_CLIENT_TICK.register { _ ->
+            while (keyBinding.consumeClick()) {
+                LBQConfig.AutoExperimentSwitch = !LBQConfig.AutoExperimentSwitch
+                sendMessage()
+            }
         }
     }
 
     companion object {
-        var keyBinding: KeyBinding = KeyBinding("AutoExperiment", Keyboard.KEY_NONE, "LayBalt")
+        lateinit var keyBinding: KeyMapping
     }
 }

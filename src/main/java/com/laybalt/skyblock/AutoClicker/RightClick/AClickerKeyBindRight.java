@@ -1,34 +1,33 @@
 package com.laybalt.skyblock.AutoClicker.RightClick;
 
 import com.laybalt.GUI.LBQConfig;
-import net.minecraft.client.settings.KeyBinding;
-import net.minecraftforge.fml.client.registry.ClientRegistry;
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
-import net.minecraftforge.fml.common.gameevent.InputEvent;
-import org.lwjgl.input.Keyboard;
+import com.laybalt.util.KeyBinds;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.KeyMapping;
 
 public class AClickerKeyBindRight {
-    public static KeyBinding keyBinding;
+    public static KeyMapping keyBinding;
 
     public AClickerKeyBindRight() {
-        keyBinding = new KeyBinding("Right AutoClicker", Keyboard.KEY_NONE, "LayBalt");
-        ClientRegistry.registerKeyBinding(keyBinding);
+        // Unbound by default (was Keyboard.KEY_NONE); shown as "Right AutoClicker" in the LayBalt category.
+        keyBinding = KeyBinds.registerUnbound("key.lbqmod.auto_clicker_right");
     }
 
-    @SubscribeEvent
-    public void onKeyInput(InputEvent.KeyInputEvent event) {
-        if (keyBinding.isPressed()) {
-            LBQConfig.INSTANCE.setRightClickerSwitch(!LBQConfig.INSTANCE.getRightClickerSwitch());
-            LBQConfig.INSTANCE.markDirty();
-            LBQConfig.INSTANCE.writeData();
-            AClickerMessageRight.sendMessage();
+    public void register() {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (keyBinding.consumeClick()) {
+                LBQConfig.INSTANCE.setRightClickerSwitch(!LBQConfig.INSTANCE.getRightClickerSwitch());
+                // save() replaces markDirty() + writeData() of the Vigilance config.
+                LBQConfig.INSTANCE.save();
+                AClickerMessageRight.sendMessage();
 
-            AClickerRight clicker = AClickerRight.getInstance();
-            if (LBQConfig.INSTANCE.getRightClickerSwitch()) {
-                clicker.startAutoClick();
-            } else {
-                clicker.stopAutoClick();
+                AClickerRight clicker = AClickerRight.getInstance();
+                if (LBQConfig.INSTANCE.getRightClickerSwitch()) {
+                    clicker.startAutoClick();
+                } else {
+                    clicker.stopAutoClick();
+                }
             }
-        }
+        });
     }
 }
