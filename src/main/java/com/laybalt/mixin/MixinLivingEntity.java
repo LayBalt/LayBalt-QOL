@@ -31,6 +31,11 @@ public abstract class MixinLivingEntity extends Entity {
     private void adjustSwingLength(CallbackInfoReturnable<Integer> cir) {
         if (! Animations.INSTANCE.enabled) return;
         if (! this.is(LayBaltQOL.getMc().player)) return;
+        int fixedSwing = Animations.fixedSwingDuration();
+        if (fixedSwing > 0) {
+            cir.setReturnValue(fixedSwing);
+            return;
+        }
         if (LayBaltQOL.getMc().player.getMainHandItem() == ItemStack.EMPTY) return;
 
         int length;
