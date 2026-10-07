@@ -33,7 +33,7 @@ object WorldTweaks: Feature("Customises the open-world fog and its colour, and c
         .withDescription("Paints the sky and clouds with the fog colour as well").showIf { customFog.value }
 
     private val changeTime by ToggleSetting("Change Time")
-        .withDescription("Locks the time of day on your client. The server time is not changed").section("Time")
+        .withDescription("Locks the time of day on your client. The server time is not changed. Overrides the Time Changer feature while both are on").section("Time")
 
     private val time by SliderSetting("Time", 21, 0, 23, 1, ":00")
         .withDescription("Hour of the day to show. 6 is sunrise, 12 is noon, 18 is sunset, 0 is midnight").showIf { changeTime.value }

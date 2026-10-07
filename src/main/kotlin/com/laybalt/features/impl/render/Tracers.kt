@@ -101,9 +101,12 @@ object Tracers: Feature("Draws lines from your crosshair to other players, so yo
         else -> null
     }
 
-    /** Real players have version-4 UUIDs; Hypixel's NPCs and SkyBlock fake players use version 2. */
+    /**
+     * Hypixel's NPCs and SkyBlock fake players use version-2 UUIDs; real online-mode players have version 4
+     * and offline-mode players version 3, so only version 2 counts as an NPC.
+     */
     @JvmStatic
-    fun isNpc(player: Player) = player.uuid.version() != 4
+    fun isNpc(player: Player) = player.uuid.version() == 2
 
     @JvmStatic
     fun isFriend(player: Player): Boolean {

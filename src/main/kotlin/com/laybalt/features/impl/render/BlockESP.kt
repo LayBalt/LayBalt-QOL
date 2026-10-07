@@ -181,17 +181,22 @@ object BlockESP: Feature("Highlights the block types you choose (ores, spawners,
             val sections = chunk.sections
             for (i in sections.indices) {
                 val section = sections[i] ?: continue
-                if (section.hasOnlyAir() || ! section.maybeHas(wanted)) continue
-                val baseY = (minSectionY + i) shl 4
-                for (ly in 0 until 16) for (lz in 0 until 16) for (lx in 0 until 16) {
-                    val state = section.getBlockState(lx, ly, lz)
-                    if (! wanted(state)) continue
-                    val x = (cx shl 4) + lx
-                    val y = baseY + ly
-                    val z = (cz shl 4) + lz
-                    if (x < px - r || x > px + r || z < pz - r || z > pz + r) continue
-                    if (state.block !in targets && ! isIllegalAt(state, y, level)) continue
-                    hits.add(BlockPos(x, y, z))
+                // off-thread read: a concurrent palette resize may throw; drop only this section for this pass
+                try {
+                    if (section.hasOnlyAir() || ! section.maybeHas(wanted)) continue
+                    val baseY = (minSectionY + i) shl 4
+                    for (ly in 0 until 16) for (lz in 0 until 16) for (lx in 0 until 16) {
+                        val state = section.getBlockState(lx, ly, lz)
+                        if (! wanted(state)) continue
+                        val x = (cx shl 4) + lx
+                        val y = baseY + ly
+                        val z = (cz shl 4) + lz
+                        if (x < px - r || x > px + r || z < pz - r || z > pz + r) continue
+                        if (state.block !in targets && ! isIllegalAt(state, y, level)) continue
+                        hits.add(BlockPos(x, y, z))
+                    }
+                } catch (_: Exception) {
+                    continue
                 }
             }
         }

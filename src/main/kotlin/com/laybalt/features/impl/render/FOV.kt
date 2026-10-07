@@ -9,7 +9,7 @@ import com.laybalt.features.Feature
  *
  * @see com.laybalt.mixin.MixinCameraFOV
  */
-object FOV: Feature("Sets your field of view beyond the vanilla limits and lets the held item use its own field of view.", name = "FOV") {
+object FOV: Feature("Sets your field of view beyond the vanilla limits and lets the held item use its own field of view. Do not combine with the Custom FOV option of Camera Helper.", name = "FOV") {
     @JvmStatic val fov by SliderSetting("FOV", 120, 30, 179, 1)
         .withDescription("Field of view of the world in degrees. Vanilla allows 30 to 110")
 

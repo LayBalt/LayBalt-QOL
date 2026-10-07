@@ -25,7 +25,9 @@ import java.util.*
  *
  * Unlike [LayBaltRenderTypes] these never cull back faces (a billboard or ribbon must be visible from both
  * sides) and never write depth (overlapping soft sprites must not cut holes into each other).
- * "Additive" brightens what is behind it, which gives glowing sprites without any texture.
+ * "Additive" brightens what is behind it, which gives glowing sprites without any texture. It uses
+ * [BlendFunction.LIGHTNING] (SRC_ALPHA, ONE) rather than [BlendFunction.ADDITIVE] (ONE, ONE) so vertex alpha
+ * still scales the contribution: fades and soft edges work on additive sprites.
  *
  * Routed into the after-terrain / always-on-top phases by [com.laybalt.mixin.MixinSubmitNodeCollectionEffects].
  * Geometry is collected with [EffectBatcher] and must be flushed by the caller with [EffectBatcher.flush].
@@ -43,8 +45,8 @@ object EffectRenderTypes: ISelfInit {
         }.build()
     )
 
-    private val ADDITIVE_PIPELINE = pipeline("additive", BlendFunction.ADDITIVE, true)
-    private val ADDITIVE_SEE_THROUGH_PIPELINE = pipeline("additive_see_through", BlendFunction.ADDITIVE, false)
+    private val ADDITIVE_PIPELINE = pipeline("additive", BlendFunction.LIGHTNING, true)
+    private val ADDITIVE_SEE_THROUGH_PIPELINE = pipeline("additive_see_through", BlendFunction.LIGHTNING, false)
     private val TRANSLUCENT_PIPELINE = pipeline("translucent", BlendFunction.TRANSLUCENT, true)
     private val TRANSLUCENT_SEE_THROUGH_PIPELINE = pipeline("translucent_see_through", BlendFunction.TRANSLUCENT, false)
 

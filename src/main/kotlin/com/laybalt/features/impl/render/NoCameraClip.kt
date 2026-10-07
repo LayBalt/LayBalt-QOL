@@ -14,7 +14,7 @@ import kotlin.math.exp
  * @see com.laybalt.mixin.MixinCameraNoCameraClip
  * @see com.laybalt.mixin.MixinOptionsNoCameraClip
  */
-object NoCameraClip: Feature("Lets the third-person camera pass through blocks and sets how far it sits from you.") {
+object NoCameraClip: Feature("Lets the third-person camera pass through blocks and sets how far it sits from you. Do not combine with the camera clip, distance and front-camera options of Camera Helper.") {
     @JvmStatic val distance by SliderSetting("Distance", 3.0f, 1.0f, 20.0f, 0.1f)
         .withDescription("Distance of the third-person camera from your player in blocks. Vanilla uses 4")
 

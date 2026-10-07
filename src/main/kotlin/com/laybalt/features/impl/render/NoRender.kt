@@ -176,6 +176,8 @@ object NoRender: Feature(
         if (! enabled || ! translucentPlayers.value) return 1f
         if (state !is AvatarRenderState) return 1f
         if (state.id == mc.player?.id) return 1f
+        // invisible players (Invisibility, hidden fake players) must stay hidden: forcing translucency would draw them
+        if (state.isInvisible || state.isInvisibleToPlayer) return 1f
         return (state.distanceToCameraSq / 3.0 + 0.2).toFloat().coerceIn(0f, 1f)
     }
 
