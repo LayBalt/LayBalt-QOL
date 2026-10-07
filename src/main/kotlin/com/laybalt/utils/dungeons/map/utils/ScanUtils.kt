@@ -30,6 +30,9 @@ object ScanUtils: ISelfInit, ICommandProvider, Shortcuts {
     private val coreTokenCache = IdentityHashMap<Block, Int>()
     val secretMap = roomList.associate { it.name to it.secretCoords }
 
+    /** Every known room (name, shape and secret coordinates), e.g. to match imported room data by name or coordinates. */
+    val allRooms: List<RoomData> get() = roomList
+
     private val ignoredCoreBlocks = setOf(
         "minecraft:chest", "minecraft:trapped_chest",
         "minecraft:piston_head", "minecraft:moving_piston",

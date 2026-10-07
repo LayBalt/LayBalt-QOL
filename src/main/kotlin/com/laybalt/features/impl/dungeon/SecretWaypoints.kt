@@ -19,6 +19,7 @@ import com.laybalt.utils.ColorUtils.withAlpha
 import com.laybalt.utils.FileHandler
 import com.laybalt.utils.GsonUtils
 import com.laybalt.utils.PlayerUtils
+import com.laybalt.utils.ThreadUtils
 import com.laybalt.utils.WorldUtils
 import com.laybalt.utils.dungeons.enums.SecretType
 import com.laybalt.utils.dungeons.map.core.RoomState
@@ -51,12 +52,18 @@ import kotlin.math.roundToInt
  *
  * Data sources, merged per room when its rotation is found:
  *  - the bundled `rooms-modern.json` secret coordinates (chest, item, bat, wither essence, redstone key),
- *  - the user's dataset `config/LayBaltQOL/data/secretWaypoints.json`, recorded in game with `/lsw add`.
+ *  - the user's dataset `config/LayBaltQOL/data/secretWaypoints.json`, recorded in game with `/lsw add` or filled from a
+ *    dataset the user already has on disk with `/lsw import` (see [SecretWaypointImport]).
+ *
+ * Only the five categories above have data out of the box. No entrance / superboom / lever / stonk / AOTV / pearl /
+ * fairy soul / prince dataset is shipped: the public ones are GPL/LGPL licensed (DungeonRoomsMod, Skyblocker), so they are not bundled.
  *
  * Behaviour modelled on Skyblocker's dungeon secret waypoints; written from a behavioural spec, no Skyblocker code or data is used.
  */
 object SecretWaypoints: Feature(
-    description = "Shows waypoints for every secret of the room you are in (chests, items, bats, wither essence, redstone keys, plus any entrance/superboom/stonk/lever/... waypoints you record with /lsw add). Found secrets are hidden automatically.",
+    description = "Shows waypoints for every secret of the room you are in. Chests, items, bats, wither essence and redstone keys work out of the box. " +
+        "Entrance, superboom, lever, stonk, AOTV, pearl, fairy soul and prince waypoints have no built-in data: record them with /lsw add, " +
+        "or load a secret waypoint dataset you already have (a folder, .json, .zip or a mod .jar) with /lsw import <path>. Found secrets are hidden automatically.",
     name = "Secret Waypoints"
 ), ICommandProvider {
     private val renderType by DropdownSetting("Render Type", 0, listOf("Waypoint (beam)", "Outlined Waypoint", "Highlight", "Outlined Highlight", "Outline")).section("Rendering")
@@ -176,11 +183,15 @@ object SecretWaypoints: Feature(
     /** One entry of the user dataset, in room-relative coordinates (same frame as rooms-modern.json). */
     data class Entry(val index: Int, val category: String, val name: String?, val x: Int, val y: Int, val z: Int, val extra: JsonObject? = null) {
         val relPos get() = BlockPos(x, y, z)
+        val isImported get() = runCatching { extra?.get(IMPORTED_FLAG)?.asBoolean == true }.getOrDefault(false)
     }
 
-    class SecretWaypoint(val index: Int, val category: Category, val name: String, val relPos: BlockPos, val pos: BlockPos, val custom: Boolean) {
+    class SecretWaypoint(val index: Int, val category: Category, val name: String, val relPos: BlockPos, val pos: BlockPos, val custom: Boolean, val imported: Boolean = false) {
         @Volatile var found = false
     }
+
+    /** Extra key set on entries that came from `/lsw import`, so a re-import or `/lsw unimport` can replace them without touching recorded ones. */
+    const val IMPORTED_FLAG = "imported"
 
     private val dataFile = File("config/$CONFIG_DIR/data/secretWaypoints.json")
     private val fileHandler by lazy { FileHandler(dataFile) }
@@ -343,6 +354,7 @@ object SecretWaypoints: Feature(
     }
 
     private const val BEAM_TOP = 300.0
+    private const val NEARBY_DUPLICATE_SQ = 3.0 * 3.0
 
     private fun shouldRender(wp: SecretWaypoint): Boolean {
         if (wp.found) return false
@@ -404,10 +416,11 @@ object SecretWaypoints: Feature(
         val list = CopyOnWriteArrayList<SecretWaypoint>()
         val custom = userData[room.name].orEmpty()
         val customPositions = custom.mapTo(HashSet()) { it.relPos }
+        val customByCategory = custom.groupBy { Category.parse(it.category) ?: Category.DEFAULT }
 
-        fun add(index: Int, category: Category, name: String, rel: BlockPos, isCustom: Boolean) {
+        fun add(index: Int, category: Category, name: String, rel: BlockPos, isCustom: Boolean, imported: Boolean = false) {
             val abs = ScanUtils.getRealCoord(rel, corner, 360 - rotation)
-            list.add(SecretWaypoint(index, category, name, rel, abs, isCustom).also { wp ->
+            list.add(SecretWaypoint(index, category, name, rel, abs, isCustom, imported).also { wp ->
                 wp.found = old?.any { it.relPos == rel && it.category == category && it.found } == true
             })
         }
@@ -415,7 +428,12 @@ object SecretWaypoints: Feature(
         val coords = room.data.secretCoords
         fun addBundled(positions: List<BlockPos>, category: Category) = positions.forEach {
             // a user entry at the same block replaces the bundled one (it can carry an index and a name)
-            if (it !in customPositions) add(0, category, category.label, it, false)
+            if (it in customPositions) return@forEach
+            // bats and items are recorded a block or two apart by different people: a nearby user entry of the same kind replaces it too
+            if ((category == Category.BAT || category == Category.ITEM) &&
+                customByCategory[category].orEmpty().any { entry -> entry.relPos.distSqr(it) <= NEARBY_DUPLICATE_SQ }
+            ) return@forEach
+            add(0, category, category.label, it, false)
         }
         addBundled(coords.chest, Category.CHEST)
         addBundled(coords.item, Category.ITEM)
@@ -425,7 +443,7 @@ object SecretWaypoints: Feature(
 
         for (entry in custom) {
             val category = Category.parse(entry.category) ?: Category.DEFAULT
-            add(entry.index, category, displayName(entry.index, category, entry.name), entry.relPos, true)
+            add(entry.index, category, displayName(entry.index, category, entry.name), entry.relPos, true, entry.isImported)
         }
 
         roomWaypoints[room] = list
@@ -697,6 +715,8 @@ object SecretWaypoints: Feature(
                     "&e/lsw found <index> &7/ &e/lsw missing <index|all> &7- mark a secret as found or missing\n" +
                     "&e/lsw list &7- list the waypoints of this room\n" +
                     "&e/lsw relpos &7/ &e/lsw reltarget &7- print relative coordinates\n" +
+                    "&e/lsw import <path> &7- load a secret waypoint dataset you have on disk (folder, .json, .zip or .jar)\n" +
+                    "&e/lsw unimport &7- remove everything a previous import added (recorded waypoints stay)\n" +
                     "&e/lsw reload &7- reload config/$CONFIG_DIR/data/secretWaypoints.json\n" +
                     "&7Categories: ${Category.entries.joinToString(", ") { it.key }}"
             )
@@ -744,7 +764,11 @@ object SecretWaypoints: Feature(
                 ChatUtils.modMessage("&b${info.room.name} &7(rotation ${info.rotation}, ${waypoints.size} waypoints):")
                 waypoints.sortedWith(compareBy({ it.index }, { it.category.ordinal })).forEach {
                     val state = if (it.found) "&a[found]" else "&c[missing]"
-                    val source = if (it.custom) "&drecorded" else "&8bundled"
+                    val source = when {
+                        it.imported -> "&3imported"
+                        it.custom -> "&drecorded"
+                        else -> "&8bundled"
+                    }
                     ChatUtils.modMessage("$state &f${it.name} &7(${it.category.key}, #${it.index}) &7at ${it.relPos.x} ${it.relPos.y} ${it.relPos.z} $source")
                 }
             }
@@ -773,14 +797,121 @@ object SecretWaypoints: Feature(
             description("Reload the user secret waypoint file.")
             runs {
                 val count = loadUserData()
-                for (room in roomWaypoints.keys.toList()) {
-                    val corner = room.clayPos ?: continue
-                    val rotation = room.rotation ?: continue
-                    buildRoom(room, corner, rotation)
-                }
+                rebuildAllRooms()
                 ChatUtils.modMessage("&aLoaded $count recorded secret waypoint(s) from secretWaypoints.json.")
                 if (lastSkipped > 0) ChatUtils.modMessage("&e$lastSkipped entr(y/ies) in secretWaypoints.json could not be parsed (missing or non-numeric x/y/z?). They are kept in the file but not shown.")
             }
         }
+
+        literal("import") {
+            description("Load a secret waypoint dataset from your disk: a folder, a .json file, or a .zip/.jar archive.")
+            argument("path", StringArgumentType.greedyString()) {
+                runs { ctx -> importDataset(StringArgumentType.getString(ctx, "path")) }
+            }
+        }
+
+        literal("unimport") {
+            description("Remove every waypoint a previous /lsw import added. Waypoints recorded with /lsw add stay.")
+            runs {
+                val removed = removeImported()
+                if (removed == 0) return@runs ChatUtils.modMessage("&7There are no imported secret waypoints.")
+                saveUserData()
+                rebuildAllRooms()
+                ChatUtils.modMessage("&aRemoved $removed imported secret waypoint(s).")
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- import
+
+    private fun rebuildAllRooms() {
+        for (room in roomWaypoints.keys.toList()) {
+            val corner = room.clayPos ?: continue
+            val rotation = room.rotation ?: continue
+            buildRoom(room, corner, rotation)
+        }
+    }
+
+    /** Drops every entry a previous import added. Returns how many were removed. */
+    private fun removeImported(): Int {
+        var removed = 0
+        for ((room, list) in userData.entries.toList()) {
+            val before = list.size
+            list.removeIf { it.isImported }
+            removed += before - list.size
+            if (list.isEmpty()) userData.remove(room)
+        }
+        return removed
+    }
+
+    private fun resolveImportPath(raw: String): File? {
+        val cleaned = raw.trim().removeSurrounding("\"").removeSurrounding("'")
+        if (cleaned.isEmpty()) return null
+        return listOf(File(cleaned), File(dataFile.parentFile, cleaned)).firstOrNull { it.exists() }
+    }
+
+    private fun importDataset(raw: String) {
+        val source = resolveImportPath(raw) ?: return ChatUtils.modMessage(
+            "&cNothing found at '$raw'. Use an absolute path, or one relative to the game folder or to config/$CONFIG_DIR/data/."
+        )
+        if (runCatching { source.canonicalFile == dataFile.canonicalFile }.getOrDefault(false)) {
+            return ChatUtils.modMessage("&cThat is the file /lsw import writes to. Use /lsw reload to re-read it.")
+        }
+        ChatUtils.modMessage("&7Reading ${source.name}...")
+        ThreadUtils.async {
+            val outcome = runCatching { SecretWaypointImport.read(source) }
+            ThreadUtils.scheduledTask { applyImport(source, outcome) }
+        }
+    }
+
+    private fun applyImport(source: File, outcome: Result<SecretWaypointImport.Result>) {
+        val result = outcome.getOrElse {
+            return ChatUtils.modMessage("&cCould not read ${source.name}: ${it.message ?: it.javaClass.simpleName}")
+        }
+        if (result.rooms.isEmpty()) {
+            ChatUtils.modMessage("&cNo secret waypoints found in ${source.name}.")
+            result.errors.take(3).forEach { ChatUtils.modMessage("&7- $it") }
+            return
+        }
+
+        // a re-import replaces whatever the previous import added; waypoints recorded with /lsw add are never touched
+        val replaced = removeImported()
+        var added = 0
+        var keptRecorded = 0
+        val perCategory = sortedMapOf<String, Int>()
+
+        for ((roomName, entries) in result.rooms) {
+            val list = userData.getOrPut(roomName) { CopyOnWriteArrayList() }
+            val recorded = list.mapTo(HashSet()) { it.relPos }
+            for (entry in entries) {
+                if (entry.relPos in recorded) {
+                    keptRecorded ++
+                    continue
+                }
+                list += entry
+                added ++
+                perCategory.merge(entry.category, 1, Int::plus)
+            }
+            if (list.isEmpty()) userData.remove(roomName)
+        }
+
+        saveUserData()
+        rebuildAllRooms()
+
+        ChatUtils.modMessage(
+            "&aImported $added secret waypoint(s) for ${result.rooms.size} room(s) from ${result.documents} file(s) in ${source.name}." +
+                if (replaced > 0) " &7(replaced $replaced from the previous import)" else ""
+        )
+        if (perCategory.isNotEmpty()) ChatUtils.modMessage("&7By category: " + perCategory.entries.joinToString(", ") { "${it.key} ${it.value}" })
+        if (keptRecorded > 0) ChatUtils.modMessage("&7$keptRecorded imported waypoint(s) were skipped because you recorded a waypoint on the same block.")
+        if (result.remapped.isNotEmpty()) ChatUtils.modMessage(
+            "&7Matched by coordinates: " + result.remapped.take(10).joinToString(", ") +
+                if (result.remapped.size > 10) " and ${result.remapped.size - 10} more" else ""
+        )
+        if (result.unmatched.isNotEmpty()) ChatUtils.modMessage(
+            "&eNo matching room for: ${result.unmatched.joinToString(", ")}. " +
+                "Their waypoints are saved under that name but will not show until you rename the room in secretWaypoints.json and run /lsw reload."
+        )
+        if (result.errors.isNotEmpty()) ChatUtils.modMessage("&e${result.errors.size} file(s) could not be read, e.g. ${result.errors.first()}")
     }
 }
