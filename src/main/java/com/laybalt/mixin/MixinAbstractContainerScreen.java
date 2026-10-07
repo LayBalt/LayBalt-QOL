@@ -1,0 +1,106 @@
+package com.laybalt.mixin;
+
+import com.laybalt.event.EventBus;
+import com.laybalt.event.impl.ContainerEvent;
+import com.laybalt.features.impl.general.ItemTooltip;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.Nullable;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+@Mixin(AbstractContainerScreen.class)
+public abstract class MixinAbstractContainerScreen extends Screen {
+    @Shadow @Nullable protected Slot hoveredSlot;
+
+    protected MixinAbstractContainerScreen(Component component) {
+        super(component);
+    }
+
+    @Inject(method = "init", at = @At("HEAD"), cancellable = true)
+    protected void onInit(CallbackInfo ci) {
+        if (EventBus.post(new ContainerEvent.Open(this))) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "onClose", at = @At("HEAD"), cancellable = true)
+    protected void onClose(CallbackInfo ci) {
+        if (EventBus.post(new ContainerEvent.Close(this))) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "removed", at = @At("HEAD"), cancellable = true)
+    protected void onRemove(CallbackInfo ci) {
+        if (EventBus.post(new ContainerEvent.Close(this))) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "extractSlot", at = @At("HEAD"), cancellable = true)
+    private void onDrawSlotPre(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
+        if (EventBus.post(new ContainerEvent.Render.Slot.Pre(this, graphics, slot))) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "extractSlot", at = @At("TAIL"))
+    private void onDrawSlotPost(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY, CallbackInfo ci) {
+        EventBus.post(new ContainerEvent.Render.Slot.Post(this, graphics, slot));
+    }
+
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    public void onMouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+        if (EventBus.post(new ContainerEvent.MouseClick(this, event.x(), event.y(), event.button(), event.modifiers()))) {
+            cir.setReturnValue(true);
+        }
+    }
+
+    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+    public void onKeyPressed(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+        if (EventBus.post(new ContainerEvent.Keyboard(this, event.key(), (char) event.input(), event.scancode(), event.modifiers()))) {
+            cir.setReturnValue(true);
+        }
+    }
+
+    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
+    public void mouseScrolled(double x, double y, double scrollX, double scrollY, CallbackInfoReturnable<Boolean> cir) {
+        if (EventBus.post(new ContainerEvent.MouseScroll(this, x, y, scrollX, scrollY))) {
+            cir.setReturnValue(true);
+        }
+    }
+
+    @WrapOperation(method = "extractTooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;setTooltipForNextFrame(Lnet/minecraft/client/gui/Font;Ljava/util/List;Ljava/util/Optional;IILnet/minecraft/resources/Identifier;)V"))
+    private void onRenderTooltipMerged(GuiGraphicsExtractor instance, Font font, List<Component> texts, Optional<TooltipComponent> optionalImage, int xo, int yo, @org.jspecify.annotations.Nullable Identifier style, Operation<Void> original, @Local ItemStack item) {
+        if (item == null || item.isEmpty() || texts.isEmpty()) original.call(instance, font, texts, optionalImage, xo, yo, style);
+        else {
+            ItemTooltip.setSlot(this.hoveredSlot.index);
+
+            var event = new ContainerEvent.Render.Tooltip(this, instance, item, xo, yo, new ArrayList<>(texts));
+            if (EventBus.post(event)) return;
+
+            original.call(instance, font, event.getLore(), optionalImage, xo, yo, style);
+        }
+    }
+}

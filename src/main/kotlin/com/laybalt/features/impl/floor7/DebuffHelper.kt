@@ -1,0 +1,127 @@
+package com.laybalt.features.impl.floor7
+
+//#if CHEAT
+
+import com.laybalt.config.types.SliderSetting
+import com.laybalt.config.types.ToggleSetting
+import com.laybalt.event.impl.*
+import com.laybalt.features.Feature
+import com.laybalt.utils.MathUtils.aabb
+import com.laybalt.utils.ThreadUtils
+import com.laybalt.utils.items.ItemUtils.skyblockId
+import com.laybalt.utils.location.LocationUtils
+import gg.essential.universal.UMinecraft
+import net.minecraft.network.protocol.game.ClientboundBlockChangedAckPacket
+import net.minecraft.network.protocol.game.ServerboundUseItemPacket
+import net.minecraft.sounds.SoundEvents
+import com.mojang.blaze3d.platform.InputConstants
+
+object DebuffHelper: Feature(description = "Automatically pulls and fires bows based on Server Ticks (Lag Proof).") {
+    private val semiAuto by ToggleSetting("Semi-Auto", true).withDescription("Automatically releases and re-draws the bow.").section("Options")
+    private val soundEnabled by ToggleSetting("Play Sound", true).withDescription("Plays a sound when fully charged.")
+    private val sound = createSoundSettings("Sound", SoundEvents.EXPERIENCE_ORB_PICKUP) { soundEnabled.value }
+
+    private val p1Ticks by SliderSetting("P1 Ticks", 8, 0, 20, 1).section("Ticks")
+    private val p2Ticks by SliderSetting("P2 Ticks", 8, 0, 20, 1)
+    private val p3Ticks by SliderSetting("P3 Ticks", 8, 0, 20, 1)
+    private val p4Ticks by SliderSetting("P4 Ticks", 8, 0, 20, 1)
+    private val purpleTicks by SliderSetting("Purple Dragon", 8, 0, 20, 1)
+    private val greenTicks by SliderSetting("Green Dragon", 8, 0, 20, 1)
+    private val redTicks by SliderSetting("Red Dragon", 8, 0, 20, 1)
+    private val orangeTicks by SliderSetting("Orange Dragon", 8, 0, 20, 1)
+    private val blueTicks by SliderSetting("Blue Dragon", 8, 0, 20, 1)
+
+    private var isCharging = false
+    private var holdingRC = false
+    private var lastSequence = - 1
+    private var ticksHeld = 0
+
+    override fun init() {
+        configSettings.filterIsInstance<SliderSetting<Int>>().forEach {
+            if (it.min == 0 && it.max == 20 && it.step == 1 && it.defaultValue == 8) {
+                it.withDescription("How many ticks should the bow be charged before it shoots. &e(Set to 0 to disable)")
+            }
+        }
+
+        register<MouseClickEvent> {
+            if (UMinecraft.currentScreenObj != null) return@register
+            if (event.button != InputConstants.MOUSE_BUTTON_RIGHT) return@register
+            holdingRC = event.action == InputConstants.PRESS
+            if (holdingRC) return@register
+            resetCharge()
+        }
+
+        register<PacketEvent.Sent> {
+            if (event.packet !is ServerboundUseItemPacket) return@register
+            if (! player.mainHandItem.skyblockId.contains("LAST_BREATH")) return@register
+            lastSequence = event.packet.sequence
+        }
+
+        register<PacketEvent.Received> {
+            if (event.packet !is ClientboundBlockChangedAckPacket) return@register
+            if (event.packet.sequence != lastSequence) return@register
+
+            isCharging = true
+            ticksHeld = 0
+        }
+
+        register<TickEvent.Server> {
+            if (UMinecraft.currentScreenObj != null) return@register resetCharge()
+            if (! isCharging || ! holdingRC) return@register
+            if (! player.mainHandItem.skyblockId.contains("LAST_BREATH")) return@register resetCharge()
+
+            ticksHeld ++
+
+            val ticks = getTicks().takeIf { it > 0 } ?: return@register
+            if (ticksHeld >= ticks) ThreadUtils.scheduledTask(0, ::fire)
+        }
+    }
+
+    private fun fire() {
+        if (soundEnabled.value) {
+            sound()
+        }
+
+        if (! semiAuto.value) resetCharge()
+        else {
+            mc.options.keyUse.isDown = false
+
+            resetCharge()
+
+            ThreadUtils.scheduledTask(2) {
+                if (holdingRC && UMinecraft.currentScreenObj == null) {
+                    mc.options.keyUse.isDown = true
+                }
+            }
+        }
+    }
+
+    private fun resetCharge() {
+        isCharging = false
+        ticksHeld = 0
+        lastSequence = - 1
+    }
+
+    private fun getTicks(): Int {
+        val phase = LocationUtils.F7Phase ?: return 0
+        val player = player.position()
+
+        return when (phase) {
+            1 -> p1Ticks.value
+            2 -> p2Ticks.value
+            3 -> p3Ticks.value
+            4 -> p4Ticks.value
+            5 -> when {
+                aabb(45, 6, 111, 66, 30, 137).contains(player) -> purpleTicks.value
+                aabb(13, 5, 85, 40, 27, 103).contains(player) -> greenTicks.value
+                aabb(13, 4, 47, 40, 20, 68).contains(player) -> redTicks.value
+                aabb(72, 3, 47, 97, 31, 65).contains(player) -> orangeTicks.value
+                aabb(72, 3, 85, 97, 31, 107).contains(player) -> blueTicks.value
+                else -> 0
+            }
+
+            else -> 0
+        }
+    }
+}
+//#endif

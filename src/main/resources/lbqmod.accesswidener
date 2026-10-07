@@ -1,11 +1,7 @@
 accessWidener v2 official
 
-# Simulated mouse clicks (Minecraft 26.x is unobfuscated, so these are the real names).
-accessible method net/minecraft/client/Minecraft startAttack ()Z
-accessible method net/minecraft/client/Minecraft startUseItem ()V
-accessible field net/minecraft/client/Minecraft rightClickDelay I
+mutable field net/minecraft/world/inventory/Slot x I
+mutable field net/minecraft/world/inventory/Slot y I
 
-# Title / subtitle / action bar text currently shown by the HUD (used by the Vampire Slayer helper).
-accessible field net/minecraft/client/gui/Hud title Lnet/minecraft/network/chat/Component;
-accessible field net/minecraft/client/gui/Hud subtitle Lnet/minecraft/network/chat/Component;
-accessible field net/minecraft/client/gui/Hud overlayMessageString Lnet/minecraft/network/chat/Component;
+mutable field net/minecraft/client/gui/screens/inventory/AbstractContainerScreen imageWidth I
+mutable field net/minecraft/client/gui/screens/inventory/AbstractContainerScreen imageHeight I

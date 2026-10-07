@@ -1,0 +1,54 @@
+package com.laybalt.features.impl.visual
+
+import com.laybalt.config.types.ColorSetting
+import com.laybalt.config.types.ToggleSetting
+import com.laybalt.features.Feature
+import com.laybalt.utils.dungeons.enums.Blessing
+import com.laybalt.utils.render.Render2D.drawString
+import com.laybalt.utils.render.RenderHelper.width
+import gg.essential.universal.ChatColor
+
+object BlessingDisplay: Feature("Displays the current active blessings in the dungeon.") {
+    private val power by ToggleSetting("Power Blessing", true).section("Blessings")
+    private val time by ToggleSetting("Time Blessing", true)
+    private val wisdom by ToggleSetting("Wisdom Blessing", false)
+    private val life by ToggleSetting("Life Blessing", false)
+    private val stone by ToggleSetting("Stone Blessing", false)
+
+    private val powerColor by ColorSetting("Power Color", ChatColor.DARK_RED.color !!).showIf { power.value }.section("Colors")
+    private val timeColor by ColorSetting("Time Color", ChatColor.DARK_PURPLE.color !!).showIf { time.value }
+    private val wisdomColor by ColorSetting("Wisdom Color", ChatColor.AQUA.color !!).showIf { wisdom.value }
+    private val lifeColor by ColorSetting("Red Color", ChatColor.RED.color !!).showIf { life.value }
+    private val stoneColor by ColorSetting("Stone Color", ChatColor.GRAY.color !!).showIf { stone.value }
+
+    private fun getBlessingConfig(type: Blessing) = when (type) {
+        Blessing.POWER -> power.value to powerColor.value
+        Blessing.TIME -> time.value to timeColor.value
+        Blessing.STONE -> stone.value to stoneColor.value
+        Blessing.LIFE -> life.value to lifeColor.value
+        Blessing.WISDOM -> wisdom.value to wisdomColor.value
+    }
+
+    override fun init() {
+        hudElement("BlessingDisplay") { context, example ->
+            var maxWidth = 0
+            var currentY = 0
+
+            Blessing.entries.forEach { blessing ->
+                val (enabled, color) = getBlessingConfig(blessing)
+
+                val value = if (example) 5 else blessing.current
+                if (! enabled || value <= 0) return@forEach
+
+                val text = "${blessing.displayString} §f$value"
+
+                context.drawString(text, 0, currentY, color)
+
+                maxWidth = maxOf(maxWidth, text.width())
+                currentY += 9
+            }
+
+            return@hudElement maxWidth to currentY
+        }
+    }
+}

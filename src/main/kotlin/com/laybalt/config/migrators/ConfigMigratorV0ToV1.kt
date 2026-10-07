@@ -1,0 +1,37 @@
+package com.laybalt.config.migrators
+
+import com.laybalt.config.ConfigMigrator
+import com.laybalt.init.types.ISelfInit
+import com.laybalt.utils.GsonUtils.gsonObject
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+
+object ConfigMigratorV0ToV1: ConfigMigrator(0, 1), ISelfInit {
+    override fun init() = register(this)
+
+    override fun migrate(root: JsonObject): JsonObject {
+        val newRoot = gsonObject { addProperty("version", 1) }
+        val config = JsonArray()
+
+        root.getAsJsonArray("config")?.forEach { featureElement ->
+            val oldFeature = featureElement.asJsonObject
+            val newFeature = JsonObject()
+            newFeature.addProperty("name", oldFeature.get("name")?.asString ?: return@forEach)
+            oldFeature.get("enabled")?.let { newFeature.add("enabled", it) }
+
+            val settings = JsonObject()
+            oldFeature.getAsJsonArray("configSettings")?.forEach { settingElement ->
+                val entry = settingElement.asJsonObject.entrySet().firstOrNull() ?: return@forEach
+                settings.add(entry.key, entry.value)
+            }
+            newFeature.add("configSettings", settings)
+
+            config.add(newFeature)
+        }
+        newRoot.add("config", config)
+
+        root.get("hud")?.let { newRoot.add("hud", it) }
+
+        return newRoot
+    }
+}

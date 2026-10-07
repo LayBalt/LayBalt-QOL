@@ -1,6 +1,6 @@
 <!-- markdownlint-disable-file MD001 MD033 -->
 <h2 align="center">LayBalt Repository</h2>
-<h2 align="center">Version 2.0.0</h2>
+<h2 align="center">Version 3.0.0</h2>
 <h4 align="center">LayBaltQOL (LBQ) is a feature-rich Fabric mod for Hypixel Skyblock on Minecraft 26.2.</h4>
 
 ---
@@ -29,16 +29,16 @@ Requires Minecraft 26.2 with <a href="https://fabricmc.net/use/">Fabric Loader 0
 
 - [Fabric API](https://modrinth.com/mod/fabric-api)
 - [Fabric Language Kotlin](https://modrinth.com/mod/fabric-language-kotlin)
-- `LayBaltQOL-<version>.jar` from the [releases](https://github.com/LayBalt/LayBalt-QOL/releases) (YACL, the config library, is bundled inside the jar)
+- `LayBaltQOL-<version>-26.2.jar` from the [releases](https://github.com/LayBalt/LayBalt-QOL/releases)
 - Optional: [Mod Menu](https://modrinth.com/mod/modmenu) to open the config from the mods list
 
-Press <b>Right Shift</b> in game to open the config screen. Key binds for every feature can be set in <i>Options → Controls → Key Binds → LayBalt</i>. The config is stored in <code>config/LBQConfig.json</code>.
+Type <code>/lbq</code> (or <code>/laybalt</code>) in chat to open the ClickGui. The config is stored in <code>config/LayBaltQOL/</code>.
 
 ---
 
 <h3 align="center">Official Links</h3>
 <p align="center">
-Discord: <a href="https://discord.gg/555QWxv6nS">discord.gg/555QWxv6nS</a><br>
+Discord: <a href="https://discord.gg/laybalt">discord.gg/laybalt</a><br>
 More links coming soon...
 </p>
 
@@ -48,3 +48,10 @@ More links coming soon...
 <p align="center">
 Pull requests are welcome. The project builds with Gradle on JDK 25.
 For more info: <a href="https://github.com/LayBalt/LayBalt-QOL/blob/main/ContributingGuide.md">Contributor Guide</a>.
+
+---
+
+<h3 align="center">Notice</h3>
+<p align="center">
+NOTICE: LayBalt QOL 3.x is built on the <a href="https://github.com/Noamm9/NoammAddons">NoammAddons</a> core by Noamm9, released under the CC0-1.0 license. Huge thanks to Noamm9 for the original work.
+</p>

@@ -1,0 +1,213 @@
+package com.laybalt.features.impl.general
+
+import net.minecraft.network.chat.TextColor
+import com.laybalt.LayBaltQOL
+import com.laybalt.commands.CommandBuilder
+import com.laybalt.config.PogObject
+import com.laybalt.config.types.ToggleSetting
+import com.laybalt.event.impl.*
+import com.laybalt.features.Feature
+import com.laybalt.init.DataDownloader
+import com.laybalt.init.types.ICommandProvider
+import com.laybalt.interfaces.IChatComponent
+import com.laybalt.ui.notification.NotificationManager
+import com.laybalt.utils.*
+import com.laybalt.utils.ChatUtils.removeFormatting
+import com.laybalt.utils.ChatUtils.unformattedText
+import com.mojang.brigadier.arguments.StringArgumentType
+import gg.essential.universal.UKeyboard
+import gg.essential.universal.UMinecraft
+import net.minecraft.ChatFormatting
+import net.minecraft.client.gui.screens.ChatScreen
+import net.minecraft.client.multiplayer.chat.GuiMessage
+import net.minecraft.network.chat.*
+import com.mojang.blaze3d.platform.InputConstants
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo
+
+object ChatFeatures: Feature(jsonName = "Chat", description = "Useful tweaks for the chat such as Ctrl + Click to copy messages."), ICommandProvider {
+    private val ctrlClickToCopy by ToggleSetting("Ctrl Click to Copy", true).withDescription("Ctrl + Left Click a message to copy it to your clipboard.")
+    private val removeUselessMessages by ToggleSetting("Remove useless messages", true).withDescription("Removes a lot of useless messages from the chat.")
+    private val chatEmoji by ToggleSetting("Chat Emoji", true).withDescription("Lets you use [MVP++] emojis in chat")
+
+    //#if CHEAT
+    private val autoDialogue by ToggleSetting("Auto dialogue").withDescription("Automatically continues dialogues with NPCs.")
+    //#endif
+
+    private val uselessMessages by lazy { DataDownloader.loadJson<List<String>>("uselessMessages.json").map(::Regex) }
+    private val customHiders = PogObject("customHiders", mutableListOf<Regex>())
+
+    private val explosiveShotRegex = Regex("^Your Explosive Shot hit (\\d+) (enemy|enemies) for ([\\d,.]+) damage\\.$") // https://regex101.com/r/xsBn8E/1
+    private var lastMessageBlank = false
+
+    override fun CommandBuilder.command() {
+        setName("chathider")
+        requires("Enable the $name Feature to use /chathider.") { enabled }
+        runs { ChatUtils.modMessage("&bUsage: /chathider <add|remove|list>") }
+
+        literal("add") {
+            argument("regex", StringArgumentType.greedyString()) {
+                runs {
+                    val str = StringArgumentType.getString(it, "regex")
+                    val list = customHiders.get().map(Regex::pattern)
+                    if (str in list) return@runs ChatUtils.modMessage("&cRegex is Already in the list!")
+                    val regex = catch { Regex(str) } ?: return@runs ChatUtils.modMessage("&cInvalid Regex syntax!")
+                    customHiders.get().add(regex)
+                    customHiders.save()
+                    ChatUtils.modMessage("&aSaved new Regex.")
+                }
+            }
+        }
+
+        literal("remove") {
+            argument("regex", StringArgumentType.greedyString()) {
+                suggests { customHiders.get().map(Regex::pattern) }
+                runs {
+                    val str = StringArgumentType.getString(it, "regex")
+                    val removed = customHiders.get().removeIf { it.pattern == str }
+                    ChatUtils.modMessage(if (removed) "&aRemoved Regex." else "&cNo matching regex found.")
+                    customHiders.save()
+                }
+            }
+        }
+
+        literal("list") {
+            runs {
+                ChatUtils.modMessage("customHiders:")
+                ChatUtils.chat(customHiders.get().joinToString("\n") { it.pattern })
+            }
+        }
+    }
+
+    override fun init() {
+        register<MouseClickEvent> {
+            if (! ctrlClickToCopy.value) return@register
+            if (UMinecraft.currentScreenObj !is ChatScreen) return@register
+            if (event.button != InputConstants.MOUSE_BUTTON_LEFT) return@register
+            if (event.action != InputConstants.PRESS) return@register
+            if (! UKeyboard.isCtrlKeyDown()) return@register
+            val message = getHoveredMsg().takeUnless(String::isBlank) ?: return@register
+
+            NotificationManager.push("Message copied to clipboard", message)
+            mc.keyboardHandler.clipboard = message
+            event.isCanceled = true
+        }
+
+        register<ChatMessageEvent> {
+            if (! removeUselessMessages.value) return@register
+            val (sHits, _, fDamage) = explosiveShotRegex.find(event.unformattedText)?.destructured ?: return@register
+            val hits = sHits.toIntOrNull() ?: return@register
+            val totalDamage = fDamage.replace(",", "").toDoubleOrNull() ?: return@register
+            val damagePerEntity = if (hits > 0) totalDamage / hits else totalDamage
+            ChatUtils.modMessage("&aExplosive shot did &e${NumbersUtils.format(damagePerEntity.toLong())}&a damage per enemy.")
+        }
+
+        register<MessageSentEvent> {
+            if (! chatEmoji.value) return@register
+            event.message = escapedKeys.replace(event.message) { emotes[it.value] ?: it.value }
+        }
+
+        //#if CHEAT
+        // https://github.com/jcnlk/quoi/blob/6e74cc3536aa1db91fe4a134254668a96c2ea072/src/main/kotlin/quoi/module/impl/general/chat/impl/AutoDialogue.kt#L4
+        register<ChatMessageEvent> {
+            if (! autoDialogue.value) return@register
+            if ("[BARBARIANS] [MAGES]" in event.unformattedText) return@register
+            if (! event.unformattedText.startsWith("Select an option: ")) return@register
+            val cmd = (event.component.siblings.getOrNull(0)?.style?.clickEvent as? ClickEvent.RunCommand)?.command ?: return@register
+            ChatUtils.sendCommand(cmd)
+        }
+        //#endif
+    }
+
+    @JvmStatic
+    fun addMassageHook(comp: Component, ci: CallbackInfo) {
+        if (! enabled) return
+        if (! removeUselessMessages.value) return
+        val msg = comp.unformattedText
+
+        if (msg.isBlank()) return if (lastMessageBlank) ci.cancel() else ::lastMessageBlank.set(true)
+
+        if (uselessMessages.any { it.matches(msg) } || customHiders.get().any { it.matches(msg) }) return ci.cancel()
+
+        lastMessageBlank = false
+    }
+
+    private fun getHoveredMsg(): String {
+        val chatHud = (UMinecraft.getChatGUI() as? IChatComponent) ?: return ""
+        val i = chatHud.getLineIndex().takeUnless { it < 0 || it >= chatHud.visibleMessages.size } ?: return ""
+
+        val lines = ArrayList<GuiMessage.Line>()
+        val builder = StringBuilder()
+
+        for (j in i.toInt() + 1 until chatHud.visibleMessages.size) {
+            val line = chatHud.visibleMessages[j]
+            if (line.endOfEntry()) break
+            lines.add(0, line)
+        }
+
+        for (j in i.toInt() downTo 0) {
+            val line = chatHud.visibleMessages[j]
+            lines.add(line)
+            if (line.endOfEntry()) break
+        }
+
+        for (line in lines) {
+            var lastStyle: Style? = null
+            line.content().accept { _, style, codePoint ->
+                if (style != lastStyle) {
+                    style.color?.let { textColor ->
+                        ChatFormatting.entries.firstOrNull { TextColor.fromLegacyFormat(it)?.value == textColor.value }?.let {
+                            builder.append(it)
+                        }
+                    }
+
+                    if (style.isBold) builder.append(ChatFormatting.BOLD)
+                    if (style.isItalic) builder.append(ChatFormatting.ITALIC)
+                    if (style.isUnderlined) builder.append(ChatFormatting.UNDERLINE)
+                    if (style.isStrikethrough) builder.append(ChatFormatting.STRIKETHROUGH)
+                    if (style.isObfuscated) builder.append(ChatFormatting.OBFUSCATED)
+                    lastStyle = style
+                }
+                builder.appendCodePoint(codePoint)
+                true
+            }
+        }
+
+        val text = builder.toString()
+        return if ("chat" in LayBaltQOL.debugFlags) text else text.removeFormatting()
+    }
+
+    private val escapedKeys by lazy { emotes.keys.joinToString("|", transform = Regex::escape).toRegex() }
+    private val emotes = mapOf(
+        "<3" to "❤",
+        "h/" to "ヽ(^◇^*)/",
+        "o/" to "( ﾟ◡ﾟ)/",
+        ":star:" to "✮",
+        ":yes:" to "✔",
+        ":no:" to "✖",
+        ":java:" to "☕",
+        ":arrow:" to "➜",
+        ":shrug:" to "¯\\_(ツ)_/¯",
+        ":tableflip:" to "(╯°□°）╯︵ ┻━┻",
+        ":totem:" to "☉_☉",
+        ":typing:" to "✎...",
+        ":maths:" to "√(π+x)=L",
+        ":snail:" to "@'-'",
+        ":thinking:" to "(0.o?)",
+        ":gimme:" to "༼つ◕_◕༽つ",
+        ":wizard:" to "('-')⊃━☆ﾟ.*･｡ﾟ",
+        ":pvp:" to "⚔",
+        ":peace:" to "✌",
+        ":puffer:" to "<('O')>",
+        ":yey:" to "ヽ (◕◡◕) ﾉ",
+        ":cat:" to "= ＾● ⋏ ●＾ =",
+        ":dab:" to "<o/",
+        ":dj:" to "ヽ(⌐■_■)ノ♬",
+        ":snow:" to "☃",
+        ":sloth:" to "(・⊝・)",
+        ":cute:" to "(✿◠‿◠)",
+        ":dog:" to "(ᵔᴥᵔ)",
+        ":sob:" to ".ᐟ(つ╥﹏╥)つ",
+        ":joy:" to "৻(≧ᗜ≦৻)",
+        ":skull:" to "☠"
+    )
+}

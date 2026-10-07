@@ -1,0 +1,207 @@
+package com.laybalt.features.impl.dungeon.solvers.puzzles
+
+import com.laybalt.event.impl.DungeonEvent
+import com.laybalt.event.impl.PlayerInteractEvent
+import com.laybalt.features.impl.dungeon.solvers.PuzzleSolvers
+import com.laybalt.features.impl.dungeon.solvers.PuzzleSolvers.currentClickColor
+import com.laybalt.features.impl.dungeon.solvers.PuzzleSolvers.nextColor
+import com.laybalt.init.DataDownloader
+import com.laybalt.utils.MathUtils.center
+import com.laybalt.utils.MathUtils.toPos
+import com.laybalt.utils.MathUtils.toVec
+import com.laybalt.utils.NumbersUtils.toFixed
+import com.laybalt.utils.ThreadUtils
+import com.laybalt.utils.WorldUtils
+import com.laybalt.utils.dungeons.DungeonListener
+import com.laybalt.utils.dungeons.map.utils.ScanUtils
+import com.laybalt.utils.render.world.Render3D.renderLine
+import com.laybalt.utils.render.world.Render3D.renderString
+import com.laybalt.utils.render.world.Render3D.renderTracer
+import com.laybalt.utils.render.world.RenderContext
+import net.minecraft.core.BlockPos
+import net.minecraft.tags.BlockTags
+import net.minecraft.world.level.block.Block
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.level.block.ChestBlock
+import net.minecraft.world.phys.Vec3
+
+object WaterBoardSolver: PuzzleSolver {
+    override val enabled get() = PuzzleSolvers.water.value
+
+    private val waterSolutions by lazy {
+        DataDownloader.loadJson<Map<String, Map<String, Map<String, List<Double>>>>>("waterSolutions.json")
+    }
+
+    private var solution = HashMap<LEVER, List<Double>>()
+    private var patternId = - 1
+    private var waterLeverTick: Long = - 1
+
+    private var center: BlockPos? = null
+    private var rotation: Int? = null
+
+
+    override fun onRoomEnter(event: DungeonEvent.RoomEvent.onEnter) {
+        if (event.room.name != "Water Board") return
+        if (patternId != - 1) return
+
+        center = event.room.centerPos
+        rotation = 360 - (event.room.rotation ?: return)
+
+        ThreadUtils.loop(500, { patternId != - 1 }) { solve() }
+    }
+
+    override fun onRenderWorld(ctx: RenderContext) {
+        if (patternId == - 1 || solution.isEmpty()) return
+        val solution = solution.toMap()
+
+        val clicks = solution
+            .flatMap { (lever, times) -> times.drop(lever.clickCount).map { lever to it } }
+            .sortedBy { (lever, time) -> time + if (lever == LEVER.WATER) 0.01 else 0.0 }
+
+        val nextClick = clicks.firstOrNull()?.first ?: return
+
+        ctx.renderTracer(nextClick.getPos().center(), currentClickColor.value, 2.5f)
+
+        if (clicks.size > 1) {
+            val secondClick = clicks[1].first
+            if (nextClick != secondClick) ctx.renderLine(
+                nextClick.getPos().center(),
+                secondClick.getPos().center(),
+                nextColor.value,
+                1.5f
+            )
+        }
+
+        solution.forEach { (mech, times) ->
+            times.drop(mech.clickCount).forEachIndexed { index, timeSeconds ->
+                val timeInTicks = (timeSeconds * 20).toInt()
+
+                val displayText = when (waterLeverTick) {
+                    - 1L if timeInTicks == 0 -> "§a§lCLICK"
+                    - 1L -> {
+                        val color = if (timeSeconds < 2) "§c" else if (timeSeconds < 6) "§e" else "§a"
+                        "$color${timeSeconds}s"
+                    }
+
+                    else -> {
+                        val remainingTicks = waterLeverTick + timeInTicks - DungeonListener.currentTime
+                        if (remainingTicks > 0) {
+                            val remainingSec = remainingTicks / 20.0
+                            val color = if (remainingSec < 2) "§c" else if (remainingSec < 6) "§e" else "§a"
+                            "$color${remainingSec.toFixed(1)}s"
+                        }
+                        else "§a§lCLICK"
+                    }
+                }
+
+                val renderPos = mech.getPos().add(0.5, (index + mech.clickCount) * 0.5 + 1.5, 0.5)
+                ctx.renderString(displayText, renderPos, scale = 1.35f, phase = true)
+            }
+        }
+    }
+
+    override fun onInteract(event: PlayerInteractEvent.RIGHT_CLICK.BLOCK) {
+        if (patternId == - 1) return
+        if (solution.isEmpty()) return
+        val center = center ?: return
+        val rotation = rotation ?: return
+        val block = WorldUtils.getBlockAt(event.pos)
+
+        LEVER.entries.find { it.getPos().toPos() == event.pos }?.let { mech ->
+            if (mech == LEVER.WATER && waterLeverTick == - 1L) {
+                waterLeverTick = DungeonListener.currentTime
+            }
+            mech.clickCount ++
+        }
+
+        if (block is ChestBlock) {
+            if (Gate.entries.any { it.isGateClosed(center, rotation) }) return
+            reset()
+        }
+    }
+
+    private fun solve() {
+        val center = center ?: return
+        val rot = rotation ?: return
+
+        val gates = Gate.entries.joinToString("") {
+            if (it.isGateClosed(center, rot)) it.ordinal.toString() else ""
+        }
+
+        if (gates.length != 3) return
+
+        patternId = when {
+            checkBlock(BlockPos(- 1, 77, 12), Blocks.TERRACOTTA) -> 0
+            checkBlock(BlockPos(1, 78, 12), Blocks.EMERALD_BLOCK) -> 1
+            checkBlock(BlockPos(- 1, 78, 12), Blocks.DIAMOND_BLOCK) -> 2
+            checkBlock(BlockPos(- 1, 78, 12), Blocks.QUARTZ_BLOCK) -> 3
+            else -> throw Error("§cWater Solver: Unknown Pattern.")
+        }
+
+        solution.clear()
+        waterSolutions["$patternId"]?.get(gates)?.forEach { (key, times) ->
+            LEVER.fromKey(key)?.let {
+                solution[it] = times
+            }
+        }
+    }
+
+    override fun reset() {
+        LEVER.entries.forEach { it.clickCount = 0 }
+        patternId = - 1
+        solution.clear()
+        waterLeverTick = - 1
+        center = null
+        rotation = null
+    }
+
+    private fun checkBlock(rel: BlockPos, expected: Block): Boolean {
+        val center = center ?: return false
+        val rot = rotation ?: return false
+        val realPos = ScanUtils.getRealCoord(rel, center, rot)
+        return WorldUtils.getBlockAt(realPos) == expected
+    }
+
+    private enum class Gate(val offset: BlockPos) {
+        PURPLE(BlockPos(0, 56, 4)),
+        ORANGE(BlockPos(0, 56, 3)),
+        BLUE(BlockPos(0, 56, 2)),
+        GREEN(BlockPos(0, 56, 1)),
+        RED(BlockPos(0, 56, 0));
+
+        fun isGateClosed(center: BlockPos, rotation: Int): Boolean {
+            val pos = ScanUtils.getRealCoord(offset, center, rotation)
+            val block = WorldUtils.getBlockAt(pos)
+            return block.defaultBlockState().`is`(BlockTags.WOOL)
+        }
+    }
+
+    private enum class LEVER(val offset: BlockPos, var clickCount: Int = 0) {
+        QUARTZ(BlockPos(5, 61, 5)),
+        GOLD(BlockPos(5, 61, 0)),
+        COAL(BlockPos(5, 61, - 5)),
+        DIAMOND(BlockPos(- 5, 61, 5)),
+        EMERALD(BlockPos(- 5, 61, 0)),
+        CLAY(BlockPos(- 5, 61, - 5)),
+        WATER(BlockPos(0, 60, - 10));
+
+        fun getPos(): Vec3 {
+            val center = center ?: return Vec3.ZERO
+            val rot = rotation ?: return Vec3.ZERO
+            return ScanUtils.getRealCoord(offset, center, rot).toVec()
+        }
+
+        companion object {
+            fun fromKey(str: String) = when (str) {
+                "diamond_block" -> DIAMOND
+                "emerald_block" -> EMERALD
+                "hardened_clay" -> CLAY
+                "quartz_block" -> QUARTZ
+                "gold_block" -> GOLD
+                "coal_block" -> COAL
+                "water" -> WATER
+                else -> null
+            }
+        }
+    }
+}

@@ -1,0 +1,181 @@
+package com.laybalt.utils.items
+
+import com.laybalt.LayBaltQOL.mc
+import com.laybalt.utils.MathUtils.add
+import com.laybalt.utils.equalsOneOf
+import com.laybalt.utils.items.ItemUtils.customData
+import com.laybalt.utils.items.ItemUtils.skyblockId
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Direction
+import net.minecraft.core.SectionPos
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.level.block.*
+import net.minecraft.world.level.block.piston.PistonHeadBlock
+import net.minecraft.world.level.block.state.BlockState
+import net.minecraft.world.level.chunk.LevelChunk
+import net.minecraft.world.phys.Vec3
+import net.minecraft.world.phys.shapes.CollisionContext
+import kotlin.jvm.optionals.getOrDefault
+import kotlin.math.*
+
+object EtherwarpHelper {
+    private const val EYE_HEIGHT = 1.62
+    private const val SNEAK_OFFSET = 0.35
+
+    data class EtherPos(val succeeded: Boolean, val pos: BlockPos?) {
+        val vec = pos?.let(::Vec3)
+
+        companion object {
+            val NONE = EtherPos(false, null)
+        }
+    }
+
+    fun getEtherwarpDistance(stack: ItemStack): Double? {
+        if (stack.skyblockId.equalsOneOf("ASPECT_OF_THE_VOID", "ASPECT_OF_THE_END", "ETHERWARP_CONDUIT")) {
+            val nbt = stack.customData
+            if (stack.skyblockId != "ETHERWARP_CONDUIT" && nbt.getByte("ethermerge").orElse(0) != 1.toByte()) return null
+            val tuners = nbt.getByte("tuned_transmission").getOrDefault(0).toInt()
+            return 57.0 + tuners
+        }
+        return null
+    }
+
+    fun getEtherPos(pos: Vec3, lookVec: Vec3, distance: Double): EtherPos {
+        val player = mc.player ?: return EtherPos.NONE
+        val startPos = getZeroPingCameraPos(pos).add(y = EYE_HEIGHT - if (player.isCrouching) SNEAK_OFFSET else 0.0)
+        val endPos = startPos.add(lookVec.scale(distance))
+        return traverseVoxels(startPos, endPos)
+    }
+
+    private fun getZeroPingCameraPos(fallback: Vec3): Vec3 {
+        //#if CHEAT
+        val noRotate = com.laybalt.features.impl.misc.NoRotate
+        if (! noRotate.enabled) return fallback
+        val pendingTeleport = noRotate.pendingTeleports.lastOrNull() ?: return fallback
+        val config = noRotate.zeroPingCamera.value.values.toList()
+        if (! config[pendingTeleport.info.type]) return fallback
+        return pendingTeleport.position
+        //#else
+        //$return fallback
+        //#endif
+    }
+
+    private fun traverseVoxels(start: Vec3, end: Vec3): EtherPos {
+        var x = floor(start.x).toInt()
+        var y = floor(start.y).toInt()
+        var z = floor(start.z).toInt()
+
+        val endX = floor(end.x).toInt()
+        val endY = floor(end.y).toInt()
+        val endZ = floor(end.z).toInt()
+
+        val dirX = end.x - start.x
+        val dirY = end.y - start.y
+        val dirZ = end.z - start.z
+
+        val stepX = sign(dirX).toInt()
+        val stepY = sign(dirY).toInt()
+        val stepZ = sign(dirZ).toInt()
+
+        val invDirX = if (dirX != 0.0) 1.0 / dirX else Double.MAX_VALUE
+        val invDirY = if (dirY != 0.0) 1.0 / dirY else Double.MAX_VALUE
+        val invDirZ = if (dirZ != 0.0) 1.0 / dirZ else Double.MAX_VALUE
+
+        val tDeltaX = abs(invDirX * stepX)
+        val tDeltaY = abs(invDirY * stepY)
+        val tDeltaZ = abs(invDirZ * stepZ)
+
+        var tMaxX = abs((x + max(stepX, 0) - start.x) * invDirX)
+        var tMaxY = abs((y + max(stepY, 0) - start.y) * invDirY)
+        var tMaxZ = abs((z + max(stepZ, 0) - start.z) * invDirZ)
+
+        val currentPos = BlockPos.MutableBlockPos()
+
+        repeat(1000) {
+            currentPos.set(x, y, z)
+
+            val chunk = mc.level?.getChunk(
+                SectionPos.blockToSectionCoord(x),
+                SectionPos.blockToSectionCoord(z)
+            ) ?: return EtherPos.NONE
+
+            val state = chunk.getBlockState(currentPos)
+
+            if (isValidEtherwarpBlock(currentPos, chunk)) return EtherPos(true, currentPos)
+            if (! isPassable(currentPos, chunk)) return EtherPos(false, currentPos)
+            if (x == endX && y == endY && z == endZ) return if (state.isAir) EtherPos.NONE else EtherPos(false, currentPos)
+
+            when {
+                tMaxX <= tMaxY && tMaxX <= tMaxZ -> {
+                    tMaxX += tDeltaX
+                    x += stepX
+                }
+
+                tMaxY <= tMaxZ -> {
+                    tMaxY += tDeltaY
+                    y += stepY
+                }
+
+                else -> {
+                    tMaxZ += tDeltaZ
+                    z += stepZ
+                }
+            }
+        }
+
+        return EtherPos.NONE
+    }
+
+    private fun isValidEtherwarpBlock(pos: BlockPos, chunk: LevelChunk): Boolean {
+        val level = mc.level ?: return false
+        if (isPassable(pos, chunk)) return false
+
+        val state = chunk.getBlockState(pos)
+        val collisionTop = state.getCollisionShape(level, pos, CollisionContext.empty()).max(Direction.Axis.Y)
+        val clearanceBaseY = pos.y + max(1, ceil(collisionTop).toInt())
+
+        val feetPos = BlockPos(pos.x, clearanceBaseY, pos.z)
+        if (blocksClearance(feetPos, chunk) || isBlocksFeet(feetPos, chunk)) return false
+
+        val headPos = BlockPos(pos.x, clearanceBaseY + 1, pos.z)
+        return ! (blocksClearance(headPos, chunk) || isBlocksFeet(headPos, chunk))
+    }
+
+    private fun isBlocksFeet(pos: BlockPos, chunk: LevelChunk): Boolean {
+        return when (chunk.getBlockState(pos).block) {
+            is SkullBlock, is WallSkullBlock,
+            is ComparatorBlock, is RepeaterBlock,
+            is FlowerPotBlock,
+            is LadderBlock -> true
+            else -> false
+        }
+    }
+
+    private fun isPassable(pos: BlockPos, chunk: LevelChunk): Boolean {
+        val level = mc.level ?: return true
+        val state = chunk.getBlockState(pos)
+        return when (state.block) {
+            is SignBlock, is BannerBlock, is WallBannerBlock,  is TripWireHookBlock,
+            is PressurePlateBlock, is WeightedPressurePlateBlock -> false
+
+            is ButtonBlock, is SkullBlock, is WallSkullBlock, is LadderBlock,
+            is BubbleColumnBlock, is FlowerPotBlock, is PistonHeadBlock, is LeverBlock,
+            is NetherWartBlock, is ComparatorBlock, is RedstoneTorchBlock, is RepeaterBlock -> true
+
+            else -> state.getCollisionShape(level, pos, CollisionContext.empty()).isEmpty
+        }
+    }
+
+    private fun hasNoRealHitbox(state: BlockState) =
+        when (state.block) {
+            is SignBlock, is BannerBlock, is WallBannerBlock, is TripWireHookBlock,
+            is PressurePlateBlock, is WeightedPressurePlateBlock -> true
+            else -> false
+        }
+
+    private fun blocksClearance(pos: BlockPos, chunk: LevelChunk): Boolean {
+        val state = chunk.getBlockState(pos)
+        if (hasNoRealHitbox(state)) return false
+        return ! isPassable(pos, chunk)
+    }
+}

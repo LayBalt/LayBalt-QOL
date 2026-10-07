@@ -1,0 +1,244 @@
+package com.laybalt.features.impl.floor7
+
+import com.laybalt.config.types.*
+import com.laybalt.event.EventBus
+import com.laybalt.event.impl.*
+import com.laybalt.features.Feature
+import com.laybalt.utils.ChatUtils
+import com.laybalt.utils.ChatUtils.unformattedText
+import com.laybalt.utils.ColorUtils
+import com.laybalt.utils.NumbersUtils.toFixed
+import com.laybalt.utils.dungeons.DungeonListener
+import com.laybalt.utils.location.LocationUtils.F7Phase
+import com.laybalt.utils.location.LocationUtils.dungeonFloorNumber
+import com.laybalt.utils.location.LocationUtils.inBoss
+import com.laybalt.utils.render.Render2D.drawCenteredString
+import com.laybalt.utils.render.RenderHelper.width
+import gg.essential.universal.UResolution
+import gg.essential.universal.USound
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket
+import net.minecraft.sounds.SoundEvents
+
+object F7Titles: Feature(name = "F7 Titles", description = "Custom Titles for F7 boss fight.") {
+    private val crystalTitles by ToggleSetting("Crystal Titles")
+    private val witherTitles by ToggleSetting("Wither Titles")
+    private val lightningTimer by ToggleSetting("Lightning Timer")
+    private val terminalTitles by ToggleSetting("Terminal Titles").withDescription("Reformats terminal, device, lever, and gate subtitles during phase 3")
+
+    private val terminalTitleDuration by SliderSetting("Duration", 2.5, 0.5, 6, 0.5).withDescription("Duration of the terminal title in seconds").showIf { terminalTitles.value }
+    private val terminalTitleFormat by TextInputSetting("Format", "{name} {type} &f({progress}&f)").withDescription("Replaces {name}, {class}, {type}, and {progress} with the player name, dungeon class, terminal type, and phase progress. &bSupports color codes").showIf { terminalTitles.value }
+    private val terminalPhaseDone by ToggleSetting("Phase Done").withDescription("Renders Phase Done instead of the completed progress").showIf { terminalTitles.value }
+    private val terminalGateTitles by ToggleSetting("Gate Titles").withDescription("Also reformats gate-related subtitles").showIf { terminalTitles.value }
+
+    private val crystalRegex = Regex("^(\\d)/(\\d) Energy Crystals are now active!$")
+    private val enragedRegex = Regex("^⚠ (\\w+) is enraged! ⚠$")
+    private val terminalRegex = Regex("(.+) (?:activated|completed) a (terminal|device|lever)! \\((\\d)/(\\d)\\)")
+
+    private var timerTime = 0L
+    private var maxorDead = false
+    private var goldorDead = false
+    private var necronDead = false
+    private var goldorStart = false
+    private var necronStart = false
+    private var terminalTitle = ""
+    private var terminalTitleTimer = 0
+
+    override fun init() {
+        hudElement(
+            "Terminal Titles",
+            { terminalTitles.value },
+            { terminalTitle.isNotBlank() },
+            centered = { true }
+        ) { ctx, example ->
+            val str = if (example) formatTerminalTitle(mc.user.name, "terminal", 6, 7) else terminalTitle
+            ctx.drawCenteredString(str, 0, 0)
+            return@hudElement str.width() to 9f
+        }
+
+        register<WorldChangeEvent> {
+            maxorDead = false
+            goldorDead = false
+            necronDead = false
+            goldorStart = false
+            necronStart = false
+            timerTime = 0L
+            timerRenderer.unregister()
+        }
+
+        register<ChatMessageEvent> {
+            if (dungeonFloorNumber != 7 || ! inBoss || ! witherTitles.value) return@register
+            when (event.unformattedText) {
+                "[BOSS] Maxor: YOU TRICKED ME!", "[BOSS] Maxor: THAT BEAM! IT HURTS! IT HURTS!!" -> showTitle("&dMaxor Stunned!")
+                "[BOSS] Storm: Oof", "[BOSS] Storm: Ouch, that hurt!" -> showTitle("&bStorm Crushed!")
+                "[BOSS] Storm: I should have known that I stood no chance." -> showTitle("&bStorm Dead!")
+                "[BOSS] Necron: ARGH!" -> necronStart = true
+                "The Core entrance is opening!" -> goldorStart = true
+            }
+        }
+
+        register<MainThreadPacketReceivedEvent.Pre> {
+            if (dungeonFloorNumber != 7 || ! inBoss) return@register
+
+            when (val packet = event.packet) {
+                is ClientboundSetSubtitleTextPacket -> {
+                    val text = packet.text.unformattedText
+                    if (text.isBlank()) return@register
+
+                    if (crystalTitles.value) {
+                        if (text == "The Energy Laser is charging up!") {
+                            event.isCanceled = true
+                            return@register
+                        }
+
+                        crystalRegex.find(text)?.destructured?.let { (min, max) ->
+                            val progress = formatProgress(min.toInt(), max.toInt())
+                            ChatUtils.showTitle(subtitle = "&3Crystal&r($progress)")
+                            event.isCanceled = true
+                            return@register
+                        }
+                    }
+
+                    enragedRegex.find(text)?.destructured?.component1()?.let { boss ->
+                        val color = when (boss) {
+                            "Storm" -> {
+                                USound.playSoundStatic(SoundEvents.NOTE_BLOCK_PLING, 0.25f, 1f)
+                                "&b"
+                            }
+
+                            "Maxor" -> "&5"
+                            else -> ""
+                        }
+                        showTitle("$color$text")
+                        event.isCanceled = true
+                    }
+
+                    if (terminalTitles.value && F7Phase == 3 && handleTerminalTitle(text)) {
+                        event.isCanceled = true
+                    }
+                }
+
+                is ClientboundSetTitleTextPacket -> {
+                    if (! lightningTimer.value) return@register
+                    val text = packet.text.unformattedText.takeUnless(String::isBlank) ?: return@register
+                    val number = text.toIntOrNull() ?: return@register
+                    event.isCanceled = true
+
+                    if (! timerRenderer.isActive && (number == 4 || number == 6)) {
+                        timerTime = DungeonListener.currentTime + (number * 1.35 * 20.0).toLong()
+                        timerRenderer.register()
+                    }
+                }
+            }
+        }
+
+        register<BossBarUpdateEvent> {
+            if (! witherTitles.value) return@register
+            if (dungeonFloorNumber != 7 || ! inBoss) return@register
+            if (event.progress > 0f) return@register
+            val name = event.name.unformattedText
+            val entry = DungeonListener.bossEntryTime?.ticks ?: return@register
+
+            if (name.contains("Maxor") && ! maxorDead && DungeonListener.currentTime - entry > 120) {
+                maxorDead = true
+                showTitle("&dMaxor Dead!")
+            }
+            else if (name.contains("Goldor") && ! goldorDead && goldorStart) {
+                goldorDead = true
+                showTitle("&7Goldor Dead!")
+            }
+            else if (name.contains("Necron") && ! necronDead && necronStart) {
+                necronDead = true
+                showTitle("&cNecron Dead!!")
+            }
+        }
+    }
+
+    private val timerRenderer = EventBus.listener<RenderOverlayEvent> {
+        if (! enabled) return@listener
+        val timeLeft = (timerTime - DungeonListener.currentTime) / 20.0
+
+        if (timeLeft <= 0) {
+            this.listener.unregister()
+            showTitle("&aStorm's Lightning Ended!")
+            return@listener
+        }
+
+        val width = UResolution.scaledWidth
+        val height = UResolution.scaledHeight
+
+        event.context.drawCenteredString(
+            "&l&c${timeLeft.toFixed(1)}",
+            width / 2f,
+            height / 2f - height / 13f,
+            scale = 3f
+        )
+    }
+
+    private val terminalTitleTickListener = EventBus.listener<TickEvent.Start> {
+        if (! enabled) return@listener
+        if (terminalTitleTimer <= 0) {
+            listener.unregister()
+            terminalTitle = ""
+        }
+
+        terminalTitleTimer -= 50
+    }
+
+    private fun handleTerminalTitle(title: String): Boolean {
+        if (terminalGateTitles.value) when (title) {
+            "The gate has been destroyed!" -> {
+                showTerminalTitle("&cGate Destroyed!")
+                return true
+            }
+
+            "The gate will open in 5 seconds!" -> {
+                showTerminalTitle("&c&lGATE!")
+                return true
+            }
+        }
+
+        val (name, type, min, max) = terminalRegex.find(title)?.destructured ?: return false
+        showTerminalTitle(formatTerminalTitle(name, type, min.toInt(), max.toInt()))
+        return true
+    }
+
+    private fun showTerminalTitle(title: String) {
+        terminalTitle = title
+        terminalTitleTimer = terminalTitleDuration.value.toInt() * 1000
+        terminalTitleTickListener.register()
+    }
+
+    private fun formatTerminalTitle(name: String, type: String, min: Int, max: Int): String {
+        if (terminalPhaseDone.value && min == max) return "&a&lPhase Done!"
+
+        val formattedType = when (type) {
+            "terminal" -> "&5Terminal"
+            "device" -> "&bDevice"
+            "lever" -> "&cLever"
+            else -> ""
+        }
+
+        val clazz = DungeonListener.dungeonTeammates.find { it.name == name }?.clazz
+        val classColor = clazz?.code ?: "&7"
+        val formattedName = "$classColor$name&r"
+        val formattedClass = clazz?.name?.let { "$classColor$it&r" } ?: "&7Unknown&r"
+        val formattedProgress = "${ColorUtils.colorCodeByPercent(min, max)}$min&8/&a$max"
+
+        return terminalTitleFormat.value
+            .replace("{name}", formattedName)
+            .replace("{class}", formattedClass)
+            .replace("{type}", formattedType)
+            .replace("{progress}", formattedProgress)
+    }
+
+    private fun showTitle(subtitle: String) {
+        ChatUtils.showTitle(subtitle = subtitle)
+        USound.playSoundStatic(SoundEvents.NOTE_BLOCK_PLING, 0.25f, 1f)
+    }
+
+    private fun formatProgress(current: Int, max: Int): String {
+        val minColor = if (current == max) "&b" else "&c"
+        return "$minColor$current&r/&r&b$max&r"
+    }
+}

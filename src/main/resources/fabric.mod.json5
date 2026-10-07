@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "id": "lbqmod",
+  "version": "${version}",
+  "name": "LayBalt QOL",
+  //#if CHEAT
+  "description": "LayBalt QOL — Hypixel SkyBlock quality-of-life mod for Minecraft 26.2 (NoammAddons core)",
+  //#else
+  //$"description": "LayBalt QOL — Hypixel SkyBlock quality-of-life mod for Minecraft 26.2 (NoammAddons core) Version: Legit",
+  //#endif
+  "authors": [
+    "LayBalt",
+    "Somikyy"
+  ],
+  "contact": {
+    "homepage": "https://github.com/LayBalt",
+    "sources": "https://github.com/LayBalt/LayBalt-QOL",
+    "issues": "https://github.com/LayBalt/LayBalt-QOL/issues"
+  },
+  "license": "CC0-1.0",
+  "icon": "assets/lbqmod/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "modmenu": [
+      "com.laybalt.ui.clickgui.ModMenuIntegration"
+    ],
+    "client": [
+      {
+        "value": "com.laybalt.LayBaltQOL",
+        "adapter": "kotlin"
+      }
+    ]
+  },
+  "mixins": [
+    "lbqmod.mixins.json"
+  ],
+  "accessWidener": "lbqmod.accesswidener",
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "26.2",
+    "java": ">=25",
+    "fabric-api": "*",
+    "fabric-language-kotlin": "*"
+  },
+  "custom": {
+    "modmenu": {
+      "links": {
+        "Discord": "https://discord.gg/laybalt"
+      }
+    }
+  }
+}

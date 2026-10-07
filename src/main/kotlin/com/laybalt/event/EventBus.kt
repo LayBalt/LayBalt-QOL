@@ -1,0 +1,79 @@
+package com.laybalt.event
+
+import com.laybalt.LayBaltQOL
+import com.laybalt.event.priority.EventPriority
+import com.laybalt.event.priority.PriorityComparator
+import com.laybalt.utils.*
+import net.minecraft.network.chat.Component
+import java.util.concurrent.*
+
+object EventBus {
+    val listeners = ConcurrentHashMap<Class<out Event>, Array<EventListener<*>>>()
+    private val exceptionHandler: (Exception, Event) -> Unit = { exception, event ->
+        val packageName = Event::class.java.`package`.name
+        val eventName = event.javaClass.name.remove("$packageName.impl.")
+        var fileName = "Unknown File"
+        var line = "line: -1 (unknown)"
+
+        for (element in exception.stackTrace) {
+            if (element.className.startsWithOneOf(packageName, "java.lang", "kotlin.")) continue
+            fileName = element.fileName ?: "Unknown File"
+            line = "line ${element.lineNumber} (${element.methodName})"
+            break
+        }
+
+        LayBaltQOL.logger.error("EventBus error", exception)
+        ChatUtils.chat(Component.empty().apply {
+            append("§c----------------------------------------\n")
+            append("§c>> Uncaught Exception in EventBus <<\n")
+            append("§c   Event: §f${eventName}§r\n")
+            append("§c   File: $fileName: §e$line§r\n")
+            append("§c   Error: §f${exception.message}\n")
+            append("§c----------------------------------------")
+        })
+    }
+
+    fun _registerListener(listener: EventListener<*>) {
+        listeners.compute(listener.eventClass) { _, old ->
+            (old?.toList().orEmpty() + listener).sortedWith(PriorityComparator).toTypedArray()
+        }
+    }
+
+    fun _unregisterListener(listener: EventListener<*>) {
+        listeners.compute(listener.eventClass) { _, old ->
+            old?.filter { it !== listener }?.takeIf(Collection<*>::isNotEmpty)?.toTypedArray()
+        }
+    }
+
+    @JvmStatic
+    fun <T: Event> post(event: T): Boolean {
+        val eventListeners = listeners[event.javaClass] ?: return event.isCanceled
+        var context: EventContext<T>? = null
+
+        @Suppress("UNCHECKED_CAST")
+        for (i in eventListeners.indices) try {
+            val typedListener = eventListeners[i] as EventListener<T>
+            if (event.isCanceled && ! typedListener.receiveCancelled) continue
+            val currentContext = context ?: EventContext(event, typedListener).also { context = it }
+            currentContext.listener = typedListener
+            typedListener.callback.invoke(currentContext)
+        }
+        catch (exception: Exception) {
+            exceptionHandler.invoke(exception, event)
+        }
+
+        return event.isCanceled
+    }
+
+    inline fun <reified T: Event> listener(
+        priority: EventPriority = EventPriority.NORMAL,
+        receiveCancelled: Boolean = false,
+        noinline callback: EventContext<T>.() -> Unit
+    ) = EventListener(T::class.java, priority, receiveCancelled, callback)
+
+    inline fun <reified T: Event> register(
+        priority: EventPriority = EventPriority.NORMAL,
+        receiveCancelled: Boolean = false,
+        noinline callback: EventContext<T>.() -> Unit
+    ) = listener<T>(priority, receiveCancelled, callback).register()
+}

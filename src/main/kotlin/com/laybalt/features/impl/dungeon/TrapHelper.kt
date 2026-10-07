@@ -1,0 +1,64 @@
+package com.laybalt.features.impl.dungeon
+
+/*
+
+import com.laybalt.event.impl.DungeonEvent
+import com.laybalt.event.impl.RenderWorldEvent
+import com.laybalt.event.impl.WorldChangeEvent
+import com.laybalt.features.Feature
+import com.laybalt.config.types.ColorConfig
+import com.laybalt.config.types.ChoiceConfig
+import com.laybalt.config.types.ToggleSetting
+import com.laybalt.utils.ColorUtils.withAlpha
+import com.laybalt.utils.Utils
+import com.laybalt.utils.dungeons.map.utils.ScanUtils
+import com.laybalt.utils.equalsOneOf
+import com.laybalt.utils.location.LocationUtils
+import com.laybalt.utils.render.world.Render3D
+import net.minecraft.core.BlockPos
+
+object TrapHelper: Feature("Highlights the correct pearl block in New Trap") {
+    private val mode by ChoiceConfig("Mode", 2, listOf("Outline", "Fill", "Filled Outline"))
+    private val fillColor by ColorConfig("Fill Color", Utils.favoriteColor.withAlpha(50)).hideIf { mode.value == 0 }
+    private val outlineColor by ColorConfig("Outline Color", Utils.favoriteColor, false).hideIf { mode.value == 1 }
+    private val phase by ToggleSetting("Phase")
+
+    private var highlightPos: BlockPos? = null
+
+    override fun init() {
+        register<WorldChangeEvent> { highlightPos = null }
+
+        register<DungeonEvent.RoomEvent.onEnter> {
+            if (event.room.data.name != "New Trap") {
+                highlightPos = null;
+                return@register
+            }
+
+            val corner = event.room.corner ?: return@register
+            val rotation = event.room.rotation ?: return@register
+            val relPos = when (rotation) {
+                0, 90 -> BlockPos(26, 89, 15)
+                180, 270 -> BlockPos(27, 89, 15)
+                else -> return@register
+            }
+
+            highlightPos = ScanUtils.getRealCoord(relPos, corner, 360 - rotation)
+        }
+
+        register<RenderWorldEvent> {
+            if (LocationUtils.inBoss) return@register
+            val pos = highlightPos ?: return@register
+
+            Render3D.renderBlock(
+                event.ctx, pos,
+                outlineColor.value,
+                fillColor.value,
+                mode.value.equalsOneOf(0, 2),
+                mode.value.equalsOneOf(1, 2),
+                phase = phase.value,
+            )
+        }
+    }
+}
+
+ */

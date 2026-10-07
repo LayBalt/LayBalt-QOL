@@ -1,0 +1,57 @@
+package com.laybalt.features.impl.dungeon.map
+
+import com.laybalt.event.impl.*
+import com.laybalt.features.Feature
+import com.laybalt.utils.WorldUtils
+import com.laybalt.utils.dungeons.DungeonListener
+import com.laybalt.utils.dungeons.map.core.*
+import com.laybalt.utils.dungeons.map.handlers.*
+import com.laybalt.utils.dungeons.map.utils.ScanUtils
+import com.laybalt.utils.equalsOneOf
+import com.laybalt.utils.location.LocationUtils
+import com.laybalt.utils.render.world.Render3D.renderBlock
+import com.laybalt.utils.render.world.Render3D.renderBoxBounds
+import net.minecraft.world.level.block.Blocks
+
+object DungeonMap: Feature() {
+    override fun init() {
+        configSettings.addAll(MapConfig.configSettings)
+        hudElements.add(MapRenderer)
+
+        register<RenderWorldEvent> {
+            if (! enabled || ! LocationUtils.inDungeon || LocationUtils.inBoss) return@register
+
+            //#if CHEAT
+            val mimicRoom = DungeonScanner.mimicRoom
+            if (MapConfig.mimicEsp.value && ! ScoreCalculation.mimicKilled && mimicRoom != null) {
+                for (chestPos in mimicRoom.trappedChestPositions) {
+                    if (! WorldUtils.getStateAt(chestPos).`is`(Blocks.TRAPPED_CHEST)) continue
+                    val rotation = mimicRoom.rotation ?: continue
+                    val corner = mimicRoom.clayPos ?: continue
+                    val relative = ScanUtils.getRelativeCoord(chestPos, corner, 360 - rotation)
+                    if (mimicRoom.data.secretCoords.chest.none { it == relative }) continue
+
+                    event.ctx.renderBlock(chestPos, MapConfig.mimicEspColor.value, phase = true)
+                }
+            }
+            //#endif
+
+            if (! MapConfig.boxDoors.value) return@register
+            val shouldHideUndiscovered = ! MapConfig.dungeonMapCheater.value ||
+                (DungeonListener.dungeonStarted && ! MapConfig.highlightAllDoors.value)
+
+            for (tile in DungeonScanner.dungeonList) {
+                if (tile !is DoorTile || tile.opened) continue
+                if (! tile.type.equalsOneOf(DoorType.BLOOD, DoorType.WITHER)) continue
+                if (shouldHideUndiscovered && tile.state == RoomState.UNDISCOVERED && ! DungeonTree.isFairy(tile)) continue
+                event.ctx.renderBoxBounds(
+                    tile.aabb,
+                    (if (tile.type.keys > 0) MapConfig.doorKeyColor else MapConfig.doorNoKeyColor).value,
+                    outline = MapConfig.boxDoorsMode.value.equalsOneOf(0, 2),
+                    fill = MapConfig.boxDoorsMode.value.equalsOneOf(1, 2),
+                    phase = true
+                )
+            }
+        }
+    }
+}

@@ -1,21 +1,13 @@
+rootProject.name = "LayBaltQOL"
+
 pluginManagement {
     repositories {
-        maven("https://maven.fabricmc.net/") { name = "Fabric" }
-        mavenCentral()
         gradlePluginPortal()
+        mavenCentral()
+        maven("https://maven.fabricmc.net/")
     }
-
-    val loom_version: String by settings
-    val kotlin_version: String by settings
 
     plugins {
-        id("net.fabricmc.fabric-loom") version loom_version
-        kotlin("jvm") version kotlin_version
+        id("net.fabricmc.fabric-loom") version providers.gradleProperty("loom_version").get()
     }
 }
-
-plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
-}
-
-rootProject.name = "LayBaltQOL"

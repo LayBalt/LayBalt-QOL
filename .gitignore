@@ -31,5 +31,11 @@ replay_*.log
 *.hprof
 *.jfr
 
+# kotlin
+.kotlin/
+*.salive
+/logs
+
 # macos
 .DS_Store
+*.DS_Store

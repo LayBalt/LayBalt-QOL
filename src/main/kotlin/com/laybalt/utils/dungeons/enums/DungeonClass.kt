@@ -1,0 +1,22 @@
+package com.laybalt.utils.dungeons.enums
+
+import com.laybalt.config.types.ColorCodeSetting
+import com.laybalt.features.impl.dev.ClassColors
+
+enum class DungeonClass(val setting: ColorCodeSetting) {
+    Archer(ClassColors.archCode),
+    Berserk(ClassColors.bersCode),
+    Healer(ClassColors.healCode),
+    Mage(ClassColors.mageCode),
+    Tank(ClassColors.tankCode),
+    Empty(ClassColors.emptyCode);
+
+    val color get() = setting.value.color !!
+    val code get() = setting.value.toString()
+
+    companion object {
+        fun fromName(name: String) = entries.find {
+            it.name.equals(name, ignoreCase = true)
+        } ?: Empty
+    }
+}

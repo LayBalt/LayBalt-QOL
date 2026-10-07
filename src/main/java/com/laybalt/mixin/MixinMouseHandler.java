@@ -1,0 +1,53 @@
+package com.laybalt.mixin;
+
+import com.laybalt.event.EventBus;
+import com.laybalt.event.impl.MouseClickEvent;
+import com.laybalt.features.impl.general.storageoverlay.StorageOverlay;
+import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.MouseHandler;
+import net.minecraft.client.input.MouseButtonInfo;
+import org.objectweb.asm.Opcodes;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(MouseHandler.class)
+public abstract class MixinMouseHandler {
+    @Shadow @Final private Minecraft minecraft;
+
+    @Inject(method = "onButton", at = @At("HEAD"), cancellable = true)
+    private void onMouseButton(long handle, MouseButtonInfo rawButtonInfo, int action, CallbackInfo ci) {
+        if (handle != minecraft.getWindow().handle()) return;
+        if (EventBus.post(new MouseClickEvent(rawButtonInfo.button(), action, rawButtonInfo.modifiers()))) {
+            ci.cancel();
+        }
+    }
+
+    @WrapWithCondition(
+        method = "grabMouse()V",
+        at = @At(
+            value = "FIELD",
+            target = "Lnet/minecraft/client/MouseHandler;xpos:D",
+            opcode = Opcodes.PUTFIELD
+        )
+    )
+    private boolean shouldSetXpos(MouseHandler instance, double value) {
+        return !StorageOverlay.inStorageTransition;
+    }
+
+    @WrapWithCondition(
+        method = "grabMouse()V",
+        at = @At(
+            value = "FIELD",
+            target = "Lnet/minecraft/client/MouseHandler;ypos:D",
+            opcode = Opcodes.PUTFIELD
+        )
+    )
+    private boolean shouldSetYpos(MouseHandler instance, double value) {
+        return !StorageOverlay.inStorageTransition;
+    }
+}
