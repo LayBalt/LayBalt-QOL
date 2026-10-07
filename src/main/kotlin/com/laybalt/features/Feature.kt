@@ -80,14 +80,21 @@ open class Feature(
         return listener
     }
 
+    /**
+     * Registers a HUD element. [name] is its config id (keep it stable, saved positions are keyed by it); [displayName]
+     * is what the HUD editor shows (default: the feature name when [name] is the feature id, else [name] humanised).
+     */
     fun hudElement(
         name: String = this@Feature.jsonName,
         enabled: () -> Boolean = { true },
         shouldDraw: () -> Boolean = { true },
         centered: () -> Boolean = { false },
+        displayName: String? = null,
         render: (GuiGraphicsExtractor, Boolean) -> Pair<Number, Number>
     ) = object: HudElement() {
         override val name = name
+        override val displayName = displayName
+            ?: if (name == this@Feature.jsonName || name == this@Feature::class.simpleName) this@Feature.name else HudElement.humanize(name)
         override val centered = centered
         override val toggle get() = this@Feature.enabled && enabled.invoke()
         override val shouldDraw get() = shouldDraw.invoke()

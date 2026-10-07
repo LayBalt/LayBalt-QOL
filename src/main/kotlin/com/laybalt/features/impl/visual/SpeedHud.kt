@@ -52,7 +52,7 @@ object SpeedHud: Feature("Shows how fast you are moving in blocks per second, wi
 
     override fun init() {
         hudElement("SpeedHud", shouldDraw = { mc.player != null }) { ctx, example -> draw(ctx, example) } defaults {
-            x = 130f
+            x = 140f
             y = 5f
         }
 

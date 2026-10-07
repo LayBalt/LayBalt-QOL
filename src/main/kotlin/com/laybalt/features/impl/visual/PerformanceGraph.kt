@@ -52,7 +52,7 @@ object PerformanceGraph: Feature("Rolling graphs of your FPS, the server TPS and
 
     override fun init() {
         hudElement("PerformanceGraph") { ctx, example -> draw(ctx, example) } defaults {
-            x = 240f
+            x = 270f
             y = 5f
         }
 

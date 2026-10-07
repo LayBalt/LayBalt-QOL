@@ -5,9 +5,11 @@ import com.laybalt.config.types.DropdownSetting
 import com.laybalt.config.types.SliderSetting
 import com.laybalt.config.types.ToggleSetting
 import com.laybalt.features.Feature
+import com.laybalt.ui.render.ItemTextures
 import com.laybalt.utils.render.Render2D.drawRect
 import com.laybalt.utils.render.Render2D.drawString
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.resources.Identifier
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
@@ -37,10 +39,27 @@ object ArmorHud: Feature("Shows your armor and held item with durability bars or
     private val bgColor by ColorSetting("Background Color", HudWidgetKit.defaultBackground).withDescription("Colour of the panel behind the widget.").showIf { bgMode.value != 0 }
     private val accentColor by ColorSetting("Accent Color", HudWidgetKit.defaultAccent).withDescription("Colour of the panel outline, accent bar or glass hairline.").showIf { bgMode.value >= 2 }
 
+    /** One drawn cell: a real stack, or a texture-only preview entry for the HUD editor before a world is loaded. */
+    private class Slot(val stack: ItemStack?, val texture: Identifier?, val fraction: Float?, val remaining: Int, val count: Int)
+
     private val exampleItems by lazy {
         listOf(Items.DIAMOND_HELMET, Items.DIAMOND_CHESTPLATE, Items.DIAMOND_LEGGINGS, Items.DIAMOND_BOOTS, Items.DIAMOND_SWORD).mapIndexed { i, item ->
             ItemStack(item).apply { if (isDamageableItem) damageValue = (maxDamage * (0.15f + i * 0.17f)).toInt() }
         }
+    }
+
+    /**
+     * Same example set drawn from the item textures: item components are only bound once a world is loaded, so on the
+     * title screen (HUD editor opened from Mod Menu) no ItemStack can be built.
+     */
+    private val previewArmor = listOf("diamond_helmet" to 363, "diamond_chestplate" to 528, "diamond_leggings" to 495, "diamond_boots" to 429)
+        .mapIndexed { i, (name, max) -> previewSlot(name, max, 0.15f + i * 0.17f) }
+    private val previewHeld = previewSlot("diamond_sword", 1561, 0.83f)
+    private val previewOffhand = Slot(null, ItemTextures.item("arrow"), null, 0, 64)
+
+    private fun previewSlot(texture: String, maxDamage: Int, damaged: Float): Slot {
+        val damage = (maxDamage * damaged).toInt()
+        return Slot(null, ItemTextures.item(texture), 1f - damage.toFloat() / maxDamage, maxDamage - damage, 1)
     }
 
     private val armorSlots = listOf(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET)
@@ -48,34 +67,48 @@ object ArmorHud: Feature("Shows your armor and held item with durability bars or
     override fun init() {
         hudElement("ArmorHud") { ctx, example -> draw(ctx, example) } defaults {
             x = 5f
-            y = 160f
+            y = 238f
         }
     }
 
-    private fun collect(example: Boolean): List<ItemStack> {
+    private fun slotOf(stack: ItemStack): Slot? {
+        if (stack.isEmpty) return null
+        val damageable = stack.isDamageableItem && stack.maxDamage > 0
+        return Slot(
+            stack, null,
+            if (damageable) 1f - stack.damageValue.toFloat() / stack.maxDamage else null,
+            if (damageable) stack.maxDamage - stack.damageValue else 0,
+            stack.count
+        )
+    }
+
+    /** Slots to draw; null entries are empty slots kept as gaps when Hide Empty Slots is off. */
+    private fun collect(example: Boolean): List<Slot?> {
         val player = mc.player
+        if (example && mc.level == null) {
+            val held = buildList {
+                if (showHeld.value) add(previewHeld)
+                if (showOffhand.value) add(previewOffhand)
+            }
+            return if (heldFirst.value) held + previewArmor else previewArmor + held
+        }
         val armor = armorSlots.map { player?.getItemBySlot(it) ?: ItemStack.EMPTY }
         val held = buildList {
             if (showHeld.value) add(player?.mainHandItem ?: ItemStack.EMPTY)
             if (showOffhand.value) add(player?.offhandItem ?: ItemStack.EMPTY)
         }
         val all = if (heldFirst.value) held + armor else armor + held
-        // Item components are only bound once a world is loaded; building example stacks earlier (title screen) throws.
-        if (example && all.all { it.isEmpty }) return if (mc.level != null) exampleItems else emptyList()
-        return if (hideEmpty.value) all.filterNot { it.isEmpty } else all
+        if (example && all.all { it.isEmpty }) return exampleItems.map(::slotOf)
+        return if (hideEmpty.value) all.mapNotNull(::slotOf) else all.map(::slotOf)
     }
 
-    private fun durabilityFraction(stack: ItemStack): Float? {
-        if (stack.isEmpty || ! stack.isDamageableItem || stack.maxDamage <= 0) return null
-        return 1f - stack.damageValue.toFloat() / stack.maxDamage
-    }
-
-    private fun label(stack: ItemStack): String? {
-        val fraction = durabilityFraction(stack)
-        if (fraction == null) return if (showCount.value && stack.count > 1) stack.count.toString() else null
+    private fun label(slot: Slot?): String? {
+        if (slot == null) return null
+        val fraction = slot.fraction
+        if (fraction == null) return if (showCount.value && slot.count > 1) slot.count.toString() else null
         return when (durability.value) {
             2, 3 -> "${(fraction * 100).roundToInt()}%"
-            4, 5 -> (stack.maxDamage - stack.damageValue).toString()
+            4, 5 -> slot.remaining.toString()
             else -> null
         }
     }
@@ -90,12 +123,7 @@ object ArmorHud: Feature("Shows your armor and held item with durability bars or
         val labels = items.map(::label)
         val font = mc.font
 
-        if (items.isEmpty()) {
-            if (! example) return 16 to 16
-            val text = "Armor HUD"
-            ctx.drawString(text, 0, 0, Color.WHITE, 1, true)
-            return font.width(text) to 9
-        }
+        if (items.isEmpty()) return 16 to 16
 
         val vertical = layout.value == 0
         val cellH = 16 + if (bar) 3 else 1
@@ -120,11 +148,12 @@ object ArmorHud: Feature("Shows your armor and held item with durability bars or
         val totalH = contentH + pad * 2
         HudWidgetKit.drawBackground(ctx, totalW, totalH, bgMode.value, bgColor.value, accentColor.value)
 
-        items.forEachIndexed { i, stack ->
+        items.forEachIndexed { i, slot ->
             val cellX = left + if (vertical) 0 else i * cellW
             val cellY = pad + if (vertical) i * cellH else 0
             val iconX = if (vertical) cellX else cellX + (cellW - 2 - 16) / 2
-            val fraction = durabilityFraction(stack)
+            if (slot == null) return@forEachIndexed
+            val fraction = slot.fraction
             val tint = if (colorByDurability.value && fraction != null) HudWidgetKit.healthColor(fraction) else null
 
             if (lowWarning.value && fraction != null && fraction * 100f <= lowThreshold.value) {
@@ -132,7 +161,10 @@ object ArmorHud: Feature("Shows your armor and held item with durability bars or
                 ctx.drawRect(iconX - 1, cellY - 1, 18, 18, Color(240, 60, 70, (60 + 90 * pulse).toInt()))
             }
 
-            if (! stack.isEmpty) ctx.item(stack, iconX, cellY)
+            when {
+                slot.stack != null -> ctx.item(slot.stack, iconX, cellY)
+                slot.texture != null -> ItemTextures.draw(ctx, slot.texture, iconX.toFloat(), cellY.toFloat())
+            }
 
             if (bar && fraction != null) {
                 ctx.drawRect(iconX + 1, cellY + 16, 14, 2, barBackground.value)
@@ -150,5 +182,4 @@ object ArmorHud: Feature("Shows your armor and held item with durability bars or
 
         return totalW to totalH
     }
-
 }

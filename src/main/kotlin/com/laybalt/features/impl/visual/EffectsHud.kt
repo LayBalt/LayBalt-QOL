@@ -55,8 +55,8 @@ object EffectsHud: Feature("Lists your active potion effects with their remainin
 
     override fun init() {
         hudElement("EffectsHud", shouldDraw = { mc.player != null }) { ctx, example -> draw(ctx, example) } defaults {
-            x = 80f
-            y = 60f
+            x = 140f
+            y = 84f
         }
 
         register<MainThreadPacketReceivedEvent.Post> {

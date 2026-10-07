@@ -64,6 +64,9 @@ class HudEditorScreen(private val parent: Screen? = null): Screen(Component.lite
         val my = mouseY / Resolution.scale
         val w = Resolution.width
         val h = Resolution.height
+        // Editor chrome (tags, toolbar, hints) is enlarged in small windows so it stays readable; HUD positions are not.
+        chromeK = (1.25f / (Resolution.scale * mc.window.guiScale)).coerceIn(1f, 1.5f)
+        val k = chromeK
 
         UI.vGradient(graphics, 0f, 0f, w, h, Palette.backdropTop, Palette.backdropBottom)
         if (gridEnabled) drawGrid(graphics, w, h)
@@ -79,11 +82,11 @@ class HudEditorScreen(private val parent: Screen? = null): Screen(Component.lite
 
         // name tags last, so another element's content never hides one (the selected/dragged tag on top)
         graphics.nextStratum()
-        huds.filter { !it.isDragging && !it.editorSelected }.forEach { it.drawEditorTag(graphics) }
-        huds.filter { it.isDragging || it.editorSelected }.forEach { it.drawEditorTag(graphics) }
+        huds.filter { !it.isDragging && !it.editorSelected }.forEach { it.drawEditorTag(graphics, k) }
+        huds.filter { it.isDragging || it.editorSelected }.forEach { it.drawEditorTag(graphics, k) }
 
         // snapping guides (the vertical one starts below the floating toolbar)
-        val guideTop = TOOLBAR_Y + BAR_H + 4f
+        val guideTop = (TOOLBAR_Y + BAR_H + 4f) * k
         guideX?.let { UI.rect(graphics, it - 0.5f, guideTop, 1f, h - guideTop, 0f, Palette.accent) }
         guideY?.let { UI.rect(graphics, 0f, it - 0.5f, w, 1f, 0f, Palette.accent) }
 
@@ -91,12 +94,29 @@ class HudEditorScreen(private val parent: Screen? = null): Screen(Component.lite
         if (hovered != null) graphics.requestCursor(if (hovered.isDragging) CursorTypes.RESIZE_ALL else CursorTypes.POINTING_HAND)
 
         graphics.nextStratum()
-        drawToolbar(graphics, mx, my, w)
-        (hovered ?: selected)?.let { drawInfo(graphics, it, w) }
+        scaledAbout(graphics, w / 2f, 0f, k) {
+            drawToolbar(graphics, toolbarX(mx), toolbarY(my), w)
+            (hovered ?: selected)?.let { drawInfo(graphics, it, w) }
+        }
         val hint = "Drag to move  ·  Scroll to resize  ·  Arrow keys nudge  ·  Hold Shift to place freely"
-        UI.textMidCentered(graphics, hint, w / 2f, h - 14f, Palette.textMuted, 6.6f)
+        scaledAbout(graphics, w / 2f, h, k) { UI.textMidCentered(graphics, hint, w / 2f, h - 14f, Palette.textSecondary, 7.4f) }
 
         Resolution.pop(graphics)
+    }
+
+    private var chromeK = 1f
+
+    /** Toolbar-local mouse position (the toolbar is drawn scaled by [chromeK] about the top centre). */
+    private fun toolbarX(mx: Float) = Resolution.width / 2f + (mx - Resolution.width / 2f) / chromeK
+    private fun toolbarY(my: Float) = my / chromeK
+
+    private inline fun scaledAbout(ctx: GuiGraphicsExtractor, px: Float, py: Float, k: Float, block: () -> Unit) {
+        ctx.pose().pushMatrix()
+        ctx.pose().translate(px, py)
+        ctx.pose().scale(k, k)
+        ctx.pose().translate(-px, -py)
+        block()
+        ctx.pose().popMatrix()
     }
 
     /** Snaps the dragged element's left/centre/right and top/centre/bottom to the screen edges and centre lines. */
@@ -187,7 +207,7 @@ class HudEditorScreen(private val parent: Screen? = null): Screen(Component.lite
     }
 
     private fun drawInfo(ctx: GuiGraphicsExtractor, hud: HudElement, screenW: Float) {
-        val text = "${hud.name}   ${hud.x.toInt()}, ${hud.y.toInt()}   ${String.format(java.util.Locale.US, "%.1f", hud.scale)}×"
+        val text = "${hud.displayName}   ${hud.x.toInt()}, ${hud.y.toInt()}   ${String.format(java.util.Locale.US, "%.1f", hud.scale)}×"
         val size = 6.8f
         val w = UI.width(text, size, UIFont.Weight.MEDIUM) + 16f
         val x = (screenW - w) / 2f
@@ -222,7 +242,7 @@ class HudEditorScreen(private val parent: Screen? = null): Screen(Component.lite
         val mx = (mouseX / Resolution.scale).toFloat()
         val my = (mouseY / Resolution.scale).toFloat()
 
-        if (buttons[Button.GRID]?.contains(mx, my) == true) {
+        if (buttons[Button.GRID]?.contains(toolbarX(mx), toolbarY(my)) == true) {
             gridEnabled = true
             gridSize = (gridSize + (if (vertical > 0) 5 else -5)).coerceIn(5, 50)
             return true
@@ -249,7 +269,7 @@ class HudEditorScreen(private val parent: Screen? = null): Screen(Component.lite
         val my = (mouseButtonEvent.y / Resolution.scale).toFloat()
 
         if (mouseButtonEvent.button() == InputConstants.MOUSE_BUTTON_LEFT) {
-            buttons.entries.firstOrNull { it.value.contains(mx, my) }?.let {
+            buttons.entries.firstOrNull { it.value.contains(toolbarX(mx), toolbarY(my)) }?.let {
                 clickButton(it.key)
                 return true
             }

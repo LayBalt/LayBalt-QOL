@@ -51,7 +51,7 @@ object Keystrokes: Feature("Shows your movement keys, jump and mouse buttons wit
     override fun init() {
         hudElement("Keystrokes") { ctx, _ -> draw(ctx) } defaults {
             x = 5f
-            y = 60f
+            y = 116f
         }
 
         register<MouseClickEvent>(receiveCancelled = true) {

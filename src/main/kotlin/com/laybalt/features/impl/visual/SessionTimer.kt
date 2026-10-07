@@ -59,7 +59,7 @@ object SessionTimer: Feature("Shows how long you have been playing this session.
     override fun init() {
         hudElement("SessionTimer") { ctx, _ -> draw(ctx) } defaults {
             x = 5f
-            y = 45f
+            y = 80f
         }
 
         // The timer keeps counting while the widget is turned off, so turning it on shows the real session time.

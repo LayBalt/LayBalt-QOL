@@ -124,6 +124,19 @@ object ConfigManager {
         })
     }))
 
+    /** Old default positions of the LayBalt HUD widgets, which overlapped each other in the top-left corner. */
+    private val relocatedDefaults = mapOf(
+        "SessionTimer" to (5f to 45f),
+        "Keystrokes" to (5f to 60f),
+        "ArmorHud" to (5f to 160f),
+        "EffectsHud" to (80f to 60f),
+        "SpeedHud" to (130f to 5f),
+        "PerformanceGraph" to (240f to 5f),
+        // these two had no default and sat at the generic (20, 20), on top of Coords HUD
+        "WarpCooldown" to (20f to 20f),
+        "Arrow Poison" to (20f to 20f)
+    )
+
     private fun read(root: JsonObject) {
         root.getAsJsonArray("config").map { it.asJsonObject }.forEach { featureElement ->
             val feature = FeatureManager.getFeatureByName(featureElement.get("name")?.asString ?: return@forEach) ?: return@forEach
@@ -142,6 +155,10 @@ object ConfigManager {
         root.getAsJsonArray("hud")?.forEach { hudElement ->
             val hudObj = hudElement.asJsonObject
             val hud = FeatureManager.getHudByName(hudObj.get("name")?.asString ?: return@forEach) ?: return@forEach
+            val sx = hudObj.get("x")?.asFloat
+            val sy = hudObj.get("y")?.asFloat
+            // Widgets still at a superseded default (they overlapped) move to the new default instead.
+            if (sx != null && sy != null && relocatedDefaults[hud.name] == (sx to sy) && (hudObj.get("scale")?.asFloat ?: 1f) == 1f) return@forEach
             hudObj.get("x")?.asFloat?.let { hud.x = it }
             hudObj.get("y")?.asFloat?.let { hud.y = it }
             hudObj.get("scale")?.asFloat?.let { hud.scale = it }

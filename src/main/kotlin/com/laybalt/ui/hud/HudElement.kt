@@ -9,6 +9,8 @@ import kotlin.reflect.jvm.jvmName
 
 abstract class HudElement {
     open val name = this::class.simpleName ?: this::class.jvmName
+    /** Name shown in the HUD editor (the config id [name] humanised by default). */
+    open val displayName: String get() = humanize(name)
 
     abstract val toggle: Boolean
     open val shouldDraw = true
@@ -61,23 +63,23 @@ abstract class HudElement {
 
     /**
      * The element's name tag above its frame (or below when there is no room). The HUD editor draws every tag in a
-     * pass after all elements so no other element's content can cover one.
+     * pass after all elements so no other element's content can cover one. [k] enlarges the tag in small windows.
      */
-    fun drawEditorTag(ctx: GuiGraphicsExtractor) {
+    fun drawEditorTag(ctx: GuiGraphicsExtractor, k: Float = 1f) {
         if (! toggle) return
         val bx = left - 2f
         val by = y - 2f
         val bh = scaledHeight + 4f
         val active = isDragging || editorSelected
         val hot = editorHot
-        val size = 6.2f
-        val label = name
-        val tw = UI.width(label, size, UIFont.Weight.MEDIUM) + 8f
-        val tagH = 10f
+        val size = 6.8f * k
+        val label = displayName
+        val tw = UI.width(label, size, UIFont.Weight.MEDIUM) + 8f * k
+        val tagH = 11f * k
         val ty = if (by - tagH - 2f >= 0f) by - tagH - 2f else by + bh + 2f
         val tx = bx
-        UI.rect(ctx, tx, ty, tw, tagH, 3f, if (active) Palette.accent else UI.fade(Palette.popover, 0.75f + 0.25f * hot))
-        UI.textMid(ctx, label, tx + 4f, ty + tagH / 2f, if (active) java.awt.Color(250, 247, 255) else UI.mix(Palette.textSecondary, Palette.textPrimary, hot), size, UIFont.Weight.MEDIUM)
+        UI.rect(ctx, tx, ty, tw, tagH, 3f * k, if (active) Palette.accent else UI.fade(Palette.popover, 0.75f + 0.25f * hot))
+        UI.textMid(ctx, label, tx + 4f * k, ty + tagH / 2f, if (active) java.awt.Color(250, 247, 255) else UI.mix(Palette.textSecondary, Palette.textPrimary, hot), size, UIFont.Weight.MEDIUM)
     }
 
     fun renderElement(ctx: GuiGraphicsExtractor, example: Boolean) {
@@ -135,5 +137,13 @@ abstract class HudElement {
         const val defaultX = 20f
         const val defaultY = 20f
         const val defaultScale = 1f
+
+        private val ACRONYMS = setOf("HUD", "FPS", "TPS", "CPS", "XYZ", "PB", "API")
+
+        /** "SessionTimer" -> "Session Timer", "ArmorHud" -> "Armor HUD", "FpsDisplay" -> "FPS Display". */
+        fun humanize(id: String): String {
+            val spaced = if (id.contains(' ')) id else id.replace(Regex("(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])"), " ")
+            return spaced.split(' ').joinToString(" ") { word -> if (word.uppercase() in ACRONYMS) word.uppercase() else word.replaceFirstChar { it.uppercase() } }
+        }
     }
 }
