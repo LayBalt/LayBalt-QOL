@@ -37,6 +37,13 @@ object NetworkLoop: ISelfInit {
         return "ENCHANTED_BOOK-${itemId.substring("ENCHANTMENT_".length, levelSeparator)}-$level"
     }
 
+    /** Re-fetches bazaar and lowest-BIN prices right away (used by "Refresh Prices" buttons). */
+    suspend fun refreshPrices() {
+        coroutineScope {
+            listOf(async { updateLowestBins() }, async { updateBazaarPrices() }).awaitAll()
+        }
+    }
+
     override fun init() = ThreadUtils.loop(TimeUnit.MINUTES.toMillis(10)) {
         coroutineScope {
             val jobs = listOf(
