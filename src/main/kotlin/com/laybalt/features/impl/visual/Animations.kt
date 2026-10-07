@@ -12,22 +12,59 @@ import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-object Animations: Feature("Allows you to modify your hand view-model") {
-    @JvmStatic val mainHandItemScale by SliderSetting("Item Scale", 0.0, - 1.5f, 1.5f, 0.05f).withDescription("0 is normal size. -0.5 is half size. 1 is double size.")
+object Animations: Feature("Allows you to modify your hand view-model: item position, rotation and scale per hand, swing style and speed, and equip animations") {
+    @JvmStatic val mainHandItemScale by SliderSetting("Item Scale", 0.0, - 1.5f, 1.5f, 0.05f)
+        .withDescription("Size of the held item. 0 is normal size, -0.5 is half size, 1 is double size. Applies to both hands unless \"Separate Off Hand\" is on.")
+        .section("Main Hand")
 
     @JvmStatic val mainHandX by SliderSetting("X", .0, - 2.0, 2.0, 0.01)
+        .withDescription("Moves the held item left or right (mirrored for the off hand when it shares these values).")
     @JvmStatic val mainHandY by SliderSetting("Y", 0.0, - 2.0, 2.0, 0.01)
+        .withDescription("Moves the held item up or down.")
     @JvmStatic val mainHandZ by SliderSetting("Z", 0.0, - 2.0, 2.0, 0.01)
+        .withDescription("Moves the held item towards (negative) or away from (positive) the camera.")
 
-    @JvmStatic val mainHandPositiveX by SliderSetting("Rotation X", 0f, - 50f, 50f, 1)
-    @JvmStatic val mainHandPositiveY by SliderSetting("Rotation Y", 0f, - 50f, 50f, 1)
-    @JvmStatic val mainHandPositiveZ by SliderSetting("Rotation Z", 0f, - 50f, 50f, 1)
+    @JvmStatic val mainHandPositiveX by SliderSetting("Rotation X", 0f, - 180f, 180f, 1)
+        .withDescription("Tilts the held item forwards or backwards, in degrees.")
+    @JvmStatic val mainHandPositiveY by SliderSetting("Rotation Y", 0f, - 180f, 180f, 1)
+        .withDescription("Turns the held item left or right, in degrees.")
+    @JvmStatic val mainHandPositiveZ by SliderSetting("Rotation Z", 0f, - 180f, 180f, 1)
+        .withDescription("Rolls the held item clockwise or anti-clockwise, in degrees.")
+
+    @JvmStatic val separateOffHand by ToggleSetting("Separate Off Hand")
+        .withDescription("Gives the off hand its own position, rotation and scale. When off, the off hand uses the main hand values above (X mirrored).")
+        .section("Off Hand")
+    @JvmStatic val offHandItemScale by SliderSetting("Off Hand Item Scale", 0.0, - 1.5f, 1.5f, 0.05f)
+        .withDescription("Size of the off-hand item. 0 is normal size, -0.5 is half size, 1 is double size.")
+        .showIf { separateOffHand.value }
+    @JvmStatic val offHandX by SliderSetting("Off Hand X", .0, - 2.0, 2.0, 0.01)
+        .withDescription("Moves the off-hand item left or right. Positive values move it towards the middle of the screen.")
+        .showIf { separateOffHand.value }
+    @JvmStatic val offHandY by SliderSetting("Off Hand Y", 0.0, - 2.0, 2.0, 0.01)
+        .withDescription("Moves the off-hand item up or down.")
+        .showIf { separateOffHand.value }
+    @JvmStatic val offHandZ by SliderSetting("Off Hand Z", 0.0, - 2.0, 2.0, 0.01)
+        .withDescription("Moves the off-hand item towards (negative) or away from (positive) the camera.")
+        .showIf { separateOffHand.value }
+    @JvmStatic val offHandRotX by SliderSetting("Off Hand Rotation X", 0f, - 180f, 180f, 1)
+        .withDescription("Tilts the off-hand item forwards or backwards, in degrees.")
+        .showIf { separateOffHand.value }
+    @JvmStatic val offHandRotY by SliderSetting("Off Hand Rotation Y", 0f, - 180f, 180f, 1)
+        .withDescription("Turns the off-hand item left or right, in degrees.")
+        .showIf { separateOffHand.value }
+    @JvmStatic val offHandRotZ by SliderSetting("Off Hand Rotation Z", 0f, - 180f, 180f, 1)
+        .withDescription("Rolls the off-hand item clockwise or anti-clockwise, in degrees.")
+        .showIf { separateOffHand.value }
 
     @JvmStatic val swingX by SliderSetting("swingX", 1.0, 0.0, 2.0, 0.01)
+        .withDescription("How far the Vanilla swing moves the item sideways (1 = vanilla, 0 = no sideways movement).")
+        .section("Swing")
     @JvmStatic val swingY by SliderSetting("swingY", 1.0, 0.0, 2.0, 0.01)
+        .withDescription("How far the Vanilla swing moves the item up and down (1 = vanilla).")
     @JvmStatic val swingZ by SliderSetting("swingZ", 1.0, 0.0, 2.0, 0.01)
+        .withDescription("How far the Vanilla swing moves the item forwards (1 = vanilla).")
 
-    @JvmStatic val disableHandMove by ToggleSetting("Disable hand movement").withDescription("Stops the held item from moving when you look around.")
+    @JvmStatic val disableHandMove by ToggleSetting("Disable hand movement").withDescription("Stops the held item from moving when you look around.").section("Animations")
     @JvmStatic val disableEquip by ToggleSetting("Disable equip animation").withDescription("Disables the equip animation when your held item changes.")
     @JvmStatic val disableSwapMain by ToggleSetting("Disable Swap Main")
         .withDescription("Disables the equip animation for the main hand only. Hidden while \"Disable equip animation\" (both hands) is on.")
@@ -43,7 +80,9 @@ object Animations: Feature("Allows you to modify your hand view-model") {
     @JvmStatic val slowValue by SliderSetting("Slow Value", 12, 1, 50, 1, " ticks")
         .withDescription("Length of one swing in ticks (vanilla is 6). Higher = slower swing.").showIf { slowAnimation.value }
 
-    @JvmStatic val swingSpeed by SliderSetting("Swing Speed", .0, - 2f, 1f, 0.05).hideIf { disableSwingAnimation.value && ! terminatorOnly.value || slowAnimation.value }
+    @JvmStatic val swingSpeed by SliderSetting("Swing Speed", .0, - 2f, 1f, 0.05)
+        .withDescription("Speeds up (positive) or slows down (negative) the swing. 0 is vanilla; each step scales the swing length by e^-value.")
+        .hideIf { disableSwingAnimation.value && ! terminatorOnly.value || slowAnimation.value }
     @JvmStatic val ignoreHaste by ToggleSetting("Ignore Haste").withDescription("Ignores the haste speed boost.").hideIf { disableSwingAnimation.value && ! terminatorOnly.value || slowAnimation.value }
 
     private val styleNames = listOf(
@@ -62,6 +101,36 @@ object Animations: Feature("Allows you to modify your hand view-model") {
 
     private val reset by ButtonSetting("Reset") {
         configSettings.forEach(ConfigHolder<*>::reset)
+    }.withDescription("Resets every Animations setting to its default value.")
+
+    /**
+     * Moves the arm/item of one hand by the configured offset. Called right after `submitArmWithItem` pushes its pose
+     * (only for non-empty hands). The shared values are mirrored on X for the off hand; separate off-hand values are
+     * mirrored too, so a positive "Off Hand X" moves the item towards the middle of the screen like the main hand X.
+     */
+    @JvmStatic
+    fun applyHandOffset(pose: PoseStack, mainHand: Boolean) {
+        if (! enabled) return
+        if (mainHand || ! separateOffHand.value) {
+            val sign = if (mainHand) 1f else - 1f
+            pose.translate(mainHandX.value.toFloat() * sign, mainHandY.value.toFloat(), mainHandZ.value.toFloat())
+        }
+        else pose.translate(- offHandX.value.toFloat(), offHandY.value.toFloat(), offHandZ.value.toFloat())
+    }
+
+    /** Rotation and scale of the held item, applied just before the item itself is rendered. */
+    @JvmStatic
+    fun applyItemTransform(pose: PoseStack, mainHand: Boolean) {
+        if (! enabled) return
+        val own = ! mainHand && separateOffHand.value
+        val rx = if (own) offHandRotX.value.toFloat() else mainHandPositiveX.value.toFloat()
+        val ry = if (own) offHandRotY.value.toFloat() else mainHandPositiveY.value.toFloat()
+        val rz = if (own) offHandRotZ.value.toFloat() else mainHandPositiveZ.value.toFloat()
+        val s = 1f + (if (own) offHandItemScale.value.toFloat() else mainHandItemScale.value.toFloat())
+        if (rx != 0f) pose.mulPose(Axis.XP.rotationDegrees(rx))
+        if (ry != 0f) pose.mulPose(Axis.YP.rotationDegrees(ry))
+        if (rz != 0f) pose.mulPose(Axis.ZP.rotationDegrees(rz))
+        if (s != 1f) pose.scale(s, s, s)
     }
 
     /** Fixed swing length in ticks, or -1 when "Slow Animation" is off. Used by `MixinLivingEntity`. */
