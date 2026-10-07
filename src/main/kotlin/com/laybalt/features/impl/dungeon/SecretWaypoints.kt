@@ -4,6 +4,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.laybalt.LayBaltQOL
 import com.laybalt.LayBaltQOL.CONFIG_DIR
 import com.laybalt.commands.CommandBuilder
 import com.laybalt.config.types.ColorSetting
@@ -173,7 +174,7 @@ object SecretWaypoints: Feature(
     }
 
     /** One entry of the user dataset, in room-relative coordinates (same frame as rooms-modern.json). */
-    data class Entry(val index: Int, val category: String, val name: String?, val x: Int, val y: Int, val z: Int) {
+    data class Entry(val index: Int, val category: String, val name: String?, val x: Int, val y: Int, val z: Int, val extra: JsonObject? = null) {
         val relPos get() = BlockPos(x, y, z)
     }
 
@@ -184,6 +185,11 @@ object SecretWaypoints: Feature(
     private val dataFile = File("config/$CONFIG_DIR/data/secretWaypoints.json")
     private val fileHandler by lazy { FileHandler(dataFile) }
     private val userData = ConcurrentHashMap<String, CopyOnWriteArrayList<Entry>>()
+
+    /** Parts of the user file that could not be parsed; written back unchanged on save so hand edits are never lost. */
+    private val unparsedEntries = ConcurrentHashMap<String, JsonArray>()
+    private val unparsedValues = ConcurrentHashMap<String, JsonElement>()
+    private var unreadableFile = false
 
     private val roomWaypoints = ConcurrentHashMap<UniqueRoom, CopyOnWriteArrayList<SecretWaypoint>>()
     private val pendingChestChecks = ConcurrentHashMap<BlockPos, Int>()
@@ -497,21 +503,48 @@ object SecretWaypoints: Feature(
 
     // ---------------------------------------------------------------- user dataset
 
+    private val knownEntryKeys = setOf("index", "category", "name", "x", "y", "z")
+    private var lastSkipped = 0
+
+    /** Loads the user dataset. Returns the number of entries loaded; [lastSkipped] holds the number of unparsable ones. */
     private fun loadUserData(): Int {
         userData.clear()
+        unparsedEntries.clear()
+        unparsedValues.clear()
+        unreadableFile = false
+        lastSkipped = 0
         val raw = runCatching { fileHandler.read() }.getOrNull()?.takeUnless { it.isBlank() } ?: return 0
         val root = runCatching { JsonParser.parseString(raw) }.getOrNull() as? JsonObject ?: run {
-            ChatUtils.debug("secretwaypoints", "secretWaypoints.json is not a JSON object, ignoring it")
+            unreadableFile = true
+            LayBaltQOL.logger.warn("secretWaypoints.json is not a JSON object; it is ignored and will be backed up before the next save")
             return 0
         }
 
         var count = 0
         for ((roomName, value) in root.entrySet()) {
-            val array = value as? JsonArray ?: continue
+            val array = value as? JsonArray
+            if (array == null) {
+                unparsedValues[roomName] = value
+                lastSkipped ++
+                continue
+            }
             val list = CopyOnWriteArrayList<Entry>()
-            for (element in array) parseEntry(element)?.let { list.add(it); count ++ }
+            val skipped = JsonArray()
+            for (element in array) {
+                val entry = parseEntry(element)
+                if (entry != null) {
+                    list.add(entry)
+                    count ++
+                }
+                else skipped.add(element)
+            }
             if (list.isNotEmpty()) userData[roomName] = list
+            if (! skipped.isEmpty) {
+                unparsedEntries[roomName] = skipped
+                lastSkipped += skipped.size()
+            }
         }
+        if (lastSkipped > 0) LayBaltQOL.logger.warn("secretWaypoints.json: $lastSkipped entr(y/ies) could not be parsed; they are kept in the file but not shown")
         return count
     }
 
@@ -523,16 +556,26 @@ object SecretWaypoints: Feature(
         val name = obj.get("name")?.takeIf { it.isJsonPrimitive }?.asString
         val index = obj.get("index")?.asInt ?: name?.let { indexRegex.find(it)?.value?.toIntOrNull() } ?: 0
         val category = obj.get("category")?.asString ?: Category.DEFAULT.key
-        Entry(index, category, name, x, y, z)
+        val extra = JsonObject().apply { obj.entrySet().filter { it.key !in knownEntryKeys }.forEach { add(it.key, it.value) } }
+        Entry(index, category, name, x, y, z, extra.takeUnless { it.isEmpty })
     }.getOrNull()
 
     private fun saveUserData() {
+        if (unreadableFile) {
+            unreadableFile = false
+            val backup = File(dataFile.parentFile, "${dataFile.name}.invalid")
+            runCatching { dataFile.copyTo(backup, overwrite = true) }.onSuccess {
+                ChatUtils.modMessage("&esecretWaypoints.json was not valid JSON; the old file was saved as ${backup.name}.")
+            }
+        }
         val root = JsonObject()
-        for (roomName in userData.keys.sorted()) {
-            val list = userData[roomName] ?: continue
-            if (list.isEmpty()) continue
+        for (roomName in (userData.keys + unparsedEntries.keys).sorted()) {
+            val list = userData[roomName].orEmpty()
+            val skipped = unparsedEntries[roomName]
+            if (list.isEmpty() && (skipped == null || skipped.isEmpty)) continue
             root.add(roomName, JsonArray().apply {
                 for (entry in list) add(JsonObject().apply {
+                    entry.extra?.entrySet()?.forEach { add(it.key, it.value) }
                     addProperty("index", entry.index)
                     addProperty("category", entry.category)
                     entry.name?.let { addProperty("name", it) }
@@ -540,8 +583,11 @@ object SecretWaypoints: Feature(
                     addProperty("y", entry.y)
                     addProperty("z", entry.z)
                 })
+                // entries that could not be parsed are written back untouched
+                skipped?.forEach { add(it) }
             })
         }
+        for ((key, value) in unparsedValues) root.add(if (root.has(key)) "$key (unparsed)" else key, value)
         runCatching { fileHandler.write(GsonUtils.gson.toJson(root)) }.onFailure {
             ChatUtils.modMessage("&cCould not save secretWaypoints.json: ${it.message}")
         }
@@ -733,6 +779,7 @@ object SecretWaypoints: Feature(
                     buildRoom(room, corner, rotation)
                 }
                 ChatUtils.modMessage("&aLoaded $count recorded secret waypoint(s) from secretWaypoints.json.")
+                if (lastSkipped > 0) ChatUtils.modMessage("&e$lastSkipped entr(y/ies) in secretWaypoints.json could not be parsed (missing or non-numeric x/y/z?). They are kept in the file but not shown.")
             }
         }
     }

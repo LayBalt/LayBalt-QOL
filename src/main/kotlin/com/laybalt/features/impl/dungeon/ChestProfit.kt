@@ -1,5 +1,5 @@
-// Parts of the Croesus extras (Include Key / hide-any-claimed logic, Kismet outline, chest counter HUD with
-// limit warning, per-item overlay list) are ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
+// Ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
+// (Odin parts: Include Key / hide-any-claimed logic, Kismet outline, chest counter HUD with limit warning, per-item overlay list)
 package com.laybalt.features.impl.dungeon
 
 import com.laybalt.LayBaltQOL
@@ -173,7 +173,7 @@ object ChestProfit: Feature("Dungeon Chest Profit Calculator") {
         register<ChatMessageEvent> {
             if (! chestCountHud.value || ! LocationUtils.inBoss) return@register
             if (event.unformattedText.trim() != EXTRA_STATS) return@register
-            updateChestCount(unclaimedChests.coerceAtLeast(0) + 1)
+            if (unclaimedChests >= 0) updateChestCount(unclaimedChests + 1)
         }
 
         register<ContainerFullyOpenedEvent> {
@@ -329,13 +329,9 @@ object ChestProfit: Feature("Dungeon Chest Profit Calculator") {
 
         val stack = event.slot.item
         if (stack.isEmpty) return
-        val name = stack.hoverName.unformattedText
-        if (vesuvius) {
-            if (! name.contains("Kuudra")) return
-        }
-        else {
+        if (! vesuvius) {
             if (stack.item != Items.PLAYER_HEAD) return
-            if (! name.equalsOneOf("The Catacombs", "Master Mode The Catacombs")) return
+            if (! stack.hoverName.unformattedText.equalsOneOf("The Catacombs", "Master Mode The Catacombs")) return
         }
 
         val lore = stack.lore
@@ -343,6 +339,8 @@ object ChestProfit: Feature("Dungeon Chest Profit Calculator") {
         val fullyClaimed = cleanLore.any { it == NO_MORE_CHESTS }
         val opened = ! fullyClaimed && cleanLore.any { it.startsWith(OPENED_CHEST) }
         val nothingOpened = ! fullyClaimed && ! opened && cleanLore.any { it == NO_CHESTS_OPENED }
+        // Vesuvius run entries are recognised by their chest-status lore alone (their item names are not verified)
+        if (vesuvius && ! fullyClaimed && ! opened && ! nothingOpened) return
 
         if (hideRedChests.value) {
             val candidate = if (hideMode.value == 0) fullyClaimed else fullyClaimed || opened

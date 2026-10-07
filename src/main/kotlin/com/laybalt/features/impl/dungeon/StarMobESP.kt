@@ -54,8 +54,6 @@ object StarMobESP: Feature(
         .withDescription("Highlight color of the Diamond Guy (Angry Archaeologist) miniboss.").showIf { minibossColors.value }
     private val kingMidasColor by ColorSetting("King Midas Color", Color(0xFFAA00), false)
         .withDescription("Highlight color of King Midas.").showIf { minibossColors.value }
-    private val skipMinibossesF4 by ToggleSetting("Ignore Minibosses On Floor 4", true)
-        .withDescription("Does not highlight player-type minibosses on Floor 4 / Master Mode 4, where Hypixel reuses those names for other entities.")
 
     private val highlightMode by DropdownSetting("Highlight Mode", 0, listOf("Glow", "Box", "Glow + Box")).section("Rendering")
         .withDescription("Glow outlines the mob with the vanilla glow effect. Box draws a box around the mob's hitbox instead of, or in addition to, the glow.")
@@ -173,7 +171,6 @@ object StarMobESP: Feature(
             if (entity is Player) {
                 val name = entity.name.string
                 if (name in minibossNames) {
-                    if (skipMinibossesF4.value && LocationUtils.dungeonFloorNumber == 4) return null
                     if (minibossColors.value) return minibossColor(name)
                 }
             }
