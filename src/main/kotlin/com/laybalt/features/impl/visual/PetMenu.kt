@@ -1,6 +1,9 @@
+// Menu keybinds (unequip, next/previous page, disable unequip, close if equipped) ported from Odin PetKeybinds
+// (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.visual
 
 import com.laybalt.LayBaltQOL
+import com.laybalt.utils.ChatUtils
 import com.laybalt.config.types.*
 import com.laybalt.event.impl.*
 import com.laybalt.features.Feature
@@ -30,8 +33,9 @@ import net.minecraft.world.item.Items
 import java.awt.Color
 import kotlin.math.*
 
-object PetMenu: Feature("Replaces the Pets inventory with a custom pet wheel."), ICustomMenu {
-    private val menuScale by SliderSetting("Wheel Scale", 100, 70, 135, 5, "%").section("Settings")
+object PetMenu: Feature("Replaces the Pets inventory with a custom pet wheel and adds pet keybinds (also usable in the vanilla menu)."), ICustomMenu {
+    private val wheelEnabled by ToggleSetting("Pet Wheel", true).withDescription("Replaces the Pets menu with the pet wheel. When off, the vanilla Pets menu is kept and only the keybinds are active.").section("Settings")
+    private val menuScale by SliderSetting("Wheel Scale", 100, 70, 135, 5, "%").showIf { wheelEnabled.value }
     private val showKeyLabels by ToggleSetting("Show Key Labels", true)
     private val favouritePetsOnly by ToggleSetting("Favourite Pets Only").withDescription("Only shows pets favourited in Hypixel's Pets Menu.")
 
@@ -39,13 +43,22 @@ object PetMenu: Feature("Replaces the Pets inventory with a custom pet wheel."),
     private val hoverColor by ColorSetting("Hover Color", Color(255, 255, 255, 30))
     private val separatorColor by ColorSetting("Separator Color", Color(255, 255, 255, 40))
 
-    private val useHotbarBinds by ToggleSetting("Use Hotbar Binds").section("Keybinds")
+    private val unequipKey by KeybindSetting("Unequip").withDescription("Despawns the currently equipped pet while the Pets menu is open.").section("Menu Keybinds")
+    private val nextPageKey by KeybindSetting("Next Page").withDescription("Goes to the next page: the next wheel page first, then Hypixel's next Pets page (slot 53).")
+    private val previousPageKey by KeybindSetting("Previous Page").withDescription("Goes to the previous page: the previous wheel page first, then Hypixel's previous Pets page (slot 45).")
+    private val disableUnequip by ToggleSetting("Disable Unequip").withDescription("Pressing a pet keybind on the pet that is already equipped does nothing instead of despawning it. Does not affect the Unequip key or normal clicking.")
+    private val closeIfEquipped by ToggleSetting("Close If Equipped").withDescription("Pressing a pet keybind on the pet that is already equipped closes the Pets menu instead.")
+
+    private val useHotbarBinds by ToggleSetting("Use Hotbar Binds").withDescription("Uses your vanilla hotbar keys (1-9) instead of the Pet Slot keybinds below.").section("Keybinds")
     private val keybinds = (1 .. PETS_PER_WHEEL).mapIndexed { index, slot ->
         KeybindSetting("Pet Slot $slot", InputConstants.KEY_1 + index)
             .hideIf { useHotbarBinds.value }.apply(configSettings::add)
     }
 
     private val petMenuRegex = Regex("^(?:\\(\\d+/\\d+\\) )?Pets(?: \\(\\d+/\\d+\\))?$")
+    private val pageRegex = Regex("\\((\\d+)/(\\d+)\\)")
+    private const val EQUIPPED_LORE = "Click to despawn!"
+    private var openLastWheelPage = false
     private val petSlots = (10 .. 43).filter { it % 9 in 1 .. 7 }
 
     private const val PETS_PER_WHEEL = 9
@@ -73,8 +86,21 @@ object PetMenu: Feature("Replaces the Pets inventory with a custom pet wheel."),
             }
         }
 
+        // after "Previous Page" switched to the previous Hypixel page, open the wheel on that page's last wheel page
+        register<ContainerFullyOpenedEvent> {
+            if (! openLastWheelPage || event.windowId != lastContainerId) return@register
+            openLastWheelPage = false
+            val count = petSlots.count { index -> event.items[index]?.let(::isListedPet) == true }
+            wheelPage = pageCount(count) - 1
+        }
+
+        register<WorldChangeEvent> {
+            openLastWheelPage = false
+        }
+
         register<PacketEvent.Sent> {
             if (event.packet is ServerboundContainerClosePacket && lastContainerId != - 1) {
+                openLastWheelPage = false
                 lastContainerId = - 1
                 wheelPage = 0
                 tempDisabled = false
@@ -91,7 +117,13 @@ object PetMenu: Feature("Replaces the Pets inventory with a custom pet wheel."),
         }
 
         register<ContainerEvent.MouseClick> {
-            if (! isActive()) return@register
+            if (! isActive()) {
+                // vanilla Pets menu (wheel turned off or "Vanilla Menu" pressed): only the keybinds are handled
+                if (! inPetMenu(event.screen)) return@register
+                if (event.button == InputConstants.MOUSE_BUTTON_LEFT || event.button == InputConstants.MOUSE_BUTTON_RIGHT) return@register
+                if (handleKeybind(event.screen, event.button, mouse = true, wheel = false)) event.cancel()
+                return@register
+            }
 
             val buttonText = "Vanilla Menu"
             val buttonWidth = buttonText.width() + 16f
@@ -122,18 +154,22 @@ object PetMenu: Feature("Replaces the Pets inventory with a custom pet wheel."),
                 return@register
             }
 
-            if (handleKeybind(event.screen, event.button, mouse = true)) return@register
+            if (handleKeybind(event.screen, event.button, mouse = true, wheel = true)) return@register
             if (event.button == InputConstants.MOUSE_BUTTON_LEFT && pet != null) click(event.screen, pet.index)
         }
 
         register<ContainerEvent.Keyboard> {
-            if (! isActive()) return@register
+            if (! isActive()) {
+                if (! inPetMenu(event.screen)) return@register
+                if (handleKeybind(event.screen, event.key, mouse = false, wheel = false)) event.cancel()
+                return@register
+            }
             if (clicked) {
                 clicked = false
                 player.closeContainer()
             }
 
-            if (handleKeybind(event.screen, event.key, mouse = false)) event.cancel()
+            if (handleKeybind(event.screen, event.key, mouse = false, wheel = true)) event.cancel()
         }
 
         register<ContainerEvent.MouseScroll> {
@@ -283,7 +319,21 @@ object PetMenu: Feature("Replaces the Pets inventory with a custom pet wheel."),
         if (active) drawText("ACTIVE", heldItemY + 10f * contentScale, Color.GREEN, 0.6f)
     }
 
-    private fun handleKeybind(screen: AbstractContainerScreen<*>, code: Int, mouse: Boolean): Boolean {
+    /**
+     * @param wheel true while the wheel replaces the menu (pet keys are relative to the current wheel page,
+     * page keys move through wheel pages first); false for the vanilla Pets menu.
+     */
+    private fun handleKeybind(screen: AbstractContainerScreen<*>, code: Int, mouse: Boolean, wheel: Boolean): Boolean {
+        if (nextPageKey.matches(code, mouse)) return changePage(screen, next = true, wheel)
+        if (previousPageKey.matches(code, mouse)) return changePage(screen, next = false, wheel)
+
+        if (unequipKey.matches(code, mouse)) {
+            val equipped = (10 .. 42).firstOrNull { screen.menu.slots.getOrNull(it)?.let(::isEquipped) == true }
+            if (equipped == null) ChatUtils.modMessage("&cCouldn't find an equipped pet on this page.")
+            else click(screen, equipped)
+            return true
+        }
+
         val index = if (useHotbarBinds.value) {
             val type = if (mouse) InputConstants.Type.MOUSE else InputConstants.Type.KEYSYM
             mc.options.keyHotbarSlots.take(PETS_PER_WHEEL).withIndex().find {
@@ -294,12 +344,46 @@ object PetMenu: Feature("Replaces the Pets inventory with a custom pet wheel."),
 
         if (index < 0) return false
 
-        petSlots(screen).getOrNull(wheelPage * PETS_PER_WHEEL + index)?.let {
-            click(screen, it.index)
+        val page = if (wheel) wheelPage else 0
+        val slot = petSlots(screen).getOrNull(page * PETS_PER_WHEEL + index) ?: return true
+
+        if (isEquipped(slot) && (closeIfEquipped.value || disableUnequip.value)) {
+            ChatUtils.modMessage("&cThat pet is already equipped!")
+            if (closeIfEquipped.value) player.closeContainer()
+            return true
         }
 
+        click(screen, slot.index)
         return true
     }
+
+    private fun changePage(screen: AbstractContainerScreen<*>, next: Boolean, wheel: Boolean): Boolean {
+        if (wheel) {
+            val pages = pageCount(petSlots(screen).size)
+            wheelPage = wheelPage.coerceIn(0, pages - 1)
+            if (next && wheelPage < pages - 1) return true.also { wheelPage ++ }
+            if (! next && wheelPage > 0) return true.also { wheelPage -- }
+        }
+
+        val match = pageRegex.find(screen.title.unformattedText)
+        val current = match?.groupValues?.get(1)?.toIntOrNull() ?: 1
+        val total = match?.groupValues?.get(2)?.toIntOrNull() ?: 1
+
+        if (next && current >= total) return true.also { ChatUtils.modMessage("&cYou are already on the last page.") }
+        if (! next && current <= 1) return true.also { ChatUtils.modMessage("&cYou are already on the first page.") }
+
+        val now = System.currentTimeMillis()
+        if (now - lastClickAt < 300) return true
+        lastClickAt = now
+        openLastWheelPage = wheel && ! next
+        GuiUtils.clickSlot(if (next) 53 else 45, GuiUtils.ButtonType.LEFT)
+        return true
+    }
+
+    private fun isEquipped(slot: Slot) = slot.item.lore.any { it.removeFormatting().contains(EQUIPPED_LORE, ignoreCase = true) }
+
+    private fun inPetMenu(screen: AbstractContainerScreen<*>) =
+        lastContainerId != - 1 && player.containerMenu === screen.menu && screen.menu.containerId == lastContainerId
 
     private fun click(screen: AbstractContainerScreen<*>, slotIndex: Int) {
         if (player.containerMenu !== screen.menu) return
@@ -341,17 +425,19 @@ object PetMenu: Feature("Replaces the Pets inventory with a custom pet wheel."),
         ItemRenderer.drawBatchedItemStack(ctx, item, (x - 8f).roundToInt(), (y - 8f).roundToInt(), scale)
     }
 
+    private fun isListedPet(item: ItemStack): Boolean {
+        val isHead = ! item.isEmpty && item.`is`(Items.PLAYER_HEAD)
+        val favorite = item.hoverName.unformattedText.startsWith("⭐ ")
+        return isHead && if (favouritePetsOnly.value) favorite else true
+    }
+
     private fun petSlots(screen: AbstractContainerScreen<*>) = petSlots.mapNotNull { index ->
-        screen.menu.slots.getOrNull(index)?.takeIf {
-            val isHead = ! it.item.isEmpty && it.item.`is`(Items.PLAYER_HEAD)
-            val favorite = it.item.hoverName.unformattedText.startsWith("⭐ ")
-            isHead && if (favouritePetsOnly.value) favorite else true
-        }
+        screen.menu.slots.getOrNull(index)?.takeIf { isListedPet(it.item) }
     }
 
     private fun petsOnCurrentPage(pets: List<Slot>) = pets.drop(wheelPage * PETS_PER_WHEEL).take(PETS_PER_WHEEL)
     private fun pageCount(petCount: Int) = Math.ceilDiv(petCount, PETS_PER_WHEEL).coerceAtLeast(1)
-    override fun isActive() = ! tempDisabled && lastContainerId != - 1
+    override fun isActive() = wheelEnabled.value && ! tempDisabled && lastContainerId != - 1
 
     private class WheelLayout(
         val centerX: Float,

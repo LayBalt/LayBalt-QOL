@@ -104,6 +104,7 @@ object ChatFeatures: Feature(jsonName = "Chat", description = "Useful tweaks for
         register<MessageSentEvent> {
             if (! chatEmoji.value) return@register
             event.message = escapedKeys.replace(event.message) { emotes[it.value] ?: it.value }
+                .let(::replaceWordEmotes)
         }
 
         //#if CHEAT
@@ -208,6 +209,24 @@ object ChatFeatures: Feature(jsonName = "Chat", description = "Useful tweaks for
         ":dog:" to "(ᵔᴥᵔ)",
         ":sob:" to ".ᐟ(つ╥﹏╥)つ",
         ":joy:" to "৻(≧ᗜ≦৻)",
-        ":skull:" to "☠"
+        ":skull:" to "☠",
+        ":bum:" to "♿" // from Odin ChatCommands emotes (https://github.com/odtheking/Odin, BSD-3-Clause, Copyright (c) 2025 odtheking)
     )
+
+    /** Emotes that are plain words, so they are only replaced as a whole word (Odin ChatCommands). */
+    private val wordEmotes = mapOf("ez" to "ｅｚ")
+
+    /** Commands whose arguments are player names / ids, never chat text. */
+    private val nonChatCommands = setOf("p", "party", "f", "friend", "g", "guild", "visit", "boop", "pv", "viewprofile", "invite", "kick", "warp", "is", "ignore", "block")
+
+    /** Private-message commands: the first two words (command + recipient) are never replaced. */
+    private val privateMessageCommands = setOf("msg", "w", "tell", "whisper", "message")
+
+    private fun replaceWordEmotes(message: String): String {
+        val words = message.split(" ")
+        val first = words.first().lowercase()
+        if (first in nonChatCommands) return message
+        val keep = if (first in privateMessageCommands) 2 else 0
+        return words.mapIndexed { i, word -> if (i < keep) word else wordEmotes[word] ?: word }.joinToString(" ")
+    }
 }

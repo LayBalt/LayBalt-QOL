@@ -1,5 +1,8 @@
+// Colours, icons, number formatting, overflow-mana options and Hide XP Level ported from Odin PlayerDisplay
+// (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.visual
 
+import com.laybalt.config.types.ColorSetting
 import com.laybalt.config.types.MultiCheckboxSetting
 import com.laybalt.config.types.ToggleSetting
 import com.laybalt.event.impl.ActionBarMessageEvent
@@ -10,6 +13,9 @@ import com.laybalt.utils.location.LocationUtils
 import com.laybalt.utils.render.Render2D.drawString
 import com.laybalt.utils.render.RenderHelper.height
 import com.laybalt.utils.render.RenderHelper.width
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import java.awt.Color
+import java.util.Locale
 
 object PlayerHud: Feature(name = "Player HUD", description = "Displays your stats as moveable HUD elements.") {
     private val elements by MultiCheckboxSetting("Elements", mutableMapOf(
@@ -36,6 +42,21 @@ object PlayerHud: Feature(name = "Player HUD", description = "Displays your stat
     @JvmStatic val hideFoodbar by ToggleSetting("Hide Food bar").withDescription("Hides the food bar.").section("Extras")
     @JvmStatic val hideHealthbar by ToggleSetting("Hide Health bar").withDescription("Hides the health bar.")
     @JvmStatic val hideArmorbar by ToggleSetting("Hide Armor bar").withDescription("Hides the defense bar.").hideIf { hideHealthbar.value }
+    @JvmStatic val hideXpLevel by ToggleSetting("Hide XP Level").withDescription("Hides the vanilla experience bar and level number.")
+
+    private val showIcons by ToggleSetting("Show Icons", true).withDescription("Adds the stat icon (❤ ✎ ʬ ❈ ♨ ✦) after each number.").section("Display")
+    private val thousandsSeparators by ToggleSetting("Thousands Separators", true).withDescription("Formats numbers with commas, e.g. 12,345 instead of 12345.")
+    private val separateOverflow by ToggleSetting("Separate Overflow Mana", true).withDescription("Shows overflow mana in its own element. When off, it is appended to the Mana element.")
+    private val hideZeroOverflow by ToggleSetting("Hide 0 Overflow", true).withDescription("Hides overflow mana while it is 0.")
+
+    private val healthColor by ColorSetting("Health Color", Color(255, 85, 85), false).withDescription("Colour of the Health element.").section("Colors")
+    private val absorptionColor by ColorSetting("Absorption Color", Color(255, 255, 85), false).withDescription("Colour of the current health while it is above your max health (absorption).")
+    private val manaColor by ColorSetting("Mana Color", Color(85, 255, 255), false).withDescription("Colour of the Mana element.")
+    private val overflowColor by ColorSetting("Overflow Mana Color", Color(0, 170, 170), false).withDescription("Colour of the overflow mana.")
+    private val defenseColor by ColorSetting("Defense Color", Color(85, 255, 85), false).withDescription("Colour of the Defense element.")
+    private val vitalityColor by ColorSetting("Vitality Color", Color(170, 0, 0), false).withDescription("Colour of the Vitality element.")
+    private val ehpColor by ColorSetting("Effective HP Color", Color(0, 170, 0), false).withDescription("Colour of the Effective HP element.")
+    private val speedColor by ColorSetting("Speed Color", Color.WHITE, false).withDescription("Colour of the Speed element.")
 
     override fun init() {
         hudElement(
@@ -43,9 +64,12 @@ object PlayerHud: Feature(name = "Player HUD", description = "Displays your stat
             { elements["Health"] },
             { LocationUtils.inSkyblock }
         ) { context, example ->
-            val text = if (example) "§e3452§f/§c2452" else getHpFormatted()
-            context.drawString(text, 0, 0)
-            return@hudElement text.width() to text.height()
+            val current = if (example) 3452 else ActionBarParser.currentHealth
+            val max = if (example) 2452 else ActionBarParser.maxHealth
+            drawParts(context,
+                num(current) to if (current > max) absorptionColor.value else healthColor.value,
+                "/${num(max)}${icon("❤")}" to healthColor.value
+            )
         }
 
         hudElement(
@@ -53,9 +77,8 @@ object PlayerHud: Feature(name = "Player HUD", description = "Displays your stat
             { elements["Defense"] },
             { LocationUtils.inSkyblock }
         ) { context, example ->
-            val text = if (example) "§a5001" else "§a${ActionBarParser.currentDefense}"
-            context.drawString(text, 0, 0)
-            return@hudElement text.width() to text.height()
+            val def = if (example) 5001 else ActionBarParser.currentDefense
+            drawParts(context, "${num(def)}${icon("❈")}" to defenseColor.value)
         }
 
         hudElement(
@@ -63,19 +86,21 @@ object PlayerHud: Feature(name = "Player HUD", description = "Displays your stat
             { elements["Mana"] },
             { LocationUtils.inSkyblock }
         ) { context, example ->
-            val text = if (example) "§b2452/2452" else "§b${ActionBarParser.currentMana}/${ActionBarParser.maxMana}"
-            context.drawString(text, 0, 0)
-            return@hudElement text.width() to text.height()
+            val current = if (example) 2452 else ActionBarParser.currentMana
+            val max = if (example) 2452 else ActionBarParser.maxMana
+            val overflow = if (example) 600 else ActionBarParser.overflowMana
+            val parts = mutableListOf("${num(current)}/${num(max)}${icon("✎")}" to manaColor.value)
+            if (! separateOverflow.value && (overflow > 0 || ! hideZeroOverflow.value)) parts += " ${num(overflow)}${icon("ʬ")}" to overflowColor.value
+            drawParts(context, *parts.toTypedArray())
         }
 
         hudElement(
             this.name + " Overflow Mana",
-            { elements["Overflow Mana"] },
-            { LocationUtils.inSkyblock && ActionBarParser.overflowMana > 0 }
+            { elements["Overflow Mana"] && separateOverflow.value },
+            { LocationUtils.inSkyblock && (ActionBarParser.overflowMana > 0 || ! hideZeroOverflow.value) }
         ) { context, example ->
-            val text = if (example) "§3600ʬ" else "§3${ActionBarParser.overflowMana}ʬ"
-            context.drawString(text, 0, 0)
-            return@hudElement text.width() to text.height()
+            val overflow = if (example) 600 else ActionBarParser.overflowMana
+            drawParts(context, "${num(overflow)}${icon("ʬ")}" to overflowColor.value)
         }
 
         hudElement(
@@ -83,9 +108,9 @@ object PlayerHud: Feature(name = "Player HUD", description = "Displays your stat
             { elements["Vitality"] },
             { LocationUtils.inSkyblock && ActionBarParser.isVitalityShown }
         ) { context, example ->
-            val text = if (example) "§482/122" else "§4${ActionBarParser.currentVitality}/${ActionBarParser.maxVitality}"
-            context.drawString("$text&l♨", 0, 0)
-            return@hudElement text.width() to text.height()
+            val current = if (example) 82 else ActionBarParser.currentVitality
+            val max = if (example) 122 else ActionBarParser.maxVitality
+            drawParts(context, "${num(current)}/${num(max)}${icon("§l♨")}" to vitalityColor.value)
         }
 
         hudElement(
@@ -93,9 +118,8 @@ object PlayerHud: Feature(name = "Player HUD", description = "Displays your stat
             { elements["Effective HP"] },
             { LocationUtils.inSkyblock }
         ) { context, example ->
-            val text = if (example) "§27.3m" else "§2${NumbersUtils.format(ActionBarParser.effectiveHP)}"
-            context.drawString(text, 0, 0)
-            return@hudElement text.width() to text.height()
+            val text = if (example) "7.3m" else NumbersUtils.format(ActionBarParser.effectiveHP)
+            drawParts(context, text to ehpColor.value)
         }
 
         hudElement(
@@ -103,9 +127,8 @@ object PlayerHud: Feature(name = "Player HUD", description = "Displays your stat
             { elements["Speed"] },
             { LocationUtils.inSkyblock }
         ) { context, example ->
-            val text = if (example) "§f400✦" else "§f${ActionBarParser.currentSpeed}✦"
-            context.drawString(text, 0, 0)
-            return@hudElement text.width() to text.height()
+            val speed = if (example) 400 else ActionBarParser.currentSpeed
+            drawParts(context, "${num(speed)}${icon("✦")}" to speedColor.value)
         }
 
         register<ActionBarMessageEvent> {
@@ -125,8 +148,21 @@ object PlayerHud: Feature(name = "Player HUD", description = "Displays your stat
         }
     }
 
-    private fun getHpFormatted(): String {
-        val color = if (ActionBarParser.currentHealth > ActionBarParser.maxHealth) "§e" else "§c"
-        return "$color${ActionBarParser.currentHealth}§f/§c${ActionBarParser.maxHealth}"
+    /** Called from MixinHudPlayerHud / MixinExperienceBarPlayerHud. */
+    @JvmStatic
+    fun shouldHideXp() = enabled && hideXpLevel.value
+
+    private fun icon(icon: String) = if (showIcons.value) icon else ""
+
+    private fun num(n: Int) = if (thousandsSeparators.value) String.format(Locale.US, "%,d", n) else n.toString()
+
+    /** Draws each part right after the previous one in its own colour, returns the element size. */
+    private fun drawParts(context: GuiGraphicsExtractor, vararg parts: Pair<String, Color>): Pair<Number, Number> {
+        var x = 0
+        for ((text, color) in parts) {
+            context.drawString(text, x, 0, color)
+            x += text.width()
+        }
+        return x to parts.first().first.height()
     }
 }

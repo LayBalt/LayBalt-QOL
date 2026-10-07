@@ -22,6 +22,7 @@ import java.awt.Color
 object SpringBoots: Feature("Shows the spring boots charge progress on screen.") {
     private val show2DHud by ToggleSetting("Show in HUD", true).section("HUD")
     private val drawMode by DropdownSetting("Draw Mode", 0, listOf("Percentage", "Blocks")).showIf { show2DHud.value }
+    private val heightColors by ToggleSetting("Height Colors").withDescription("Colours the value by jump height in blocks (red, yellow, gold, green, aqua, as in Odin) instead of by charge percentage.").showIf { show2DHud.value }
 
     private val show3DBox by ToggleSetting("Draw Box", true).section("Box")
     private val renderMode by DropdownSetting("Render Mode", 1, listOf("Fill", "Outline", "Filled Outline")).showIf { show3DBox.value }
@@ -43,6 +44,15 @@ object SpringBoots: Feature("Shows the spring boots charge progress on screen.")
     private var highs = 0
     private var lows = 0
 
+    // Odin SpringBoots height colour thresholds (https://github.com/odtheking/Odin, BSD-3-Clause, Copyright (c) 2025 odtheking)
+    private fun heightColor(blocks: Float) = when {
+        blocks <= 13.5f -> "§c"
+        blocks <= 22.5f -> "§e"
+        blocks <= 33f -> "§6"
+        blocks <= 43.5f -> "§a"
+        else -> "§b"
+    }
+
     private fun reset() {
         currentHeight = 0f
         highs = 0
@@ -60,7 +70,8 @@ object SpringBoots: Feature("Shows the spring boots charge progress on screen.")
             val h = if (example) 33.0f else currentHeight
             val displayValue = if (isPercent) (h / heights.last()) * 100f else h
             val suffix = if (isPercent) "%" else ""
-            val color = ColorUtils.colorCodeByPercent(lows + highs, heights.lastIndex, reversed = true)
+            val color = if (heightColors.value) heightColor(h)
+            else ColorUtils.colorCodeByPercent(lows + highs, heights.lastIndex, reversed = true)
             val prefix = if (isPercent) "Charge: " else "Blocks: "
             val text = prefix + color + displayValue.toFixed(1) + suffix
 

@@ -1,3 +1,4 @@
+// Page keybinds ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.general
 
 import com.laybalt.config.types.KeybindSetting
@@ -10,6 +11,7 @@ import com.laybalt.utils.ChatUtils.unformattedText
 import com.laybalt.utils.items.ItemUtils.lore
 import com.mojang.blaze3d.platform.InputConstants
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.network.protocol.game.*
 import net.minecraft.world.inventory.Slot
 
@@ -18,7 +20,10 @@ object LoadoutKeybinds: Feature("Allows you to bind SkyBlock loadout slots to yo
     //#if CHEAT
     private val closeAfterUse by ToggleSetting("Auto Close On Use")
     //#endif
-    private val useHotbarBinds by ToggleSetting("Use Hotbar Binds")
+    private val nextPageKey by KeybindSetting("Next Page", InputConstants.KEY_RIGHT).withDescription("Goes to the next loadout page (if there is one) while the Loadouts menu is open.").section("Pages")
+    private val previousPageKey by KeybindSetting("Previous Page", InputConstants.KEY_LEFT).withDescription("Goes to the previous loadout page (if there is one) while the Loadouts menu is open.")
+
+    private val useHotbarBinds by ToggleSetting("Use Hotbar Binds").withDescription("Uses your vanilla hotbar keys (1-9) instead of the Loadout Slot keybinds below.").section("Loadout Slots")
     private val keybinds = (1 .. 12).mapIndexed { index, slot ->
         KeybindSetting("Loadout Slot $slot", when (index) {
             in 0 .. 8 -> InputConstants.KEY_1 + index
@@ -29,7 +34,7 @@ object LoadoutKeybinds: Feature("Allows you to bind SkyBlock loadout slots to yo
         }).hideIf { useHotbarBinds.value }.apply(configSettings::add)
     }
 
-    private val loadoutMenuRegex = Regex("""^\(\d+/\d+\) Loadouts$""")
+    private val loadoutMenuRegex = Regex("""^\((\d+)/(\d+)\) Loadouts?$""")
     private var lastClick = System.currentTimeMillis()
     private var inLoadoutMenu = false
     //#if CHEAT
@@ -76,6 +81,7 @@ object LoadoutKeybinds: Feature("Allows you to bind SkyBlock loadout slots to yo
             if (! inLoadoutMenu) return@register
             if (System.currentTimeMillis() - lastClick < 300) return@register
             if (event.key.equalsOneOf(InputConstants.KEY_ESCAPE, KeyMappingHelper.getBoundKeyOf(mc.options.keyInventory).value)) return@register
+            if (handlePageKey(event.screen, event.key, mouse = false)) return@register event.cancel()
             val index = if (useHotbarBinds.value) hotbarKeyMap[event.key] ?: return@register
             else keybinds.indexOfFirst(KeybindSetting::isDown).takeUnless { it == - 1 } ?: return@register
             event.isCanceled = true
@@ -86,6 +92,7 @@ object LoadoutKeybinds: Feature("Allows you to bind SkyBlock loadout slots to yo
             if (! inLoadoutMenu) return@register
             if (System.currentTimeMillis() - lastClick < 300) return@register
             if (event.button.equalsOneOf(InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOUSE_BUTTON_RIGHT)) return@register
+            if (handlePageKey(event.screen, event.button, mouse = true)) return@register event.cancel()
             val index = if (useHotbarBinds.value) hotbarKeyMap[event.button] ?: return@register
             else keybinds.indexOfFirst { it.matches(event.button, mouse = true) }.takeUnless { it == - 1 } ?: return@register
             event.isCanceled = true
@@ -98,6 +105,28 @@ object LoadoutKeybinds: Feature("Allows you to bind SkyBlock loadout slots to yo
             if (event.slotId != 49) return@register
             event.isCanceled = true
         }
+    }
+
+    /**
+     * Next / previous page keys (Odin LoadoutKeybinds): the page is read from the "(current/total) Loadouts" title,
+     * next page is the arrow in slot 44 and previous page the arrow in slot 17.
+     */
+    private fun handlePageKey(screen: AbstractContainerScreen<*>, code: Int, mouse: Boolean): Boolean {
+        val next = nextPageKey.matches(code, mouse)
+        if (! next && ! previousPageKey.matches(code, mouse)) return false
+        val match = loadoutMenuRegex.find(screen.title.unformattedText) ?: return false
+        val current = match.groupValues[1].toIntOrNull() ?: return false
+        val total = match.groupValues[2].toIntOrNull() ?: return false
+
+        val slot = when {
+            next && current < total -> 44
+            ! next && current > 1 -> 17
+            else -> return true
+        }
+
+        GuiUtils.clickSlot(slot, GuiUtils.ButtonType.LEFT)
+        lastClick = System.currentTimeMillis()
+        return true
     }
 
     private fun click(index: Int) {
