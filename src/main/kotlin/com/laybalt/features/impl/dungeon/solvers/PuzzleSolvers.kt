@@ -18,6 +18,9 @@ import com.laybalt.utils.dungeons.map.utils.ScanUtils
 import com.laybalt.utils.location.LocationUtils
 import java.awt.Color
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
+import net.minecraft.network.protocol.game.ClientboundBlockEventPacket
+import net.minecraft.world.level.block.Blocks
 
 object PuzzleSolvers: Feature() {
     val blaze by ToggleSetting("Enabled").section("Blaze Solver")
@@ -111,6 +114,9 @@ object PuzzleSolvers: Feature() {
     private data class PuzzleTimer(val timeEntered: Long = System.currentTimeMillis(), var sentMessage: Boolean = false)
     private val puzzleTimersMap = ConcurrentHashMap<String, PuzzleTimer>()
 
+    /** Puzzles whose completion Odin detects through the reward chest block event. */
+    private val chestCompletedPuzzles = setOf("Three Weirdos", "Ice Fill", "Teleport Maze", "Water Board", "Boulder")
+
     /** Minimum plausible solve time per puzzle room (seconds); faster "solves" are ignored as bogus. From Odin's Puzzle.timeToBeat. */
     private val timeToBeat = mapOf(
         "Lower Blaze" to 6, "Higher Blaze" to 6, "Creeper Beams" to 6, "Three Weirdos" to 2,
@@ -175,6 +181,21 @@ object PuzzleSolvers: Feature() {
             puzzleTimersMap.putIfAbsent(event.room.name, PuzzleTimer())
         }
 
+        // Odin: the reward chest of these puzzles opens with a CHERRY_LOG block event the moment the puzzle
+        // is solved, which is earlier than the map checkmark. Odin matches exact chest positions; here any
+        // such event inside the current puzzle room (1x1, 31 blocks wide) counts.
+        register<MainThreadPacketReceivedEvent.Pre> {
+            if (! puzzleTimers.value || inBoss || ! LocationUtils.inDungeon) return@register
+            val packet = event.packet as? ClientboundBlockEventPacket ?: return@register
+            if (packet.block != Blocks.CHERRY_LOG) return@register
+            val room = ScanUtils.currentRoom?.takeIf { it.data.type == RoomType.PUZZLE } ?: return@register
+            if (room.name !in chestCompletedPuzzles) return@register
+            val pos = packet.pos
+            if (abs(pos.x - room.centerPos.x) > 16 || abs(pos.z - room.centerPos.z) > 16) return@register
+            onPuzzleComplete(room.name)
+        }
+
+        // Fallback for every other puzzle: the room turning green on the dungeon map.
         register<DungeonEvent.RoomEvent.onStateChange> {
             if (event.room.data.type != RoomType.PUZZLE || event.newState != RoomState.GREEN) return@register
             if (event.oldState != RoomState.DISCOVERED && event.oldState != RoomState.FAILED) return@register

@@ -70,8 +70,13 @@ object DragonCheck {
         val spawnedTotal = WitherDragonEnum.entries.sumOf { it.timesSpawned }
         if (dragons.size < 2 && spawnedTotal < 2) return
 
+        // Announce once per spawn wave (Odin guards on priorityDragon == null): while the dragon we
+        // announced is still spawning in that same cycle, a later particle packet of another dragon
+        // must not trigger a second title/message even if the computed priority changes.
+        val last = WitherDragons.lastAnnounced
+        if (last != null && last.first.state == WitherDragonState.SPAWNING && last.first.timesSpawned == last.second) return
         val key = priority to priority.timesSpawned
-        if (WitherDragons.lastAnnounced == key) return
+        if (last == key) return
         WitherDragons.lastAnnounced = key
 
         if (WitherDragons.dragonTitle.value) {

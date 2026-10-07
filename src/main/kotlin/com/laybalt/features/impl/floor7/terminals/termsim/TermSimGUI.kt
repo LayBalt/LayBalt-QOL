@@ -9,7 +9,6 @@ import com.laybalt.features.impl.floor7.terminals.TerminalPBs
 import com.laybalt.features.impl.floor7.terminals.TerminalSolver
 import com.laybalt.utils.ThreadUtils
 import gg.essential.universal.USound
-import net.minecraft.client.gui.screens.inventory.ContainerScreen
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
 import net.minecraft.sounds.SoundEvents
@@ -44,7 +43,7 @@ open class TermSimGUI(
     val name: String,
     val size: Int,
     private val inv: SimpleContainer = SimpleContainer(size)
-): ContainerScreen(ChestMenu(menuTypeFor(size), 0, fakeInventory(), inv, size / 9), fakeInventory(), Component.literal(name)) {
+): NullSafeSlotScreen(ChestMenu(menuTypeFor(size), 0, fakeInventory(), inv, size / 9), fakeInventory(), Component.literal(name)) {
     protected val blackPane: ItemStack get() = named(ItemStack(Items.STAINED_GLASS_PANE.pick(DyeColor.BLACK)))
     protected val guiInventorySlots: List<Slot> get() = menu.slots.subList(0, size)
     protected var ping = 0L
@@ -82,7 +81,7 @@ open class TermSimGUI(
         TerminalListener.simClosed(this)
     }
 
-    override fun slotClicked(slot: Slot, slotId: Int, button: Int, clickType: ContainerInput) {
+    override fun onSlotClicked(slot: Slot, slotId: Int, button: Int, clickType: ContainerInput) {
         if (clickType == ContainerInput.PICKUP_ALL) return
         delaySlotClick(slot, if (clickType == ContainerInput.PICKUP && button == 1) 1 else 0)
     }

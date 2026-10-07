@@ -231,8 +231,9 @@ object F7Titles: Feature(name = "F7 Titles", description = "Custom Titles for F7
                 mc.gui.hud.setTimes(0, (terminalTitleDuration.value.toDouble() * 20).toInt(), 5)
                 if (terminalDisplay.value == 1) mc.gui.hud.setTitle(component)
                 else {
-                    // A subtitle is only drawn together with a title, so make sure an (empty) one is shown.
-                    mc.gui.hud.setTitle(Component.empty())
+                    // A subtitle is only drawn together with a title: add an empty one only when no
+                    // title is active; an active title (server or another feature) is re-set so it is kept for the subtitle duration.
+                    mc.gui.hud.setTitle(mc.gui.hud.title ?: Component.empty())
                     mc.gui.hud.setSubtitle(component)
                 }
             }

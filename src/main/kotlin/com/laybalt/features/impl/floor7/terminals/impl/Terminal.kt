@@ -1,3 +1,4 @@
+// Ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.floor7.terminals.impl
 
 import com.laybalt.features.impl.floor7.terminals.TerminalClick

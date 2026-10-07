@@ -26,6 +26,8 @@ object LbqCommand: ICommandProvider {
         description("opens the Config GUI")
         runs { GuiUtils.setScreen(ClickGuiScreen()) }
 
+        com.laybalt.features.impl.floor7.terminals.TerminalSimulator.registerCommand(this) // /lbq termsim (P2)
+
         literal("help") {
             runs {
                 val helpMenu = StringBuilder()

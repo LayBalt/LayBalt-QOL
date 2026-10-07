@@ -8,7 +8,6 @@ import com.laybalt.config.types.ToggleSetting
 import com.laybalt.features.Feature
 import com.laybalt.features.impl.floor7.terminals.termsim.SimType
 import com.laybalt.features.impl.floor7.terminals.termsim.StartGUI
-import com.laybalt.init.types.ICommandProvider
 import com.laybalt.utils.ChatUtils
 import com.laybalt.utils.ThreadUtils
 import com.mojang.brigadier.arguments.IntegerArgumentType
@@ -19,7 +18,7 @@ import com.mojang.brigadier.arguments.StringArgumentType
  * simulator instead of enabling anything, like Odin. Also available as `/lbq termsim [ping]` and
  * `/lbq termsim <type> [ping]`.
  */
-object TerminalSimulator: Feature("Practice floor 7 terminals in a local simulator. Clicking the toggle opens it; also /lbq termsim [type] [ping]."), ICommandProvider {
+object TerminalSimulator: Feature("Practice floor 7 terminals in a local simulator. Clicking the toggle opens it; also /lbq termsim [type] [ping].") {
     private val ping by SliderSetting("Ping", 0, 0, 500, 50, "ms").withDescription("Simulated delay before a click is applied, like playing with that ping.")
     val disableFirstClickProt by ToggleSetting("Disable First Click Prot").withDescription("Turns the solver's first click protection off while you are in the simulator.")
     private val openButton by ButtonSetting("Open Simulator") { open() }.withDescription("Opens the terminal simulator start menu.")
@@ -40,9 +39,8 @@ object TerminalSimulator: Feature("Practice floor 7 terminals in a local simulat
         }
     }
 
-    override fun CommandBuilder.command() {
-        setName("lbq", "laybalt")
-
+    /** Adds `termsim [type] [ping]` under /lbq; called from [com.laybalt.commands.LbqCommand] so it is listed in /lbq help. */
+    fun registerCommand(builder: CommandBuilder) = with(builder) {
         literal("termsim") {
             description("Opens the terminal simulator: /lbq termsim [ping] or /lbq termsim <type> [ping]")
             runs { open() }
