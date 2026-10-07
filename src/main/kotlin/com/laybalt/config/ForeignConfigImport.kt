@@ -14,6 +14,7 @@ import com.laybalt.event.EventListener
 import com.laybalt.event.impl.WorldChangeEvent
 import com.laybalt.features.Feature
 import com.laybalt.features.FeatureManager
+import com.laybalt.features.impl.dungeon.DungeonWaypoints
 import com.laybalt.features.impl.floor7.terminals.TerminalPBs
 import com.laybalt.features.impl.general.SlotBinding
 import com.laybalt.features.impl.kuudra.KuudraTracker
@@ -43,8 +44,13 @@ import java.util.concurrent.atomic.AtomicBoolean
  *    loaded and [LegacyConfigImport] ran. Each Odin module is mapped to the LayBaltQOL feature that now carries it
  *    (explicit table below) and each setting is matched by exact name, then by the alias table, then by normalised name,
  *    and converted to the LayBaltQOL setting type.
- * 3. Bookkeeping: `config/LayBaltQOL/foreignImport.json` (one flag + timestamp per source), `import-report.txt`, one chat
- *    message on the first world join after an import, and `/lbq import <na|odin|odinclient|all>` to re-run a source.
+ * 3. Incremental: per source the marker lists the LayBaltQOL features (and data units such as Odin split PBs) already
+ *    imported. On every later launch, for each source whose files exist, only features that exist now but were not imported
+ *    before are imported (NoammAddons: on/off, settings and HUD positions from its config.json, plus data files those
+ *    features own, copied at pre-launch; Odin/OdinClient: the modules mapped to them). Features imported earlier are never
+ *    touched. Markers from before this tracking count as having imported [ForeignImportMarker.legacyBaseline].
+ * 4. Bookkeeping: `config/LayBaltQOL/foreignImport.json`, `import-report.txt`, one chat message on the first world
+ *    join after an import, and `/lbq import <na|odin|odinclient|all>` to re-run a source.
  * Nothing here throws: missing or malformed files are logged and written to the report.
  */
 
@@ -78,7 +84,54 @@ internal object ForeignImportMarker {
     fun source(key: String): JsonObject? = read().get(key)?.takeIf { it.isJsonObject }?.asJsonObject
     fun isDone(key: String) = source(key)?.get("done")?.asBoolean == true
 
-    fun strings(list: List<String>) = JsonArray().apply { list.forEach(::add) }
+    fun strings(list: Collection<String>) = JsonArray().apply { list.forEach(::add) }
+
+    /** Per source: the LayBaltQOL feature names (and data units, see [ForeignConfigImport]) that were already handled. */
+    const val IMPORTED = "importedFeatures"
+
+    /**
+     * What a source already imported, so later launches only import features added since. null: nothing is imported
+     * automatically for this source (never imported, or NoammAddons was found next to an existing LayBaltQOL config).
+     * Markers written before per-feature tracking existed get [legacyBaseline].
+     */
+    fun imported(key: String): Set<String>? {
+        val obj = source(key) ?: return null
+        obj.get(IMPORTED)?.takeIf { it.isJsonArray }?.let { list -> return list.asJsonArray.mapNotNull { runCatching { it.asString }.getOrNull() }.toSet() }
+        if (obj.get("done")?.asBoolean != true) return null
+        if (key == "na" && obj.get("imported")?.asBoolean == false && ! obj.has("reimportedAt")) return null
+        return legacyBaseline
+    }
+
+    /** Adds [names] to the source's imported list (creating the source entry if needed). */
+    fun markImported(key: String, names: Collection<String>) = update { root ->
+        val obj = root.get(key)?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject().also { root.add(key, it) }
+        val before = obj.get(IMPORTED)?.takeIf { it.isJsonArray }?.asJsonArray?.mapNotNull { runCatching { it.asString }.getOrNull() }
+            ?: imported(key).orEmpty().toList()
+        obj.add(IMPORTED, strings((before + names).toSortedSet()))
+    }
+
+    /**
+     * The features of the LayBaltQOL build that shipped the first importer (3.0.0, commit e561b33): its markers have no
+     * [IMPORTED] list, and every one of these features was imported by it (NoammAddons copy, Odin/OdinClient modules).
+     */
+    val legacyBaseline = setOf(
+        "Class Colors", "Click Gui", "Door Fix", "Mod Hider", "Abilities", "Architect Draft", "Auto GFS", "Auto Sell", "Auto Superboom",
+        "Blood Camp", "Breaker Helper", "Chest Profit", "Door Keys", "Dungeon Waypoints", "Ghost Block", "Leap Menu", "Mimic", "Party Finder",
+        "Ragnarock", "Room Alerts", "Salvage Overlay", "Secret Waypoints", "Secrets", "Sellable Items Highlighter", "Star Mob ESP",
+        "Terracotta Timer", "Dungeon Map", "Livid Solver", "Puzzle Solvers", "Auto Fishing", "Auto Mob Killer", "Auto Path", "Debuff Helper",
+        "F7 Titles", "I Hate Diorite", "M7 Relics", "Maxors Crystals", "Melody Alert", "Terminal Times", "Tick Timers", "Wither ESP",
+        "Arrow Align", "Arrows Device", "Auto I4", "I4 Helper", "Simon Says", "Wither Dragons", "Auto Terminal", "Terminal Simulator",
+        "Terminal Solver", "Auto Clicker", "Auto Enchanting", "Auto Harp", "Chat", "Command Keybinds", "Command Shortcuts", "Escrow Fix",
+        "Farm Keys", "Gyro Helper", "Loadout Keybinds", "Party Helper", "Slot Binding", "Term AC", "Wardrobe Keybinds", "Storage Overlay",
+        "Build Helper", "Fresh Tools", "Kuudra Info", "Kuudra Misc", "Kuudra Tracker", "Pre-Spot Alert", "Pearl Waypoints", "Remove Perks",
+        "Supply Helper", "Vesuvius", "Arrow Fix", "Auto Sprint", "Camera", "Ghosts", "Nametag Tweaks", "No Item Place", "SB Kick",
+        "Snappy Tappy", "Time Changer", "Trevor Helper", "World Scanner", "Auto Blaze Dagger", "Blaze Dagger HUD", "Arrow Hit Sound",
+        "Sound Manager", "Aspect Ratio", "Block ESP", "Bread Crumbs", "Custom ESP", "Damage Tint", "FOV", "Fullbright", "Hit Bubbles",
+        "Hit Particles", "Item ESP", "Jump Circle", "Kill Effect", "No Bob", "No Glow", "No Render", "Skeleton", "Sound ESP", "Storage ESP",
+        "Tracers", "Trails", "Trajectories", "World Tweaks", "Dance Room Solver", "Vampire Helper", "Animations", "Blessing Display",
+        "Dark Mode", "Freeze Display", "Hub Map", "Info Display", "Lava To Water", "Mask Timers", "Pet Menu", "Player HUD", "Quiver Display",
+        "Run Splits", "Spring Boots",
+    )
 }
 
 /** Copies NoammAddons' files into `config/LayBaltQOL/` on a fresh install. Runs at pre-launch. */
@@ -105,9 +158,17 @@ internal object NoammAddonsFileImport {
         }
     }
 
+    /**
+     * NoammAddons data files that belong to one feature: on a later launch they are copied once that feature is new
+     * to LayBaltQOL (not imported before) and LayBaltQOL has no such file yet. They are read when the feature's class
+     * loads, so this has to happen here, before the features exist.
+     */
+    private val ownedFiles = mapOf("item_protection.json" to "Protect Item")
+
     private fun copy() {
         val src = naDir
-        if (! src.isDirectory || ForeignImportMarker.isDone("na")) return
+        if (! src.isDirectory) return
+        if (ForeignImportMarker.isDone("na")) return copyOwnedFiles(src)
         val dst = ForeignImportMarker.modDir
         if (File(dst, "config.json").exists()) {
             // Not a fresh install: the player already has LayBaltQOL settings, nothing is copied automatically.
@@ -163,6 +224,28 @@ internal object NoammAddonsFileImport {
         }
         logger.info("[ForeignConfigImport] copied ${copied.size} NoammAddons files into config/${LayBaltQOL.CONFIG_DIR}")
     }
+
+    /** Incremental part: data files of features that were not imported before. Reported later by [ForeignConfigImport]. */
+    private fun copyOwnedFiles(src: File) {
+        val imported = ForeignImportMarker.imported("na") ?: return
+        val copied = mutableListOf<String>()
+        for ((name, owner) in ownedFiles) {
+            if (owner in imported) continue
+            val from = File(src, name).takeIf { it.isFile } ?: continue
+            val to = File(ForeignImportMarker.modDir, name)
+            if (to.exists()) continue
+            runCatching { to.parentFile?.mkdirs(); from.copyTo(to) }
+                .onSuccess { copied += "$name ($owner)" }
+                .onFailure { logger.warn("[ForeignConfigImport] could not copy NoammAddons $name: ${it.message}") }
+        }
+        if (copied.isEmpty()) return
+        ForeignImportMarker.update { root ->
+            val obj = root.getAsJsonObject("na") ?: return@update
+            val pending = obj.getAsJsonArray("pendingFiles") ?: JsonArray().also { obj.add("pendingFiles", it) }
+            copied.forEach(pending::add)
+        }
+        logger.info("[ForeignConfigImport] copied NoammAddons data files of newly added features: ${copied.joinToString()}")
+    }
 }
 
 object ForeignConfigImport: ICommandProvider {
@@ -197,6 +280,13 @@ object ForeignConfigImport: ICommandProvider {
         /** false: the module's on/off state never toggles the LayBaltQOL feature. */
         var enableFeature = true
 
+        /**
+         * Additive data (personal bests) carried by settings in [dataKeys]: tracked as its own import unit, so it is
+         * still merged on a later launch when the target feature itself was imported before (only these keys are read then).
+         */
+        var dataUnit: String? = null
+        var dataKeys = emptySet<String>()
+
         fun alias(odin: String, target: String) = rules.set(odin, To(target, false))
         fun invert(odin: String, target: String) = rules.set(odin, To(target, true))
         fun skip(reason: String, vararg odin: String) = odin.forEach { rules[it] = Skip(reason) }
@@ -211,11 +301,15 @@ object ForeignConfigImport: ICommandProvider {
     private const val SOUND = "Odin sound ids/pitch/volume are not imported; LayBaltQOL uses its own sounds"
     private const val NO_EQUIVALENT = "no LayBaltQOL equivalent"
 
+    /** Import units that are not features (see [ForeignImportMarker.IMPORTED]). */
+    private const val SPLIT_PBS_UNIT = "Run Splits: Odin split PBs"
+    private const val WAYPOINT_PACKS_UNIT = "Dungeon Waypoints: Odin waypoint packs"
+
     /** Modules that are deliberately not imported, with the reason written to the report. Keys are lowercase. */
     private val unsupported = mapOf(
         Source.ODIN to mapOf(
             "click gui" to "Odin's own GUI settings",
-            "dungeon waypoints" to "settings not converted; import the waypoint packs with /lbq dwp importodin (or Dungeon Waypoints > Import Odin Waypoints)",
+            "dungeon waypoints" to "settings not converted; the waypoint packs are imported separately (also /lbq dwp importodin)",
         ),
         Source.ODINCLIENT to mapOf(
             "--- odinclient settings ---" to "OdinClient's own settings", "etherwarp helper" to NO_EQUIVALENT,
@@ -508,6 +602,10 @@ object ForeignConfigImport: ICommandProvider {
             alias("300 Score Alert", "300 score Title")
             alias("Room Secrets", "Room Secrets HUD")
             alias("Full Hud", "Full HUD")
+            alias("Hud Background Color", "Background Color")
+            custom("Paul Settings") { c, v -> set(c, "Paul Settings", "Force Paul", JsonPrimitive(v.asString.equals("ENABLED", true))) }
+            skip(NO_EQUIVALENT, "Print Score Time", "Flip Crypts and Score", "Hud Background", "Hud Margin", "Compact Include remaining",
+                "Min Secrets", "Secret Background", "Secret Margin", "Secret Background Color", "Score Background", "Score Margin", "Score Background Color")
         }
         odin("Secrets Counter", "Secrets Counter")
         odin("Positional Messages", "Positional Messages") {
@@ -522,9 +620,38 @@ object ForeignConfigImport: ICommandProvider {
             custom("Show") { c, v -> set(c, "Show", "Show", JsonPrimitive(shows.indexOf(v.asString).coerceAtLeast(0))) }
             custom("Style") { c, v -> set(c, "Style", "Style", JsonPrimitive(styles.indexOf(v.asString).coerceAtLeast(0))) }
             alias("Term Info", "Term Info HUD")
+            alias("Color", "Waypoint color")
+            invert("Depth check", "Through Walls")
+            // Older Odin versions: one toggle per waypoint kind and per render part instead of the Show/Style dropdowns.
+            fun flag(c: Ctx, name: String) = c.settings.get(name)?.let { runCatching { it.asBoolean }.getOrNull() } ?: true
+            custom("Show Terminals") { c, _ ->
+                val (t, d, l) = Triple(flag(c, "Show Terminals"), flag(c, "Show Devices"), flag(c, "Show Levers"))
+                val show = when {
+                    t && ! d && l -> "TermsAndLevers"
+                    t && ! d && ! l -> "Terminals"
+                    ! t && d && ! l -> "Devices"
+                    ! t && ! d && l -> "Levers"
+                    else -> "All"
+                }
+                set(c, "Show Terminals / Show Devices / Show Levers", "Show", JsonPrimitive(shows.indexOf(show)))
+            }
+            custom("Render Box") { c, _ ->
+                val (box, text, beacon) = Triple(flag(c, "Render Box"), flag(c, "Render Text"), flag(c, "Render Beacon"))
+                val style = when {
+                    ! box && text -> "Text"
+                    box && ! text -> "Box"
+                    box && ! beacon -> "BoxText"
+                    else -> "Full"
+                }
+                set(c, "Render Box / Render Text / Render Beacon", "Style", JsonPrimitive(styles.indexOf(style)))
+            }
+            skip("folded into Show (see Show Terminals)", "Show Devices", "Show Levers")
+            skip("folded into Style (see Render Box)", "Render Text", "Render Beacon")
         }
         odin("Extra Stats", "Extra Stats")
-        odin("Waypoints", "Waypoints")
+        odin("Waypoints", "Waypoints") {
+            skip(NO_EQUIVALENT, "Ping Waypoint", "Ping Keybind", "Send Pinged Location", "Ping Waypoint Time", "Ping Distance")
+        }
         odin("No Cursor Reset", "No Cursor Reset")
         odin("Hide Players", "Hide Players")
         odin("Player Size", "Player Size") {
@@ -536,6 +663,8 @@ object ForeignConfigImport: ICommandProvider {
             skip(NO_EQUIVALENT, "Fixed Width", "Boss Entry Split", "Show 0 splits")
             val groups = listOf("E", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "M1", "M2", "M3", "M4", "M5", "M6", "M7").map { "Dungeon$it" } +
                 (1 .. 5).map { "KuudraT$it" }
+            dataUnit = SPLIT_PBS_UNIT
+            dataKeys = groups.toSet()
             for (group in groups) custom(group) { c, v ->
                 val pbs = v.takeIf { it.isJsonObject }?.asJsonObject?.entrySet()
                     ?.mapNotNull { (k, time) -> runCatching { k to time.asDouble }.getOrNull() }?.toMap().orEmpty()
@@ -637,7 +766,8 @@ object ForeignConfigImport: ICommandProvider {
         fun line(text: String) = sb.appendLine(text)
     }
 
-    private class Ctx(val module: Module, val feature: Feature, val na: NaConfig?, val report: Report, val gate: Set<String>) {
+    /** [exact]: values replace the setting like the config loader does (lists are not merged); used for newly added features. */
+    private class Ctx(val module: Module, val feature: Feature, val na: NaConfig?, val report: Report, val gate: Set<String>, val exact: Boolean = false) {
         val settings get() = module.settings
         var changed = 0
 
@@ -660,10 +790,17 @@ object ForeignConfigImport: ICommandProvider {
     private fun fail(reason: String): Nothing = throw ConversionException(reason)
 
     /** Called from [com.laybalt.init.ClassGraphInitializer] after [ConfigManager.load] and [LegacyConfigImport.run]. */
+    /**
+     * Fresh install: NoammAddons (copied at pre-launch) is reported and Odin/OdinClient are imported in full.
+     * Every later launch: for each source whose files exist, only the LayBaltQOL features that were not imported from
+     * it before (see [ForeignImportMarker.imported]) are imported; features imported earlier are never touched.
+     */
     fun runAfterConfigLoad() {
         try {
             val report = Report()
             val counts = linkedMapOf<Source, Int>()
+            val added = linkedMapOf<Source, Set<String>>()
+            var changed = false
 
             val naMarker = ForeignImportMarker.source("na")
             if (naMarker?.get("reportPending")?.asBoolean == true) {
@@ -675,15 +812,41 @@ object ForeignConfigImport: ICommandProvider {
                         addProperty("features", features)
                     }
                 }
+                ForeignImportMarker.markImported(Source.NA.key, currentUnits())
+            }
+            else if (isAvailable(Source.NA)) incrementalNa(report)?.let {
+                changed = true
+                if (it.isNotEmpty()) added[Source.NA] = it
             }
 
-            val pending = listOf(Source.ODIN, Source.ODINCLIENT).filter { ! ForeignImportMarker.isDone(it.key) && isAvailable(it) }
-            if (pending.isNotEmpty()) counts.putAll(importOdin(pending, report))
+            val odinSources = listOf(Source.ODIN, Source.ODINCLIENT).filter(::isAvailable)
+            val pending = odinSources.filter { ! ForeignImportMarker.isDone(it.key) }
+            if (pending.isNotEmpty()) {
+                counts.putAll(importOdin(pending, report, onLaunch = true).mapValues { it.value.size })
+                changed = true
+            }
 
-            if (counts.isNotEmpty()) {
-                if (pending.isNotEmpty()) ConfigManager.save()
-                writeReport(report, "automatic import on launch")
-                ForeignImportMarker.update { it.addProperty("notice", noticeText(counts)) }
+            // Odin/OdinClient imported on an earlier launch: only what is new since.
+            val later = odinSources.filter { it !in pending }
+                .mapNotNull { source -> ForeignImportMarker.imported(source.key)?.let { source to it } }.toMap()
+            val newUnits = later.filterValues { imported -> currentUnits().any { it !in imported } }
+            if (newUnits.isNotEmpty()) {
+                report.line("[Odin/OdinClient] incremental import: only LayBaltQOL features added since the last import (${newUnits.keys.joinToString { it.label }})")
+                importOdin(newUnits.keys.toList(), report, onLaunch = true, imported = newUnits).forEach { (source, names) -> if (names.isNotEmpty()) added[source] = names }
+                changed = true
+            }
+
+            if (changed) ConfigManager.save()
+            val notices = listOfNotNull(
+                counts.takeIf { it.isNotEmpty() }?.let(::noticeText),
+                added.takeIf { it.isNotEmpty() }?.let(::incrementalNoticeText),
+            )
+            if (counts.isNotEmpty() || added.isNotEmpty()) {
+                writeReport(report, if (counts.isEmpty()) "incremental import on launch (features added since the last import)" else "automatic import on launch")
+                ForeignImportMarker.update { root ->
+                    val old = root.get("notice")?.takeIf { it.isJsonPrimitive }?.asString
+                    root.addProperty("notice", (listOfNotNull(old) + notices).joinToString(" "))
+                }
             }
         }
         catch (e: Throwable) {
@@ -696,6 +859,15 @@ object ForeignConfigImport: ICommandProvider {
         val parts = counts.map { (source, n) -> "${source.label} ($n ${if (source == Source.NA) "features" else "modules"})" }
         return "Imported settings from ${parts.joinToString(", ")}. Details: $REPORT_PATH"
     }
+
+    private fun incrementalNoticeText(added: Map<Source, Set<String>>): String {
+        val n = added.values.flatten().toSet().size
+        return "Imported settings for $n newly added ${if (n == 1) "feature" else "features"} from ${added.keys.joinToString(", ") { it.label }}. Details: $REPORT_PATH"
+    }
+
+    /** Everything an import handles in this build: every feature plus the data units of the module table. */
+    private fun currentUnits(): Set<String> =
+        FeatureManager.features.map { it.jsonName }.toSet() + specs.mapNotNull { it.dataUnit } + WAYPOINT_PACKS_UNIT
 
     private var noticeListener: EventListener<WorldChangeEvent>? = null
     private val noticeSent = AtomicBoolean(false)
@@ -771,6 +943,76 @@ object ForeignConfigImport: ICommandProvider {
         return kept
     }
 
+    /**
+     * Later launches: NoammAddons' saved state for the LayBaltQOL features that were added since the last import
+     * (and the data files the pre-launch step copied for them). Applied like the config loader would have applied the
+     * copied config.json on a fresh install: on/off state, every setting by name, HUD positions.
+     * @return null if there was nothing new, else the features that got NoammAddons values.
+     */
+    private fun incrementalNa(report: Report): Set<String>? {
+        val imported = ForeignImportMarker.imported(Source.NA.key) ?: return null
+        val units = currentUnits()
+        val fresh = FeatureManager.features.filter { it.jsonName !in imported }
+        val files = ForeignImportMarker.source(Source.NA.key)?.getAsJsonArray("pendingFiles")?.mapNotNull { runCatching { it.asString }.getOrNull() }.orEmpty()
+        if (fresh.isEmpty() && files.isEmpty()) {
+            if (units.any { it !in imported }) ForeignImportMarker.markImported(Source.NA.key, units)
+            return null
+        }
+
+        val root = readNaRoot(report)
+        val entries = root?.getAsJsonArray("config")?.mapNotNull { it.takeIf(JsonElement::isJsonObject)?.asJsonObject }
+            ?.associateBy { it.get("name")?.asString.orEmpty() }.orEmpty()
+        val huds = root?.getAsJsonArray("hud")?.mapNotNull { it.takeIf(JsonElement::isJsonObject)?.asJsonObject }
+            ?.associateBy { it.get("name")?.asString.orEmpty() }.orEmpty()
+
+        report.line("[NoammAddons] incremental import from ${naConfigFile()?.name ?: "config/NoammAddons"}: LayBaltQOL features added since the last import")
+        report.line("  (features imported earlier are not touched)")
+        files.forEach { report.line("  + data file copied before the config loaded: $it") }
+        val touched = linkedSetOf<String>()
+        val missing = mutableListOf<String>()
+        for (feature in fresh) {
+            val obj = entries[feature.jsonName] ?: run { missing += feature.jsonName; null } ?: continue
+            applyNaFeature(feature, obj, huds, report)
+            touched += feature.jsonName
+        }
+        if (missing.isNotEmpty()) report.line("  - not in NoammAddons' config (left at LayBaltQOL defaults): ${missing.joinToString()}")
+        if (root == null) report.line("  ! no NoammAddons config found")
+
+        ForeignImportMarker.markImported(Source.NA.key, units)
+        ForeignImportMarker.update { r ->
+            r.getAsJsonObject(Source.NA.key)?.apply {
+                remove("pendingFiles")
+                addProperty("incrementalAt", Instant.now().toString())
+            }
+        }
+        return touched
+    }
+
+    private fun applyNaFeature(feature: Feature, obj: JsonObject, huds: Map<String, JsonObject>, report: Report) {
+        val on = obj.get("enabled")?.asBoolean == true
+        val settings = obj.getAsJsonObject("configSettings") ?: JsonObject()
+        report.line("  [NoammAddons] ${feature.jsonName} (${if (on) "on" else "off"}) -> ${feature.name}")
+        when {
+            feature.wip -> report.line("    - stays off: ${feature.name} is work in progress")
+            feature.enabled != on -> {
+                feature.toggle()
+                report.line(if (feature.enabled == on) "    + switched ${feature.name} ${if (on) "on" else "off"}" else "    ! could not switch ${feature.name} ${if (on) "on" else "off"}")
+            }
+
+            else -> report.line("    = ${feature.name} already ${if (on) "on" else "off"}")
+        }
+        val ctx = Ctx(Module(Source.NA, feature.jsonName, on, settings), feature, null, report, emptySet(), exact = true)
+        for ((key, value) in settings.entrySet()) set(ctx, key, key, value)
+        for (hud in feature.hudElements) {
+            val saved = huds[hud.name] ?: continue
+            runCatching {
+                saved.get("x")?.asFloat?.let { hud.x = it }
+                saved.get("y")?.asFloat?.let { hud.y = it }
+                saved.get("scale")?.asFloat?.let { hud.scale = it }
+            }.onSuccess { report.line("    + HUD ${hud.name}: x=${hud.x} y=${hud.y} scale=${hud.scale}") }
+        }
+    }
+
     /** `/lbq import na`: applies NoammAddons' config value by value instead of copying files. */
     private fun reimportNa(report: Report): Int {
         val root = readNaRoot(report) ?: return 0.also { report.line("[NoammAddons] no config found in config/NoammAddons") }
@@ -830,17 +1072,25 @@ object ForeignConfigImport: ICommandProvider {
         }
     }
 
-    private fun importOdin(sources: List<Source>, report: Report): Map<Source, Int> {
-        val na = readNaConfig()
+    /**
+     * Imports the modules of [sources]. [imported] (incremental mode): per source, the units imported before; then only
+     * modules whose LayBaltQOL feature is not in it are imported (plus the [Spec.dataUnit] keys of those whose data unit is not).
+     * @return per source, the LayBaltQOL features that received values.
+     */
+    private fun importOdin(
+        sources: List<Source>, report: Report, onLaunch: Boolean, imported: Map<Source, Set<String>>? = null
+    ): Map<Source, Set<String>> {
+        // NoammAddons values only take precedence when NoammAddons was actually imported.
+        val na = readNaConfig()?.takeIf { ForeignImportMarker.imported(Source.NA.key) != null }
         report.line("[Odin/OdinClient] conflict policy: NoammAddons was imported first. An Odin value is applied only if the setting was not in")
         report.line("  NoammAddons' config for that feature, or if the Odin module was on while the NoammAddons feature was off.")
         report.line("  A feature is switched on if the NoammAddons feature or the Odin module was on (WIP features never).")
-        if (na == null) report.line("  (no NoammAddons config found, so every matching Odin value is applied)")
+        if (na == null) report.line("  (no imported NoammAddons config, so every matching Odin value is applied)")
 
         val modules = mutableListOf<Module>()
-        val counts = linkedMapOf<Source, Int>()
+        val counts = linkedMapOf<Source, MutableSet<String>>()
         for (source in sources) {
-            counts[source] = 0
+            counts[source] = linkedSetOf()
             val file = if (source == Source.ODIN) odinFile() else odinClientFile()
             if (file == null || ! file.isFile) {
                 report.line("[${source.label}] no module config file found")
@@ -853,53 +1103,101 @@ object ForeignConfigImport: ICommandProvider {
         // Modules that were off go first, so an enabled module's values win when two modules feed the same setting.
         for (module in modules.sortedBy { it.enabled }) {
             val spec = specs.firstOrNull { it.source == module.source && it.name.equals(module.name, true) }
+            val before = imported?.get(module.source)
             if (spec == null) {
+                if (before != null) continue // incremental: modules without a mapping were reported by the first import
                 val reason = unsupported[module.source]?.get(module.name.lowercase()) ?: NO_EQUIVALENT
                 report.line("[${module.source.label}] ${module.name} (${if (module.enabled) "on" else "off"}): skipped ($reason)")
                 continue
             }
-            if (importModule(module, spec, na, report)) counts[module.source] = (counts[module.source] ?: 0) + 1
+            val dataOnly = if (before == null) false else {
+                val feature = findFeature(spec.features) ?: continue
+                when {
+                    feature.jsonName !in before -> false
+                    spec.dataUnit != null && spec.dataUnit !in before -> true
+                    else -> continue
+                }
+            }
+            importModule(module, spec, na, report, dataOnly)?.let { counts.getValue(module.source).add(it) }
         }
 
-        if (Source.ODINCLIENT in sources) importOdinClientStores(modules, na, report)
+        if (Source.ODINCLIENT in sources) {
+            val before = imported?.get(Source.ODINCLIENT)
+            val autoClicker = findFeature(listOf("Auto Clicker"))
+            if (before == null || (autoClicker != null && autoClicker.jsonName !in before)) importOdinClientStores(modules, na, report)
+                ?.let { counts.getValue(Source.ODINCLIENT).add(it) }
+        }
+        if (Source.ODIN in sources && imported?.get(Source.ODIN)?.contains(WAYPOINT_PACKS_UNIT) != true)
+            importWaypointPacks(report, onLaunch)?.let { counts.getValue(Source.ODIN).add(it) }
 
         val now = Instant.now().toString()
         ForeignImportMarker.update { root ->
-            for (source in sources) root.add(source.key, JsonObject().apply {
-                addProperty("done", true)
-                addProperty("at", now)
-                addProperty("modules", counts[source] ?: 0)
-            })
+            for (source in sources) {
+                val obj = root.get(source.key)?.takeIf { imported != null && it.isJsonObject }?.asJsonObject
+                    ?: JsonObject().also { root.add(source.key, it) }
+                obj.addProperty("done", true)
+                if (imported == null) {
+                    obj.addProperty("at", now)
+                    obj.addProperty("modules", counts[source]?.size ?: 0)
+                }
+                else obj.addProperty("incrementalAt", now)
+            }
         }
+        for (source in sources) ForeignImportMarker.markImported(source.key, currentUnits())
         return counts
     }
 
+    /** Odin's dungeon waypoint packs (config/odin/dungeon-waypoints): merged into Dungeon Waypoints, existing ones kept. */
+    private fun importWaypointPacks(report: Report, onLaunch: Boolean): String? {
+        val odinDir = File(configDir, "odin")
+        val packs = File(odinDir, "dungeon-waypoints").listFiles { f -> f.isFile && f.extension == "json" }.orEmpty()
+        val legacy = File(odinDir, "dungeon-waypoint-config.json").takeIf { it.isFile }
+        if (packs.isEmpty() && legacy == null) return null
+        val feature = findFeature(listOf("Dungeon Waypoints")) ?: return null
+        report.line("[Odin] Dungeon Waypoints packs (${packs.joinToString { it.nameWithoutExtension }.ifEmpty { legacy?.name.orEmpty() }}) -> ${feature.name}:")
+        report.line("    + imported in the background: Odin's selected packs (all packs if none are selected); waypoints already at a position are kept")
+        val notify: (String) -> Unit =
+            if (onLaunch) { msg -> logger.info("[ForeignConfigImport] Odin waypoint packs: ${msg.replace(Regex("§."), "")}") }
+            else { msg -> ChatUtils.modMessage(msg) }
+        DungeonWaypoints.importOdin(null, notify)
+        return feature.jsonName
+    }
+
     /** OdinClient's JsonStore files (config/OdinClient/features/autoClicker.json): the Auto Clicker whitelists. */
-    private fun importOdinClientStores(modules: List<Module>, na: NaConfig?, report: Report) {
-        val dir = odinClientDir() ?: return
-        val file = File(dir, "features/autoClicker.json").takeIf { it.isFile } ?: return
+    private fun importOdinClientStores(modules: List<Module>, na: NaConfig?, report: Report): String? {
+        val dir = odinClientDir() ?: return null
+        val file = File(dir, "features/autoClicker.json").takeIf { it.isFile } ?: return null
         val data = runCatching { JsonParser.parseString(file.readText()).asJsonObject.getAsJsonObject("@odinClient:data") }
             .onFailure { report.line("[OdinClient] ! ${file.path} is malformed: ${it.message}") }
-            .getOrNull() ?: return
-        val feature = findFeature(listOf("Auto Clicker")) ?: return
+            .getOrNull() ?: return null
+        val feature = findFeature(listOf("Auto Clicker")) ?: return null
         val enabled = modules.firstOrNull { it.source == Source.ODINCLIENT && it.name.equals("Auto Clicker", true) }?.enabled ?: false
         report.line("[OdinClient] ${file.path} -> ${feature.name}")
         val ctx = Ctx(Module(Source.ODINCLIENT, "Auto Clicker", enabled, data), feature, na, report, emptySet())
         data.get("leftWhitelist")?.let { set(ctx, "leftWhitelist", "Left Whitelist", it) }
         data.get("rightWhitelist")?.let { set(ctx, "rightWhitelist", "Right Whitelist", it) }
+        return feature.jsonName
     }
 
-    private fun importModule(module: Module, spec: Spec, na: NaConfig?, report: Report): Boolean {
+    /**
+     * @param dataOnly the feature was imported before: only the module's [Spec.dataKeys] are read (no on/off, no settings).
+     * @return the LayBaltQOL feature name, or null if the module was not imported.
+     */
+    private fun importModule(module: Module, spec: Spec, na: NaConfig?, report: Report, dataOnly: Boolean = false): String? {
         val label = "[${module.source.label}] ${module.name} (${if (module.enabled) "on" else "off"})"
-        val feature = findFeature(spec.features) ?: return false.also { report.line("$label: skipped (feature ${spec.features.first()} not in this build)") }
-        report.line("$label -> ${feature.name}")
-        if (feature.wip) return false.also { report.line("    - skipped: ${feature.name} is work in progress") }
+        val feature = findFeature(spec.features) ?: return null.also { report.line("$label: skipped (feature ${spec.features.first()} not in this build)") }
+        if (dataOnly) report.line("$label -> ${feature.name}: only ${spec.dataUnit} (${feature.name} was imported before, its settings are not touched)")
+        else report.line("$label -> ${feature.name}")
+        if (feature.wip) return null.also { report.line("    - skipped: ${feature.name} is work in progress") }
 
         val ctx = Ctx(module, feature, na, report, spec.gate)
-        applyEnabled(ctx, spec.enableFeature)
-        for (switch in spec.switches) set(ctx, "(module on/off)", switch, JsonPrimitive(module.enabled))
+        if (! dataOnly) {
+            applyEnabled(ctx, spec.enableFeature)
+            for (switch in spec.switches) set(ctx, "(module on/off)", switch, JsonPrimitive(module.enabled))
+        }
 
         for ((key, value) in module.settings.entrySet()) {
+            if (dataOnly && key !in spec.dataKeys) continue
             val rule = spec.rules[key] ?: spec.rules.entries.firstOrNull { it.key.equals(key, true) }?.value
             when {
                 rule is Skip -> report.line("    - $key: skipped (${rule.reason})")
@@ -912,7 +1210,7 @@ object ForeignConfigImport: ICommandProvider {
                 else -> set(ctx, key, key, value)
             }
         }
-        return true
+        return feature.jsonName
     }
 
     /** Switches the feature on when the source had it on ("NA or Odin" rule); never switches anything off. */
@@ -1062,7 +1360,7 @@ object ForeignConfigImport: ICommandProvider {
         }
 
         val native = try {
-            var v = toNative(setting, raw, subKey, c.module.source)
+            var v = toNative(setting, raw, subKey, c.module.source, c.exact)
             if (invert) v = JsonPrimitive(! v.asBoolean)
             if (sourceName in c.gate && ! c.module.enabled && v.isJsonPrimitive && v.asJsonPrimitive.isBoolean && v.asBoolean) v = JsonPrimitive(false)
             v
@@ -1101,7 +1399,7 @@ object ForeignConfigImport: ICommandProvider {
 
     private fun isHud(raw: JsonElement) = raw.isJsonObject && raw.asJsonObject.let { it.has("x") && it.has("y") && it.has("scale") }
 
-    private fun toNative(setting: ConfigHolder<*>, raw: JsonElement, subKey: String?, source: Source): JsonElement {
+    private fun toNative(setting: ConfigHolder<*>, raw: JsonElement, subKey: String?, source: Source, exact: Boolean = false): JsonElement {
         if (isHud(raw)) {
             val supportsFlag = setting is ToggleSetting || (setting is MultiCheckboxSetting && subKey != null)
             if (! supportsFlag) fail(HUD)
@@ -1119,7 +1417,7 @@ object ForeignConfigImport: ICommandProvider {
             is ColorSetting -> JsonPrimitive(color(raw))
             is TextInputSetting -> JsonPrimitive(string(raw))
             is KeybindSetting -> keybind(raw)
-            is ListSetting<*> -> mergeList(setting, raw)
+            is ListSetting<*> -> if (exact && raw.isJsonArray) raw else mergeList(setting, raw)
             is MultiCheckboxSetting -> mergeChecks(setting, raw)
             is ColorCodeSetting -> JsonPrimitive(string(raw))
             is SoundSetting -> JsonPrimitive(string(raw).let { if (':' in it) it else "minecraft:$it" })
@@ -1261,13 +1559,15 @@ object ForeignConfigImport: ICommandProvider {
                         val obj = root.getAsJsonObject("na") ?: JsonObject().also { root.add("na", it) }
                         obj.addProperty("done", true)
                         obj.addProperty("reimportedAt", Instant.now().toString())
+                        obj.remove("pendingFiles")
                     }
+                    ForeignImportMarker.markImported(Source.NA.key, currentUnits())
                 }
             }
             val odin = sources.filter { it != Source.NA }
             val available = odin.filter(::isAvailable)
             odin.filterNot(::isAvailable).forEach { report.line("[${it.label}] no config found") }
-            if (available.isNotEmpty()) counts.putAll(importOdin(available, report))
+            if (available.isNotEmpty()) counts.putAll(importOdin(available, report, onLaunch = false).mapValues { it.value.size })
 
             ConfigManager.save()
             writeReport(report, "/lbq import $arg")

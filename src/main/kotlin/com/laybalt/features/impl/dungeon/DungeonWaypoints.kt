@@ -260,7 +260,7 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
      * so positions are copied as they are. Odin's size, title and type are not used (the block's own shape is drawn).
      * [source]: null = Odin's selected packs (all packs if none are selected), "all", "clipboard" or a pack name.
      */
-    fun importOdin(source: String?) {
+    fun importOdin(source: String?, notify: (String) -> Unit = ChatUtils::modMessage) {
         val odinDir = File(FabricLoader.getInstance().configDir.toFile(), "odin")
         val packsDir = File(odinDir, "dungeon-waypoints")
         val packs = packsDir.listFiles { file -> file.extension == "json" }?.associateBy { it.nameWithoutExtension }.orEmpty()
@@ -268,19 +268,20 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
         val clipboard = if (fromClipboard) mc.keyboardHandler.clipboard.trim() else ""
         // Reading and parsing packs can take a while for large packs, so do it off the client thread.
         ThreadUtils.async {
-            val parsed = readOdinPacks(source, fromClipboard, clipboard, odinDir, packsDir, packs)
-            mc.execute { parsed?.let(::applyOdinImport) }
+            val parsed = readOdinPacks(source, fromClipboard, clipboard, odinDir, packsDir, packs, notify)
+            mc.execute { parsed?.let { applyOdinImport(it, notify) } }
         }
     }
 
     /** Reads and parses the chosen Odin packs (any thread). Returns null after printing an error. */
     private fun readOdinPacks(
-        source: String?, fromClipboard: Boolean, clipboard: String, odinDir: File, packsDir: File, packs: Map<String, File>
+        source: String?, fromClipboard: Boolean, clipboard: String, odinDir: File, packsDir: File, packs: Map<String, File>,
+        notify: (String) -> Unit,
     ): Pair<List<String>, List<Pair<String, DungeonWaypoint>>>? {
         val inputs: List<Pair<String, String>> = when {
             fromClipboard -> listOf("clipboard" to decodeOdinString(clipboard).orEmpty())
             source != null && ! source.equals("all", true) -> {
-                val file = packs[source] ?: return null.also { ChatUtils.modMessage("§cNo Odin waypoint pack \"$source\" in ${packsDir.path}") }
+                val file = packs[source] ?: return null.also { notify("§cNo Odin waypoint pack \"$source\" in ${packsDir.path}") }
                 listOf(source to file.readText())
             }
 
@@ -294,14 +295,14 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
             }
         }
         if (inputs.isEmpty() || inputs.all { it.second.isBlank() }) {
-            return null.also { ChatUtils.modMessage("§cNo Odin dungeon waypoints found (looked in ${if (fromClipboard) "the clipboard" else packsDir.path}).") }
+            return null.also { notify("§cNo Odin dungeon waypoints found (looked in ${if (fromClipboard) "the clipboard" else packsDir.path}).") }
         }
 
         val waypoints = mutableListOf<Pair<String, DungeonWaypoint>>()
         for ((name, text) in inputs) {
             val parsed = runCatching { JsonParser.parseString(text).asJsonObject }.getOrNull()
             if (parsed == null) {
-                ChatUtils.modMessage("§cCould not read Odin pack \"$name\".")
+                notify("§cCould not read Odin pack \"$name\".")
                 continue
             }
             for ((room, list) in parsed.entrySet()) {
@@ -316,7 +317,7 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
     }
 
     /** Merges parsed Odin waypoints into the stored ones (client thread). */
-    private fun applyOdinImport(result: Pair<List<String>, List<Pair<String, DungeonWaypoint>>>) {
+    private fun applyOdinImport(result: Pair<List<String>, List<Pair<String, DungeonWaypoint>>>, notify: (String) -> Unit) {
         val (sources, waypoints) = result
         var added = 0
         var skipped = 0
@@ -335,7 +336,7 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
         storage.save()
         refreshLoadedRooms(rooms)
         val existed = if (skipped > 0) " §7($skipped already existed)" else ""
-        ChatUtils.modMessage("§aImported §b$added§a Odin waypoints in §b${rooms.size}§a rooms from ${sources.joinToString()}$existed.")
+        notify("§aImported §b$added§a Odin waypoints in §b${rooms.size}§a rooms from ${sources.joinToString()}$existed.")
     }
 
     private fun odinWaypoint(obj: JsonObject): DungeonWaypoint {
