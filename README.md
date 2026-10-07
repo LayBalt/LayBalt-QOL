@@ -19,71 +19,99 @@ On the first launch LayBaltQOL imports your existing setup once. A NoammAddons c
 
 ---
 
-<h3 align="center">Features</h3>
+<h3 align="center">The LayBalt GUI</h3>
 <p align="center">
-Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> are shown greyed out and cannot be enabled yet.
+Type <code>/lbq</code> or <code>/laybalt</code>, press the <b>Click Gui &gt; Open Keybind</b> key or use Mod Menu to open the LayBalt screen. It is LayBalt's own interface, written for this mod, and replaces the NoammAddons click GUI.
 </p>
 
-#### General (16)
+- **One window.** A rounded, centred window with a dark violet theme opens with a short fade and scale animation.
+- **Sidebar.** Each category has its own icon in the sidebar. The HUD Editor and Discord buttons sit at the bottom.
+- **Search.** Click the search bar or press <code>Ctrl+F</code> to search every category at once. Results are sorted by relevance.
+- **Feature cards.** Every feature is a card with its name, description, an on/off switch and a gear icon when it has settings. Click the switch (or middle-click the card) to toggle it. Left- or right-click the card to open its settings.
+- **Settings panel.** Settings slide in from the right over the cards. The switches, sliders, dropdowns, colour pickers, keybinds, text fields and sound pickers are all restyled to match the window.
+- **Accent colour.** The accent colour used for switches, borders and highlights is set by **Click Gui > Accent Color**. Card order is set by **Sorting**.
+- **Matching screens.** The HUD editor, notifications (toasts), tooltips and the Sound Manager, Command Shortcuts and Dungeon Waypoints screens use the same style.
+- **Font.** All text in these screens uses the [Inter](https://github.com/rsms/inter) typeface (SIL Open Font License 1.1). It is bundled as <code>assets/lbqmod/font/inter.ttf</code> and is also available as the resource font <code>lbqmod:inter</code>. Shapes, icons and text are drawn by the mod itself. No external UI library is used.
 
-- **Auction Price Input** - Replaces the auction price sign with a proper text box (5k, 1.5m...) and an undercut mode based on the lowest BIN.
+---
+
+<h3 align="center">Features</h3>
+<p align="center">
+Grouped by GUI category (<code>/lbq</code>) and generated from the feature classes: 187 features in total. Features marked <i>WIP</i> are shown greyed out and cannot be enabled yet.
+</p>
+
+#### General (26)
+
+- **Auction Price Input** - Replaces the sign input with a proper textbox and undercut mode.
 - **Auto Clicker** - Auto clicker for left click, right click or both, while a hold key is held.
 - **Auto Enchanting** - Solves Chronomatron and Ultrasequencer (and, experimentally, Superpairs) at the Experimentation Table.
 - **Auto Harp** - Plays the Melody's Harp minigame for you.
 - **Chat Features** - Useful tweaks for the chat such as Ctrl + Click to copy messages.
 - **Command Keybinds** - Keybinds that run common SkyBlock commands, such as /pets, /storage or /warp dungeon_hub.
 - **Command Shortcuts** - Create your own command shortcuts.
-- **Enchant Colors** - Colours enchantments in item lore by level (bad / normal / high / max), with optional rainbow max levels and numeric levels.
+- **Container Value** - Shows the total Bazaar / lowest BIN value of the open chest, backpack or ender chest page.
+- **Enchant Colors** - Changes the color of enchantments in items lore.
 - **Escrow Fix** - Automatically reopens the Auction House or Bazaar when Hypixel's escrow closes it (expired/invalid bids, BIN claims, Bazaar instant-buy refunds).
+- **Etherwarp** - Etherwarp overlay and sound.
 - **Farm Keys** - Temporarily rebinds Attack (block breaking) and Jump while enabled, for farming, and can lock the camera. Your original binds are restored when the feature is turned off.
 - **Gyro Helper** - Renders a circle where your gyro will be located.
-- **Inventory Search** - Search bar in every inventory (Ctrl+F) that highlights matching items and evaluates math like 64*3.5k.
+- **Inventory Search** - Adds a search bar to inventories that highlights matching items and evaluates math (Ctrl+F to focus).
 - **Item Overlays** - Draws New Year Cake years and enchanted book abbreviations/levels on item slots.
 - **Item Rarity** - Draws the rarity of item behind the slot (inventories, hotbar and storage overlay).
-- **Item Tooltip** - Adds Bazaar / Lowest BIN / NPC prices and dungeon item quality to tooltips, and lets you scroll and scale long tooltips.
+- **Item Tooltip** - Adds item information and controls to item tooltips.
+- **Item Value HUD** - Shows a compact price card for the item under your mouse in inventories.
 - **Loadout Keybinds** - Allows you to bind SkyBlock loadout slots to your keyboard.
 - **Party Helper** - Chat commands for party, guild, private and co-op chat, plus party list reformatting.
-- **Protect Item** - Prevents dropping or selling important items; mark them with /protectitem or a keybind.
+- **Protect Item** - Prevents dropping or selling important items via /protectitem or keybind.
 - **Slot Binding** - Allows you to bind slots to hotbar slots for quick item swaps.
 - **Storage Overlay** - Shows all storage pages in an overlay when opening storage.
-- **Tac Timer** - Shows a 3 second timer (and optionally marks the start block) when you use the Tactical Insertion ability.
+- **Tac Timer** - Shows a 3 seconds timer when you use the Tactical Insertion ability.
 - **Term AC** - Automatically uses Salvation ability when holding right click.
 - **Wardrobe Keybinds** - Make it possible to bind armor slots to your keyboard.
 
-#### Dungeon (30)
+#### Dungeon (39)
 
 - **Architect Draft** - Announces and can automatically get an Architect's First Draft after a failed puzzle.
 - **Auto Abilities** - Allows you to use dungeon class abilities with keybinds and automatically trigger ultimates when needed.
 - **Auto GFS** - Automatically refills dungeon items from your sacks using /gfs.
-- **Auto Requeue** - Automatically starts the next dungeon run when the current one ends, with party, leader and downtime checks.
+- **Auto Requeue** - Automatically starts the next dungeon run when the current one ends.
 - **Auto Sell** - Automatically sells listed items in trade and Booster Cookie sell menus. Manage the list with /lbqsell.
 - **Auto Superboom** - Automatically swaps to Superboom TNT and uses it when you click a cracked (breakable) dungeon wall.
 - **Blood Camp** - Features for Blood Room.
+- **Bossbar Health** - Shows the health number of the bossbar boss.
 - **Breaker Helper** - Utilities for Dungeon Breaker.
 - **Chest Profit** - Dungeon Chest Profit Calculator.
 - **Door Keys** - ESP box & Tracer for wither and blood doors.
 - **Dungeon Map** - Custom dungeon map HUD with room names, checkmarks, player heads and run info under the map.
+- **Dungeon Queue** - Requeues dungeons automatically, shows the warp cooldown and announces kicks.
 - **Dungeon Waypoints** - Add a custom waypoint with /ndw add while looking at a block.
-- **F4 Features** - Thorn, Spirit Bow and Spirit Bear highlights plus a Spirit Bear progress and spawn timer HUD for F4/M4.
+- **Extra Stats** - Replaces Hypixel's end-of-run summary with a compact one that includes the extra stats.
+- **F4 Features** - Spirit bear spawn timer, highlights, and more.
 - **Ghost Block** - Turns blocks into client-side ghost blocks (air) with a held key or by right-clicking with a pickaxe. Use at your own risk.
 - **Hidden Mobs** - Reveals invisible Fels, Shadow Assassins, Watcher mobs and stealthy Giants in dungeons.
 - **I Hate Doors** - Visually replaces entrance, wither and blood doors with colored glass (works with Sodium).
 - **Leap Menu** - Custom Leap Menu and leap message.
 - **Livid Solver** - Finds the real Livid in F5/M5, with HP display, tracer and hiding of the wrong Livids.
+- **Mage Beam** - Renders a fully custom, animated beam whenever a mage casts their beam ability.
 - **Mimic** - Detects and announces Mimic, Prince and Bat kills in dungeons.
 - **Party Finder** - Party Finder helpers: join stats, level requirement and missing class overlays.
+- **Positional Messages** - Sends a party message when you reach a saved position. Manage the list with /lbq posmsg.
+- **Puzzle HUD** - Displays the remaining, completed and failed puzzles of the dungeon on your HUD.
 - **Puzzle Solvers** - Dungeon puzzle solvers (Blaze, Boulder, Creeper Beams, Ice Fill, Ice Path, Quiz, Teleport Maze, Three Weirdos, Tic Tac Toe, Water Board) with puzzle timers.
 - **Ragnarock** - Ragnarock alerts.
 - **Room Alerts** - Alerts when certain stuff happens in your current room.
+- **Room Clear** - Notifies you when the dungeon room you are in is cleared.
 - **Salvage Overlay** - Highlights dungeon gear that is safe to salvage.
-- **Secret Waypoints** - Shows waypoints for every secret of the room you are in. Chests, items, bats, wither essence and redstone keys work out of the box; entrance, superboom, lever, stonk, AOTV, pearl, fairy soul and prince waypoints have no built-in data and come from /lsw add or from a dataset you already have, loaded with /lsw import <path> (folder, .json, .zip or .jar). Found secrets are hidden automatically.
+- **Score Calculator** - Shows the score of the dungeon run, plus Odin's Map Info score and secret HUDs.
+- **Secret Waypoints** - Shows waypoints for every secret of the room you are in. Chests, items, bats, wither essence and redstone keys work out of the box. Entrance, superboom, lever, stonk, AOTV, pearl, fairy soul and prince waypoints have no built-in data: record them with /lsw add, or load a secret waypoint dataset you already have (a folder, .json, .zip or a mod .jar) with /lsw import <path>. Found secrets are hidden automatically.
 - **Secrets** - Secret count HUD, auto close for secret chests, bigger secret hitboxes and highlights for clicked secrets.
+- **Secrets Counter** - Counts the secrets each player found and prints them at the end of a dungeon run.
 - **Sellable Items Highlighter** - Highlights dungeon junk in your inventory (Defuse Kits, Training Weights, Journal Entries, Revive Stones, Healing VIII splash potions) while the Ophelia or Booster Cookie menu is open, so you can sell it quickly.
-- **Star Mob ESP** - Highlights all starred mobs in a dungeon.
-- **Teammate ESP** - Highlights your dungeon party in their class colors and shows their class and name through walls.
+- **Star Mob Highlight** - Highlights all starred mobs in a dungeon.
+- **Teammate Highlight** - Highlights your dungeon party.
 - **Terracotta Timer** - Displays a timer until Terracottas respawn in F6/M6.
 
-#### Floor 7 (22)
+#### Floor 7 (23)
 
 - **Arrow Align** - Arrow Align Solver.
 - **Arrows Device** - Shows a solution for the Sharp Shooter (arrows) device in Floor 7 phase 3.
@@ -91,83 +119,111 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **Auto Terminal** - Automatically clicks terminals for you.
 - **Debuff Helper** - Automatically pulls and fires bows based on Server Ticks (Lag Proof).
 - **F7 Titles** - Custom Titles for F7 boss fight.
-- **Gate Highlight** - Highlights the P3 section gate until it is destroyed.
+- **Gate Highlight** - Highlights Gate as long as its not destroyed.
 - **I Hate Diorite** - Replaces the diorite pillars in the Storm (P2) fight with glass.
 - **I4 Helper** - Highlights the targets for the F7 4th device (I4) and predicts the next block to shoot.
+- **Inactive Waypoints** - Shows inactive terminals, devices and levers in the Goldor phase of Floor 7.
 - **Leap Counter** - Shows how many players have leaped to you at each P3 stack spot and alerts when everyone is there.
 - **M7 Relics** - A bunch of M7 Relics features.
 - **Maxors Crystals** - Utilities for F7 Maxor's Crystals.
 - **Melody Alert** - Tells your party when you open Melody and how far you are, and shows your teammates' Melody progress.
-- **Melody Display** - Pops up an on-screen alert (with sound) when a teammate reports Melody progress.
+- **Melody Display** - Displays the current progress someone for melody on screen.
 - **Simon Says** - Simon Says Solver.
-- **Terminal ESP** - Highlights the hitboxes of inactive terminals in your current P3 section and flashes them when clicked.
+- **Terminal Highlight** - Highlights the interactable hitboxes of the terminals in F7/M7.
 - **Terminal Simulator** - Practice floor 7 terminals in a local simulator. Clicking the toggle opens it; also /lbq termsim [type] [ping].
 - **Terminal Solver** - Renders solutions for Floor 7 terminals.
 - **Terminal Times** - Times every terminal you complete in floor 7 (with personal bests per terminal type) and adds section splits to the terminal messages.
 - **Tick Timers** - Shows various types of server tick timers for F7 boss fight.
 - **Wither Dragons** - M7 dragons timers, boxes, priority, health, and alerts.
-- **Wither ESP** - Highlights all Withers in F7.
+- **Wither Highlight** - Highlights all Withers in F7.
 
-#### Visual (14)
+#### Visual (26)
 
-- **Arrow Poison** - Shows how many Twilight and Toxic arrow poisons you carry.
-- **Animations** - Allows you to modify your hand view-model.
+- **Animations** - Allows you to modify your hand view-model: item position, rotation and scale per hand, swing style and speed, and equip animations.
+- **Armor HUD** - Shows your armor and held item with durability bars or percentages.
+- **Arrow Poison** - Shows on screen the amount of poison arrows you have in inventory.
 - **Blessing Display** - Displays the current active blessings in the dungeon.
+- **Coords HUD** - Shows your coordinates, facing direction, biome, chunk and the world time.
+- **Damage Splash** - Reformat Skyblock's Damage Indicators.
 - **Dark Mode** - Darkens the screen.
+- **Effects HUD** - Lists your active potion effects with their remaining time. Handles long SkyBlock (God Potion) durations.
 - **Freeze Display** - Shows how long the server froze after a chosen threshold.
 - **Hub Map** - Replaces the SkyBlock Hub world map with a custom image.
 - **Info Display** - Displays the system time, clicks per second, FPS, TPS, and ping on screen.
+- **Keystrokes** - Shows your movement keys, jump and mouse buttons with live CPS and a press animation.
 - **Lava To Water** - Replaces lava with the water texture.
 - **Mask Timers** - Mask Cooldown Timers, Invulnerability Timers, and more.
-- **Pet Menu** - Replaces the Pets inventory with a custom pet wheel and adds pet keybinds (also usable in the vanilla menu).
+- **Performance Graph** - Rolling graphs of your FPS, the server TPS and your ping.
 - **Pet Display** - Active pet HUD, autopet swap titles and active pet highlight in the Pets menu.
+- **Pet Menu** - Replaces the Pets inventory with a custom pet wheel and adds pet keybinds (also usable in the vanilla menu).
 - **Player HUD** - Displays your stats as moveable HUD elements.
 - **Quiver Display** - Displays the arrow type and the number of arrows left in your quiver.
-- **Run Splits** - A Splits HUD for Dungeons.
+- **Render Optimizer** - Optimize Rendering by hiding useless stuff.
+- **Run Splits** - A Splits HUD for Dungeons (and Kuudra), with personal bests.
+- **Scoreboard** - Draws a custom scoreboard instead of the vanilla one.
+- **Session Timer** - Shows how long you have been playing this session. Can be reset at any time.
+- **Speed HUD** - Shows how fast you are moving in blocks per second, with an optional speed graph.
 - **Spring Boots** - Shows the spring boots charge progress on screen.
 - **Warp Cooldown** - Displays on screen how long until you can start another dungeon run.
 
-#### Render (22)
+#### Render (32)
 
 - **Aspect Ratio** - Stretches or squeezes the world view by forcing a custom aspect ratio. The HUD is not affected.
 - **Block ESP** - Highlights the block types you choose (ores, spawners, ...) around you. Pick blocks with /blockesp add <id>.
+- **Box3D** - Replaces the Glow ESP with 3D boxes.
 - **Bread Crumbs** - Draws the path you have walked as a line that follows your feet.
+- **Break Highlight** - Shows a box on the block you are mining that fills up as the block breaks.
+- **Custom Crosshair** - Replaces the crosshair with your own shape, size, colours and a dynamic spread.
 - **Custom ESP** - Outlines entities. Press the add key while looking at a mob to add or remove it.
 - **Damage Tint** - Tints the screen red when your health is low; the lower your health, the stronger the tint.
 - **FOV** - Sets your field of view beyond the vanilla limits and lets the held item use its own field of view.
 - **Fullbright** - Brightens dark areas by raising the minimum light level of the world. At 1.0 everything is fully lit.
+- **Glint Color** - Recolours the enchantment glint on items and armour and changes its strength, speed and size.
+- **Hide Players** - Hides players in your vicinity.
 - **Hit Bubbles** - Draws an expanding, spinning and fading bubble at the spot where you hit an entity.
+- **Hit Color** - Changes the colour and strength of the flash entities show when they are hurt.
+- **Hit Indicator** - Shows a hit marker at your crosshair when your melee attacks or arrows hit, with a separate colour for kills.
 - **Hit Particles** - Spawns decorative particles around players while they are hurt, or floating damage and heal numbers above entities whose health changes.
 - **Item ESP** - Shows the name of every dropped item and marks it with a box on screen or a ring on the ground.
 - **Jump Circle** - Draws a spinning, expanding circle on the ground where a player jumps.
 - **Kill Effect** - Plays an effect when a nearby player (or mob) dies: a floating cross with a sound, falling lava drops or a lightning bolt.
 - **No Bob** - Removes the side-to-side sway and tilt of the view while walking, keeping an optional small vertical bounce.
 - **No Glow** - Disables the vanilla Minecraft glow effect (Spectral arrows, Glowing effect, server-side glowing). Glow added by LayBalt features such as ESP keeps working.
-- **No Render** - Hides visual clutter: chosen entities, particles, HUD elements, the hurt camera shake, fog (including lava fog), weather and more.
+- **No Render** - Hides visual clutter: chosen entities, particles, HUD elements, fog, weather and more. Fire, water, block and portal overlays, nausea and blindness are in Camera Helper; the hand swing animation is in Animations.
+- **Particle Multiplier** - Spawns more or fewer particles, resizes them, caps how many exist and blocks particle types you list.
+- **Player Size** - Changes the size of the player (client-side only).
 - **Skeleton** - Draws the skeleton (head, spine, arms and legs) of players as lines that follow their animation.
 - **Sound ESP** - Shows the name of every sound played around you as a fading label where it came from.
 - **Storage ESP** - Highlights chests, shulker boxes, barrels and other containers around you.
 - **Tracers** - Draws lines from your crosshair to other players, so you always know where they are.
 - **Trails** - Draws trails behind moving players and flying pearls and arrows, or shows where flying projectiles will land.
 - **Trajectories** - Predicts and draws the flight path of bow arrows (all three Terminator arrows) and ender pearls, with impact boxes and the entities they will hit.
-- **World Tweaks** - Customises the open-world fog and its colour, and can lock the time of day on your client.
+- **Weather** - Sets the weather on your client: always clear, or rain and thunder whenever you want. The server weather is not changed.
+- **World Tweaks** - Customises the open-world fog, sky and clouds, and can lock the time of day on your client.
 
-#### Misc (15)
+#### Misc (22)
 
 - **Arrow Fix** - Disables Bow Pullback on Shortbows.
 - **Arrow Hit Sound** - Plays a custom sound when your arrow hits.
-- **Auto Blaze Dagger** - Automatically swaps to the correct dagger for blaze!.
+- **Auto Blaze Dagger** - Automatically swaps to the correct dagger for blaze!
 - **Auto Sprint** - Automatically sprint for you.
 - **Blaze Dagger HUD** - Blaze Slayer Dagger Attunement Helper.
-- **Camera Helper** - Tweaks to the vanilla camera: camera distance, Smooth Zoom, camera clip, no front camera and hiding screen overlays and effects. Brightness and FOV are in Render > Fullbright / FOV.
+- **Block Overlay** - Replaces the block selection outline with your own outline, fill, colours and animation.
+- **Camera Helper** - Tweaks to the vanilla camera: camera distance, smooth zoom, camera clip, no front camera and hiding screen overlays and effects. Brightness and FOV are in Render > Fullbright / FOV.
 - **Ghosts** - Rendering tweaks for the invisible ghost creepers in the Dwarven Mines (The Mist).
+- **Mono Audio** - Plays all the game audio through a single channel.
 - **Nametag Tweaks** - Nametag tweaks: show your own nametag, hide the background, add a text shadow and more.
+- **No Cursor Reset** - Prevents the cursor from being reset to the middle of the screen when a menu opens right after another.
 - **No Item Place** - Stops you from placing skull blocks/items.
+- **No Rotate** - Prevents the server from snapping back your head when teleporting.
+- **Pvp Blink** - Desyncs your connection to eat knockback or spoof position.
 - **SB Kick** - Shows a timer on screen for when you can rejoin Skyblock.
 - **Snappy Tappy** - Prevents standing still when pressing opposing direction keys.
 - **Sound Manager** - Adjust volumes for every sound in the game.
 - **Time Changer** - Changes the world time.
 - **Trevor Helper** - Helper features for Trevor the Trapper on the Farming Islands.
+- **Tweaks** - Small quality of life tweaks.
+- **Waypoints** - Renders temporary waypoints from coordinates posted in chat. Commands: /lbq waypoint (alias /lbq wp).
 - **World Scanner** - Scans loaded Crystal Hollows chunks for structures (crystal spots, mob spots, Fairy Grottos, Golden Dragon nest, worm fishing) and marks them with waypoints. Optional lava/water ESP.
 
 #### Fishing (3)
@@ -188,8 +244,8 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **Kuudra Info** - Displays information about the Kuudra boss itself: a highlight box and its health.
 - **Kuudra Misc** - Small Kuudra helpers: mana drain callout and automatic requeue after a run.
 - **Kuudra Tracker** - Tracks the loot and profit of every Kuudra chest you open.
-- **No Pre** - Tells your party when the supply of your pre-spot (or its second supply) is missing in Kuudra.
 - **Pearl Waypoints** - Renders ender pearl lineups for the Kuudra supply phase.
+- **Pre-Spot Alert** - Tells your party when the supply of your pre-spot (or its second supply) is missing in Kuudra.
 - **Remove Perks** - Hides useless perks in Kuudra's Perk Menu and blocks clicks on them, so you can't buy them by accident.
 - **Supply Helper** - Visual aid for the Kuudra supply phase: crate pick-up and drop-off waypoints and supply times.
 - **Vesuvius** - Shows the value of Kuudra reward chests and hides already claimed runs in the Vesuvius menu.
@@ -197,9 +253,9 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 #### Client (4)
 
 - **Class Colors** - Allows setting custom color for every dungeon class.
-- **Click Gui** - A feature used to change the ClickGui configuration.
+- **Click Gui** - Settings of the LayBalt GUI itself: open keybind, accent color and card order.
 - **Door Fix** - Fixes the door rotations for s3.
-- **Mod Hider** - stops the exploit that allows servers to send a translation key inside a Sign or Anvil to gets the mods you are using. mods without language keys are safe from this.
+- **Mod Hider** - Stops the exploit that lets servers put a translation key inside a sign or anvil to find out which mods you use. Mods without language keys are safe from it.
 
 ---
 
@@ -213,7 +269,7 @@ Requires Minecraft 26.2 with <a href="https://fabricmc.net/use/">Fabric Loader 0
 - `LayBaltQOL-<version>-26.2.jar` from the [releases](https://github.com/LayBalt/LayBalt-QOL/releases)
 - Optional: [Mod Menu](https://modrinth.com/mod/modmenu) to open the config from the mods list
 
-Type <code>/lbq</code> (or <code>/laybalt</code>) in chat to open the ClickGui. The config is stored in <code>config/LayBaltQOL/</code>.
+Type <code>/lbq</code> (or <code>/laybalt</code>) in chat to open the LayBalt GUI. The config is stored in <code>config/LayBaltQOL/</code>.
 
 ---
 
@@ -235,5 +291,5 @@ For more info: <a href="https://github.com/LayBalt/LayBalt-QOL/blob/main/Contrib
 <h3 align="center">Notice</h3>
 <p align="center">
 NOTICE: LayBalt QOL 3.x is built on the <a href="https://github.com/Noamm9/NoammAddons">NoammAddons</a> core by Noamm9, released under the CC0-1.0 license. Huge thanks to Noamm9 for the original work.<br>
-Some features are ported from <a href="https://github.com/odtheking/Odin">Odin</a> and OdinClient (both BSD-3-Clause), and some were re-implemented after features of Skyblocker and ThunderHack-Recode. See <a href="THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES.md</a> for the licences and details.
+Some features are ported from <a href="https://github.com/odtheking/Odin">Odin</a> and OdinClient (both BSD-3-Clause), and some were re-implemented after features of Skyblocker and ThunderHack-Recode. The bundled <a href="https://github.com/rsms/inter">Inter</a> font is licensed under the SIL Open Font License 1.1. See <a href="THIRD_PARTY_NOTICES.md">THIRD_PARTY_NOTICES.md</a> for the licences and details.
 </p>
