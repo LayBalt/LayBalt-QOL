@@ -4,9 +4,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import com.google.gson.JsonPrimitive
 import com.laybalt.LayBaltQOL
-import com.laybalt.config.types.DropdownSetting
 import com.laybalt.features.Feature
 import com.laybalt.features.FeatureManager
 import com.laybalt.ui.notification.NotificationManager
@@ -169,25 +167,19 @@ object LegacyConfigImport {
     }
 
     /**
-     * The old ESP list holds entity type ids (`minecraft:zombie`). They are merged into the new list and the matching
-     * mode is switched to entity types so the old list keeps working.
+     * The old ESP list holds entity type ids (`minecraft:zombie`). They are merged into the new list as `type:<id>` entries,
+     * which Custom ESP always matches by entity type whatever its "Match By" mode is (that mode is left on its default).
      */
     private fun importEspList(feature: Feature, entries: List<String>): Boolean {
         val listSetting = findSetting(feature, listOf("Entries", "ESP List", "List")) ?: return false
         val merged = LinkedHashSet<String>()
         runCatching { (listSetting as Savable).write().asJsonArray.forEach { merged.add(it.asString) } }
-        merged.addAll(entries)
+        entries.forEach { merged.add(if (it.startsWith("type:")) it else "type:$it") }
 
         val ok = runCatching { (listSetting as Savable).read(JsonArray().apply { merged.forEach(::add) }) }
             .onFailure { LayBaltQOL.logger.warn("[LegacyConfigImport] could not import the Custom ESP list: ${it.message}") }
             .isSuccess
-        if (! ok) return false
-
-        (findSetting(feature, listOf("Match By")) as? DropdownSetting)?.let { matchBy ->
-            val index = matchBy.options.indexOfFirst { normalize(it) == "entitytype" }
-            if (index >= 0) matchBy.read(JsonPrimitive(index))
-        }
-        return true
+        return ok
     }
 
     private fun findFeature(names: List<String>): Feature? {
