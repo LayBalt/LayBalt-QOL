@@ -60,7 +60,8 @@ object ArmorHud: Feature("Shows your armor and held item with durability bars or
             if (showOffhand.value) add(player?.offhandItem ?: ItemStack.EMPTY)
         }
         val all = if (heldFirst.value) held + armor else armor + held
-        if (example && all.all { it.isEmpty }) return exampleItems
+        // Item components are only bound once a world is loaded; building example stacks earlier (title screen) throws.
+        if (example && all.all { it.isEmpty }) return if (mc.level != null) exampleItems else emptyList()
         return if (hideEmpty.value) all.filterNot { it.isEmpty } else all
     }
 
@@ -89,7 +90,12 @@ object ArmorHud: Feature("Shows your armor and held item with durability bars or
         val labels = items.map(::label)
         val font = mc.font
 
-        if (items.isEmpty()) return 16 to 16
+        if (items.isEmpty()) {
+            if (! example) return 16 to 16
+            val text = "Armor HUD"
+            ctx.drawString(text, 0, 0, Color.WHITE, 1, true)
+            return font.width(text) to 9
+        }
 
         val vertical = layout.value == 0
         val cellH = 16 + if (bar) 3 else 1
