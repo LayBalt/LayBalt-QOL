@@ -17,6 +17,6 @@ public abstract class MixinGuiItemRarity {
     @Inject(method = "extractSlot", at = @At("HEAD"))
     private void lbqmod$onRenderHotbarSlot(GuiGraphicsExtractor graphics, int x, int y, DeltaTracker deltaTracker, Player player, ItemStack itemStack, int seed, CallbackInfo ci) {
         if (! ItemRarity.INSTANCE.enabled) return;
-        if (ItemRarity.getDrawOnHotbar().getValue()) ItemRarity.onSlotDraw(graphics, itemStack, x, y);
+        if (ItemRarity.getDrawOnHotbar().getValue()) ItemRarity.onHotbarSlotDraw(graphics, itemStack, x, y);
     }
 }
