@@ -11,7 +11,7 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.input.MouseButtonInfo
-import java.awt.Color
+import com.laybalt.ui.Palette
 
 class TextInputWidget(config: TextInputSetting): Widget<String>(config) {
     private val handler = TextInputHandler(
@@ -35,7 +35,7 @@ class TextInputWidget(config: TextInputSetting): Widget<String>(config) {
         val bw = width - 16f
         val bh = 20f
 
-        ctx.drawRect(bx, by, bw, bh, Color(10, 10, 10, 180))
+        ctx.drawRect(bx, by, bw, bh, Palette.bgInset)
         ctx.drawRect(bx, by + bh - 1f, bw * hoverAnim.value, 1f, Style.accentColor)
 
         handler.x = bx

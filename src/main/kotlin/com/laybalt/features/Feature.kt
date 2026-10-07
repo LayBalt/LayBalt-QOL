@@ -1,5 +1,6 @@
 package com.laybalt.features
 
+import com.laybalt.LayBaltQOL.MOD_NAME
 import com.laybalt.config.ConfigHolder
 import com.laybalt.config.SettingProvider
 import com.laybalt.event.*
@@ -8,6 +9,7 @@ import com.laybalt.features.annotations.AlwaysActive
 import com.laybalt.ui.clickgui.enums.CategoryType
 import com.laybalt.ui.hud.HudElement
 import com.laybalt.ui.hud.HudProvider
+import com.laybalt.ui.notification.NotificationManager
 import com.laybalt.utils.spaceCaps
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -24,6 +26,13 @@ open class Feature(
 
     private val alwaysActive = this::class.java.isAnnotationPresent(AlwaysActive::class.java)
 
+    /**
+     * Work-in-progress features are shown greyed out in the click GUI and can never be enabled:
+     * [toggle] refuses (and notifies), [ConfigManager][com.laybalt.config.ConfigManager] never enables them on load
+     * and their listeners are never registered.
+     */
+    open val wip: Boolean = false
+
     override val configSettings = mutableSetOf<ConfigHolder<*>>()
     val listeners = mutableSetOf<EventListener<*>>()
     override val hudElements = mutableSetOf<HudElement>()
@@ -31,17 +40,31 @@ open class Feature(
     fun initialize() {
         init()
 
-        if (enabled || alwaysActive) onEnable() else onDisable()
+        if (wip) enabled = false
+        if ((enabled || alwaysActive) && ! wip) onEnable() else onDisable()
     }
 
     open fun init() = Unit
-    open fun onEnable() = listeners.forEach(EventListener<*>::register)
+    open fun onEnable() {
+        if (wip) return
+        listeners.forEach(EventListener<*>::register)
+    }
+
     open fun onDisable() {
-        if (alwaysActive) return
+        if (alwaysActive && ! wip) return
         listeners.forEach(EventListener<*>::unregister)
     }
 
     open fun toggle() {
+        if (wip) {
+            if (enabled) {
+                enabled = false
+                onDisable()
+            }
+            NotificationManager.push(MOD_NAME, "$name is work in progress")
+            return
+        }
+
         enabled = ! enabled
         if (enabled || alwaysActive) onEnable()
         else onDisable()

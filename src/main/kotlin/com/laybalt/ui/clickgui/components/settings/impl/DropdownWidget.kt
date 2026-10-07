@@ -11,7 +11,7 @@ import com.laybalt.utils.render.Render2D.drawString
 import com.laybalt.utils.render.Render2D.scissor
 import com.laybalt.utils.render.RenderHelper.width
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import java.awt.Color
+import com.laybalt.ui.Palette
 
 class DropdownWidget(config: DropdownSetting): Widget<Int>(config) {
     private inline val cfg get() = config as DropdownSetting
@@ -31,20 +31,20 @@ class DropdownWidget(config: DropdownSetting): Widget<Int>(config) {
         Style.drawHoverBar(ctx, x, y, 20f, hoverAnim.value)
         Style.drawNudgedText(ctx, name, x + 8f, y + 6f, hoverAnim.value)
 
-        val valStr = "§7${cfg.options[value]}"
-        ctx.drawString(valStr, x + width - valStr.width() - 8f, y + 6f, scale = 1f)
+        val valStr = cfg.options[value]
+        ctx.drawString(valStr, x + width - valStr.width() - 8f, y + 6f, Palette.textSecondary, scale = 1f)
 
         ctx.scissor(x, y, width, height)
 
         if (expanded) {
             var oy = y + 20f
-            ctx.drawRect(x + 4f, oy, width - 8f, (cfg.options.size * 16) * openAnim.value, Color(5, 5, 5, 150))
+            ctx.drawRect(x + 4f, oy, width - 8f, (cfg.options.size * 16) * openAnim.value, Palette.bgInset)
             cfg.options.forEachIndexed { index, opt ->
                 val hov = mouseX >= x + 4 && mouseX <= x + width - 4 && mouseY >= oy && mouseY <= oy + 16
-                if (hov) ctx.drawRect(x + 4f, oy, width - 8f, 16f, Color(255, 255, 255, 20))
+                if (hov) ctx.drawRect(x + 4f, oy, width - 8f, 16f, Palette.hover)
                 if (index == value) ctx.drawRect(x + 4f, oy + 2f, 1.5f, 12f, Style.accentColor)
 
-                val color = if (index == value) Style.accentColor else if (hov) Color.WHITE else Color.GRAY
+                val color = if (index == value) Style.accentColor else if (hov) Palette.textPrimary else Palette.textSecondary
                 ctx.drawString(opt, x + 12f, oy + 4f, color, 1f)
                 oy += 16
             }

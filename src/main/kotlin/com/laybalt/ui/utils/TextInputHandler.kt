@@ -4,6 +4,8 @@ import com.laybalt.LayBaltQOL.mc
 import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.utils.render.Render2D.drawRect
 import com.laybalt.utils.render.Render2D.drawString
+import com.laybalt.ui.Palette
+import com.laybalt.utils.ColorUtils.withAlpha
 import com.laybalt.utils.render.Render2D.scissor
 import com.laybalt.utils.render.RenderHelper.width
 import com.mojang.blaze3d.platform.InputConstants
@@ -74,7 +76,7 @@ class TextInputHandler(
             y + 5f,
             selectionWidth,
             height - 10,
-            Style.accentColor
+            Style.accentColor.withAlpha(110)
         )
 
         if (listening) {
@@ -84,11 +86,12 @@ class TextInputHandler(
                 y + height / 3.4,
                 1,
                 9,
+                Palette.textPrimary,
             )
             else if (time - caretBlinkTime > 1000) caretBlinkTime = time
         }
 
-        context.drawString(text + suffix.orEmpty(), x + 4f - textOffset, y + height / 2f - 5)
+        context.drawString(text + suffix.orEmpty(), x + 4f - textOffset, y + height / 2f - 5, Palette.textPrimary)
 
         context.disableScissor()
     }

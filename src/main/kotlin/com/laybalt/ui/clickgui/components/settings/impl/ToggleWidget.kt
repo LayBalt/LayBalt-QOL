@@ -9,7 +9,7 @@ import com.laybalt.ui.utils.Animation
 import com.laybalt.utils.ColorUtils.lerp
 import com.laybalt.utils.render.Render2D.drawRect
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import java.awt.Color
+import com.laybalt.ui.Palette
 
 class ToggleWidget(config: ToggleSetting): Widget<Boolean>(config) {
     private val toggleAnim = Animation(200, if (config.value) 1f else 0f)
@@ -28,9 +28,9 @@ class ToggleWidget(config: ToggleSetting): Widget<Boolean>(config) {
         val sh = 6f
         val sx = x + width - sw - 10f
         val sy = y + (height / 2f) - (sh / 2f)
-        ctx.drawRect(sx, sy, sw, sh, Color(40, 40, 40, 120).lerp(Style.accentColorTrans, toggleAnim.value))
+        ctx.drawRect(sx, sy, sw, sh, Palette.toggleOff.lerp(Palette.accentSoft, toggleAnim.value))
         val tx = sx + (toggleAnim.value * (sw - 8f))
-        ctx.drawRect(tx, sy - 1f, 8f, 8f, Color(160, 160, 160).lerp(Style.accentColor, toggleAnim.value))
+        ctx.drawRect(tx, sy - 1f, 8f, 8f, Palette.knobOff.lerp(Style.accentColor, toggleAnim.value))
     }
 
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {

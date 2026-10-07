@@ -10,6 +10,7 @@ import com.laybalt.utils.render.Render2D.drawBorder
 import com.laybalt.utils.render.Render2D.drawRect
 import com.laybalt.utils.render.Render2D.drawString
 import com.laybalt.utils.render.Render2D.scissor
+import com.laybalt.ui.Palette
 import gg.essential.universal.ChatColor
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -57,7 +58,7 @@ class ColorCodeWidget(config: ColorCodeSetting): Widget<ChatColor>(config) {
                 if (hov) hoveredName = prettyName(format)
 
                 ctx.drawRect(cx, cy, cellW - 2f, cellH, swatchColor(format))
-                if (format == value) ctx.drawBorder(cx, cy, cellW - 1, cellH)
+                if (format == value) ctx.drawBorder(cx, cy, cellW - 1, cellH, Palette.textPrimary)
             }
 
             val label = hoveredName ?: prettyName(value)

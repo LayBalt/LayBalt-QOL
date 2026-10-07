@@ -1,6 +1,8 @@
 package com.laybalt.ui.hud
 
+import com.laybalt.ui.Palette
 import com.laybalt.ui.clickgui.components.settings.Style
+import com.laybalt.utils.ColorUtils.withAlpha
 import com.laybalt.utils.render.Render2D.drawRect
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import java.awt.Color
@@ -39,9 +41,9 @@ abstract class HudElement {
         val centeredOffset = if (centered()) scaledW / 2f else 0f
         val hovered = mx >= x - centeredOffset && mx <= x - centeredOffset + scaledW && my >= y && my <= y + scaledH
 
-        val borderColor = if (isDragging || hovered) Style.accentColor else Color(255, 255, 255, 40)
+        val borderColor = if (isDragging || hovered) Style.accentColor else Palette.border
 
-        ctx.drawRect(x - centeredOffset, y, scaledW, scaledH, Color(10, 10, 10, 150))
+        ctx.drawRect(x - centeredOffset, y, scaledW, scaledH, Palette.bgDeep.withAlpha(150))
         ctx.drawRect(x - centeredOffset, y, scaledW, 1f, borderColor)
         ctx.drawRect(x - centeredOffset, y + scaledH - 1f, scaledW, 1f, borderColor)
     }

@@ -24,7 +24,8 @@ import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import java.awt.Color
+import com.laybalt.ui.Palette
+import com.laybalt.utils.ColorUtils.withAlpha
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -67,9 +68,9 @@ class CommandShortcutsScreen: Screen(Component.literal("Command Shortcuts")) {
         val x = panelX
         val y = panelY
 
-        graphics.drawRect(x, y, panelW, panelH, Color(20, 20, 20, 240))
+        graphics.drawRect(x, y, panelW, panelH, Palette.bgPanel)
         graphics.drawRect(x, y, panelW, 2f, Style.accentColor)
-        graphics.drawCenteredString("§lCommand Shortcuts", x + panelW / 2, y + 8)
+        graphics.drawCenteredString("§lCommand Shortcuts", x + panelW / 2, y + 8, Palette.textPrimary)
 
         val totalHeight = rows.size * entryHeight
         val maxScroll = (totalHeight - viewH).coerceAtLeast(0f)
@@ -79,7 +80,7 @@ class CommandShortcutsScreen: Screen(Component.literal("Command Shortcuts")) {
 
         graphics.scissor(viewX, viewY, viewW, viewH)
 
-        if (rows.isEmpty()) graphics.drawCenteredString("§8No command shortcuts yet :(", x + panelW / 2, viewY + viewH / 2 - 4)
+        if (rows.isEmpty()) graphics.drawCenteredString("No command shortcuts yet :(", x + panelW / 2, viewY + viewH / 2 - 4, Palette.textMuted)
 
         val startIndex = max(0, (- currentScroll / entryHeight).toInt())
         val endIndex = min(rows.size, startIndex + ceil(viewH / entryHeight).toInt() + 1)
@@ -96,16 +97,16 @@ class CommandShortcutsScreen: Screen(Component.literal("Command Shortcuts")) {
         if (maxScroll > 0) {
             val thumbHeight = 20f.coerceAtLeast((viewH / totalHeight) * viewH)
             val thumbY = viewY + (- currentScroll / maxScroll) * (viewH - thumbHeight)
-            graphics.drawRect(x + panelW - 4, viewY, 2f, viewH, Color(255, 255, 255, 15))
+            graphics.drawRect(x + panelW - 4, viewY, 2f, viewH, Palette.subtle)
             graphics.drawRect(x + panelW - 4, thumbY, 2f, thumbHeight, Style.accentColor)
         }
 
         val btnX = x + (panelW / 2) - (addBtnW / 2)
         val btnY = y + panelH - 30
         val btnHovered = mX >= btnX && mX <= btnX + addBtnW && mY >= btnY && mY <= btnY + addBtnH
-        graphics.drawRect(btnX, btnY, addBtnW, addBtnH, if (btnHovered) Color(35, 35, 35, 240) else Color(15, 15, 15, 200))
+        graphics.drawRect(btnX, btnY, addBtnW, addBtnH, if (btnHovered) Palette.bgSetting.withAlpha(240) else Palette.bgInset)
         graphics.drawRect(btnX, btnY + addBtnH - 1, addBtnW, 1f, Style.accentColor)
-        graphics.drawCenteredString("§a+ §rAdd Shortcut", btnX + addBtnW / 2, btnY + 6)
+        graphics.drawCenteredString("+ Add Shortcut", btnX + addBtnW / 2, btnY + 6, if (btnHovered) Style.accentColor else Palette.textPrimary)
 
         Resolution.pop(graphics)
     }
@@ -126,20 +127,20 @@ class CommandShortcutsScreen: Screen(Component.literal("Command Shortcuts")) {
 
     private fun drawRow(ctx: GuiGraphicsExtractor, row: Row, x: Float, y: Float, mx: Float, my: Float) {
         drawInput(ctx, row.commandInput, row.command.isEmpty(), "hello", mx, my)
-        ctx.drawCenteredString("➜", x + commandWidth + arrowWidth / 2, y + 9)
+        ctx.drawCenteredString("➜", x + commandWidth + arrowWidth / 2, y + 9, Palette.textSecondary)
         drawInput(ctx, row.replacementInput, row.replacement.isEmpty(), "pc hello world", mx, my)
 
         val delX = deleteX(x)
         val delHovered = mx >= delX && mx <= delX + deleteWidth && my >= y && my <= y + entryHeight
-        ctx.drawCenteredString("✕", delX + deleteWidth / 2, y + 9, if (delHovered) Color.RED else Color.GRAY)
+        ctx.drawCenteredString("✕", delX + deleteWidth / 2, y + 9, if (delHovered) Palette.danger else Palette.textSecondary)
     }
 
     private fun drawInput(ctx: GuiGraphicsExtractor, handler: TextInputHandler, showPlaceholder: Boolean, placeholder: String, mx: Float, my: Float) {
-        ctx.drawRect(handler.x, handler.y, handler.width, handler.height, Color(15, 15, 15, 200))
-        val color = if (handler.listening) Style.accentColor else Color(255, 255, 255, 30)
+        ctx.drawRect(handler.x, handler.y, handler.width, handler.height, Palette.bgInset)
+        val color = if (handler.listening) Style.accentColor else Palette.border
         ctx.drawRect(handler.x, handler.y + handler.height - 1, handler.width, 1f, color)
 
-        if (showPlaceholder && ! handler.listening) ctx.drawString("§8$placeholder", handler.x + 4, handler.y + 5)
+        if (showPlaceholder && ! handler.listening) ctx.drawString(placeholder, handler.x + 4, handler.y + 5, Palette.textMuted)
         else handler.draw(ctx, mx, my)
     }
 

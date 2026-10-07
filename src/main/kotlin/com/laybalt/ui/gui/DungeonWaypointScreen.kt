@@ -17,6 +17,7 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.core.BlockPos
 import net.minecraft.network.chat.Component
 import com.mojang.blaze3d.platform.InputConstants
+import com.laybalt.ui.Palette
 import java.awt.Color
 
 class DungeonWaypointScreen(
@@ -57,8 +58,8 @@ class DungeonWaypointScreen(
     )
 
     private val colorSwatches = colorPalette.map(::ColorSwatch)
-    private val saveButton = ActionButton("§aSave", Color.GREEN)
-    private val cancelButton = ActionButton("§cCancel", Color.RED)
+    private val saveButton = ActionButton("Save", Style.accentColor)
+    private val cancelButton = ActionButton("Cancel", Palette.danger)
 
     private val panelX get() = (Resolution.width - PANEL_WIDTH) / 2
     private val panelY get() = (Resolution.height - PANEL_HEIGHT) / 2
@@ -80,21 +81,21 @@ class DungeonWaypointScreen(
         val x = panelX
         val y = panelY
 
-        graphics.fillGradient(0, 0, Resolution.width.toInt(), Resolution.height.toInt(), Color(0, 0, 0, 100).rgb, Color(0, 0, 0, 150).rgb)
+        graphics.fillGradient(0, 0, Resolution.width.toInt(), Resolution.height.toInt(), Palette.backdropTop.rgb, Palette.backdropBottom.rgb)
 
-        graphics.drawRect(x, y, PANEL_WIDTH, PANEL_HEIGHT, Color(20, 20, 20, 240))
+        graphics.drawRect(x, y, PANEL_WIDTH, PANEL_HEIGHT, Palette.bgPanel)
         graphics.drawRect(x, y, PANEL_WIDTH, 2f, Style.accentColor)
-        graphics.drawRect(x, y + PANEL_HEIGHT - 1, PANEL_WIDTH, 1f, Color(255, 255, 255, 18))
+        graphics.drawRect(x, y + PANEL_HEIGHT - 1, PANEL_WIDTH, 1f, Palette.border)
 
-        graphics.drawCenteredString("§l${if (initialState == null) "New" else "Edit"} Waypoint", x + PANEL_WIDTH / 2, y + 10)
-        graphics.drawCenteredString("§b$roomName", x + PANEL_WIDTH / 2, y + 42)
-        graphics.drawCenteredString("§7[${absolutePos.x}, ${absolutePos.y}, ${absolutePos.z}]", x + PANEL_WIDTH / 2, y + 56)
+        graphics.drawCenteredString("§l${if (initialState == null) "New" else "Edit"} Waypoint", x + PANEL_WIDTH / 2, y + 10, Palette.textPrimary)
+        graphics.drawCenteredString(roomName, x + PANEL_WIDTH / 2, y + 42, Style.accentColor)
+        graphics.drawCenteredString("[${absolutePos.x}, ${absolutePos.y}, ${absolutePos.z}]", x + PANEL_WIDTH / 2, y + 56, Palette.textSecondary)
 
         toggles.forEachIndexed { index, toggle ->
             drawToggle(graphics, toggle, x + 20, y + TOGGLES_START + index * TOGGLE_SPACING, mX, mY)
         }
 
-        graphics.drawString("§7Color", x + 20, y + 168)
+        graphics.drawString("Color", x + 20, y + 168, Palette.textSecondary)
         drawPreview(graphics, x + PANEL_WIDTH - 20 - SWATCH_SIZE, y + 164)
 
         colorSwatches.forEachIndexed { index, swatch ->
@@ -102,7 +103,7 @@ class DungeonWaypointScreen(
         }
 
         val noStyleSelected = ! filled && ! outline
-        if (noStyleSelected) graphics.drawCenteredString("§cBoth Filled and Outline cannot be false", x + PANEL_WIDTH / 2, y + 258)
+        if (noStyleSelected) graphics.drawCenteredString("Both Filled and Outline cannot be false", x + PANEL_WIDTH / 2, y + 258, Palette.danger)
 
         drawActionButton(graphics, saveButton, x + 30, y + BUTTONS_START, mX, mY, enabled = ! noStyleSelected)
         drawActionButton(graphics, cancelButton, x + PANEL_WIDTH - 30 - BUTTON_WIDTH, y + BUTTONS_START, mX, mY)
@@ -118,14 +119,14 @@ class DungeonWaypointScreen(
 
         val hover = toggle.hoverAnim.value
         if (isOn) graphics.drawRect(x, y, 2f, TOGGLE_HEIGHT, Style.accentColor.withAlpha((140 + 115 * hover).toInt()))
-        graphics.drawRect(x, y, TOGGLE_WIDTH, TOGGLE_HEIGHT, Color(255, 255, 255, (10 * hover).toInt()))
-        graphics.drawString(toggle.label, x + 12, y + (TOGGLE_HEIGHT - 8) / 2, if (isOn) Color.WHITE else Color.GRAY)
+        graphics.drawRect(x, y, TOGGLE_WIDTH, TOGGLE_HEIGHT, Palette.hover.withAlpha((Palette.hover.alpha * hover).toInt()))
+        graphics.drawString(toggle.label, x + 12, y + (TOGGLE_HEIGHT - 8) / 2, if (isOn) Palette.textPrimary else Palette.textSecondary)
 
         val switchX = x + TOGGLE_WIDTH - 34
         val switchY = y + (TOGGLE_HEIGHT - 14) / 2
         val anim = toggle.switchAnim.value
-        graphics.drawRect(switchX, switchY, 34f, 14f, Color(45, 45, 45, 200).lerp(Style.accentColor, anim).withAlpha(200))
-        graphics.drawRect(switchX + 2 + anim * 20, switchY + 2, 10f, 10f, Color.WHITE)
+        graphics.drawRect(switchX, switchY, 34f, 14f, Palette.toggleOff.lerp(Style.accentColor, anim).withAlpha(200))
+        graphics.drawRect(switchX + 2 + anim * 20, switchY + 2, 10f, 10f, Palette.textPrimary)
     }
 
     private fun drawPreview(graphics: GuiGraphicsExtractor, x: Float, y: Float) {
@@ -141,11 +142,11 @@ class DungeonWaypointScreen(
         swatch.hoverAnim.update(if (hovered) 1f else 0f)
 
         graphics.drawRect(x, y, SWATCH_SIZE, SWATCH_SIZE, if (selected) swatch.color.brighter() else swatch.color)
-        if (hovered && ! selected) graphics.drawRect(x, y, SWATCH_SIZE, SWATCH_SIZE, Color(255, 255, 255, 18))
+        if (hovered && ! selected) graphics.drawRect(x, y, SWATCH_SIZE, SWATCH_SIZE, Palette.hover)
 
         val border = when {
             selected -> Style.accentColor
-            hovered -> Color(255, 255, 255, 100)
+            hovered -> Palette.textSecondary
             else -> Color(0, 0, 0, 150)
         }
         graphics.drawBorder(x, y, SWATCH_SIZE, SWATCH_SIZE, border, if (selected) 2f else 1f)
@@ -158,17 +159,16 @@ class DungeonWaypointScreen(
         button.hoverAnim.update(if (hovered) 1f else 0f)
 
         if (! enabled) {
-            graphics.drawRect(x, y, BUTTON_WIDTH, BUTTON_HEIGHT, Color(15, 15, 15, 160))
-            graphics.drawRect(x, y + BUTTON_HEIGHT - 1, BUTTON_WIDTH, 2f, Color(255, 255, 255, 25))
-            graphics.drawCenteredString(button.label, x + BUTTON_WIDTH / 2, y + (BUTTON_HEIGHT - 8) / 2, Color.GRAY)
+            graphics.drawRect(x, y, BUTTON_WIDTH, BUTTON_HEIGHT, Palette.bgInset)
+            graphics.drawRect(x, y + BUTTON_HEIGHT - 1, BUTTON_WIDTH, 2f, Palette.border)
+            graphics.drawCenteredString(button.label, x + BUTTON_WIDTH / 2, y + (BUTTON_HEIGHT - 8) / 2, Palette.textMuted)
             return
         }
 
         val hover = button.hoverAnim.value
-        val bg = (35 + 25 * hover).toInt()
-        graphics.drawRect(x, y, BUTTON_WIDTH, BUTTON_HEIGHT, Color(bg, bg, bg, 220))
+        graphics.drawRect(x, y, BUTTON_WIDTH, BUTTON_HEIGHT, Palette.bgSetting.withAlpha(200).lerp(Palette.bgSlider, hover))
         graphics.drawRect(x, y + BUTTON_HEIGHT - 1, BUTTON_WIDTH, 2f, button.color.withAlpha((170 + 85 * hover).toInt()))
-        graphics.drawCenteredString(button.label, x + BUTTON_WIDTH / 2, y + (BUTTON_HEIGHT - 8) / 2, if (hovered) button.color else Color.WHITE)
+        graphics.drawCenteredString(button.label, x + BUTTON_WIDTH / 2, y + (BUTTON_HEIGHT - 8) / 2, if (hovered) button.color else Palette.textPrimary)
     }
 
     override fun mouseClicked(event: MouseButtonEvent, isDoubleClick: Boolean): Boolean {

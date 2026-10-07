@@ -7,6 +7,7 @@ import com.laybalt.ui.clickgui.components.settings.Widget
 import com.laybalt.ui.utils.Animation
 import com.laybalt.utils.render.Render2D.drawString
 import com.laybalt.utils.render.RenderHelper.width
+import com.laybalt.ui.Palette
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
 class KeybindWidget(config: KeybindSetting): Widget<Int>(config) {
@@ -23,11 +24,8 @@ class KeybindWidget(config: KeybindSetting): Widget<Int>(config) {
         Style.drawHoverBar(ctx, x, y, height, hoverAnim.value)
         Style.drawNudgedText(ctx, name, x + 8f, y + 6f, hoverAnim.value)
 
-        val bindText = when {
-            listening -> "§b..."
-            else -> "§7${cfg.displayName()}"
-        }
-        ctx.drawString(bindText, x + width - bindText.width() - 8f, y + 6f)
+        val bindText = if (listening) "..." else cfg.displayName()
+        ctx.drawString(bindText, x + width - bindText.width() - 8f, y + 6f, if (listening) Style.accentColor else Palette.textSecondary)
     }
 
     override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {

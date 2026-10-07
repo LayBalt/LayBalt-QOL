@@ -11,7 +11,7 @@ import com.laybalt.utils.render.Render2D.drawCenteredString
 import com.laybalt.utils.render.Render2D.drawRect
 import com.laybalt.utils.render.RenderHelper.width
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import java.awt.Color
+import com.laybalt.ui.Palette
 
 class ButtonWidget(config: ButtonSetting): Widget<Unit>(config) {
     private inline val cfg get() = config as ButtonSetting
@@ -25,10 +25,10 @@ class ButtonWidget(config: ButtonSetting): Widget<Unit>(config) {
         Style.drawBackground(ctx, x.toFloat(), y.toFloat(), width.toFloat(), height.toFloat())
 
         if (hoverAnim.value > 0.01f) {
-            ctx.drawRect(x.toFloat(), y.toFloat(), width.toFloat(), height.toFloat(), Color(255, 255, 255, (10 * hoverAnim.value).toInt()))
+            ctx.drawRect(x.toFloat(), y.toFloat(), width.toFloat(), height.toFloat(), Palette.hover.withAlpha((Palette.hover.alpha * hoverAnim.value).toInt()))
         }
 
-        ctx.drawCenteredString(name, x + (width / 2), y + 6)
+        ctx.drawCenteredString(name, x + (width / 2), y + 6, Palette.textPrimary)
 
         if (hoverAnim.value > 0.01f) {
             val textWidth = name.width()

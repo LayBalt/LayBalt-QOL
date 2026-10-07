@@ -12,11 +12,11 @@ import com.laybalt.ui.hud.HudEditorScreen
 import com.laybalt.utils.GuiUtils
 import gg.essential.universal.UMinecraft
 import com.mojang.blaze3d.platform.InputConstants
-import java.awt.Color
+import com.laybalt.ui.Palette
 
 object ClickGui: Feature("A feature used to change the ClickGui configuration.", toggled = true) {
     private val openKeybind by KeybindSetting("Open Keybind")
-    val accentColor by ColorSetting("Accent Color", Color(99, 176, 217), false).withDescription("The accent color used by the whole ClickGui.")
+    val accentColor by ColorSetting("Accent Color", Palette.defaultAccent, false).withDescription("The accent color used by the whole ClickGui.")
     val panelSorting by DropdownSetting("Sorting", 1, listOf("A-Z Sorting", "Width Sorting", "No Sorting")).withDescription("The order of the features in the panels.")
 
     val editGuiButton by ButtonSetting("Open HUD Editor") {

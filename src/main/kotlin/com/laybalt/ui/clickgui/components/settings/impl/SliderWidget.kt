@@ -9,7 +9,7 @@ import com.laybalt.utils.render.Render2D.drawString
 import com.laybalt.utils.render.RenderHelper.width
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import java.awt.Color
+import com.laybalt.ui.Palette
 import kotlin.math.abs
 
 class SliderWidget<T: Number>(config: SliderSetting<T>): Widget<T>(config) {
@@ -48,7 +48,7 @@ class SliderWidget<T: Number>(config: SliderSetting<T>): Widget<T>(config) {
         Style.drawNudgedText(ctx, name, x + 8f, y + 2f, hoverAnim.value)
 
         val valStr = if (isTyping) inputBuffer else cfg.stringfy(value) + cfg.suffix
-        val textColor = if (isTyping) Style.accentColor else Color(180, 180, 180)
+        val textColor = if (isTyping) Style.accentColor else Palette.textSecondary
         ctx.drawString(valStr, x + width - valStr.width() - 8f, y + 2f, textColor)
 
         Style.drawSlider(ctx, x + 8f, y + 14f, width - 16f, sliderAnim.value, Style.accentColor)

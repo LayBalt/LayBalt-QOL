@@ -20,7 +20,7 @@ import com.laybalt.utils.render.Render2D.drawBorder
 import com.laybalt.utils.render.Render2D.drawCenteredString
 import com.laybalt.utils.render.Render2D.drawRect
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import java.awt.Color
+import com.laybalt.ui.Palette
 
 class FeatureConfigWindow(val feature: Feature, startX: Float, startY: Float, startWidth: Float, startHeight: Float) {
     companion object {
@@ -98,16 +98,16 @@ class FeatureConfigWindow(val feature: Feature, startX: Float, startY: Float, st
         updateInteraction(mx, my)
         clampToScreen()
 
-        val frameColor = if (focused) Color(255, 255, 255, 40) else Color(255, 255, 255, 24)
+        val frameColor = if (focused) Palette.borderFocused else Palette.border
         val closeHovered = isInsideCloseButton(mx, my)
 
-        context.drawRect(x - 2f, y - 2f, width + 4f, height + 4f, Color(0, 0, 0, 70))
-        context.drawRect(x, y, width, height, Color(16, 16, 16, 235))
-        context.drawRect(x, y, width, titleBarHeight, Color(24, 24, 24, 245))
-        context.drawRect(x, y, width, 2f, Style.accentColor.withAlpha(if (focused) 255 else 180))
+        context.drawRect(x - 2f, y - 2f, width + 4f, height + 4f, Palette.shadow)
+        context.drawRect(x, y, width, height, Palette.windowBody)
+        context.drawRect(x, y, width, titleBarHeight, Palette.bgPanel)
+        context.drawRect(x, y, width, 2f, Style.accentColor.withAlpha(if (focused) 255 else 170))
         context.drawBorder(x, y, width, height, frameColor)
 
-        context.drawCenteredString("§l${feature.name}", x + (width / 2f), y + 8f)
+        context.drawCenteredString("§l${feature.name}", x + (width / 2f), y + 8f, Palette.textPrimary)
         drawCloseButton(context, closeHovered)
 
         visibleWidgets = settings.filter { it.config.visibility.invoke() }
@@ -179,8 +179,8 @@ class FeatureConfigWindow(val feature: Feature, startX: Float, startY: Float, st
             scrollbarThumbH = thumbHeight
             scrollbarViewportH = viewportHeight
 
-            context.drawRect(barX, contentTop, barWidth, viewportHeight, Color(255, 255, 255, 15))
-            context.drawRect(barX, thumbY, barWidth, thumbHeight, Style.accentColor.withAlpha(if (focused) 180 else 140))
+            context.drawRect(barX, contentTop, barWidth, viewportHeight, Palette.subtle)
+            context.drawRect(barX, thumbY, barWidth, thumbHeight, if (focused) Style.accentColor.withAlpha(180) else Palette.accentGlow)
         }
     }
 
@@ -397,9 +397,9 @@ class FeatureConfigWindow(val feature: Feature, startX: Float, startY: Float, st
     private fun drawCloseButton(context: GuiGraphicsExtractor, hovered: Boolean) {
         val closeX = x + width - windowPadding - closeButtonSize
         val closeY = y + ((titleBarHeight - closeButtonSize) / 2f)
-        val background = if (hovered) Color(180, 60, 60, 220) else Color(255, 255, 255, 18)
+        val background = if (hovered) Palette.danger else Palette.subtle
 
         context.drawRect(closeX, closeY, closeButtonSize, closeButtonSize, background)
-        context.drawCenteredString("\u00D7", closeX + (closeButtonSize / 2f), closeY + 3f)
+        context.drawCenteredString("\u00D7", closeX + (closeButtonSize / 2f), closeY + 3f, Palette.textPrimary)
     }
 }

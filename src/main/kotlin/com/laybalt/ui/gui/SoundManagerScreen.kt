@@ -25,7 +25,7 @@ import net.minecraft.network.chat.Component
 import net.minecraft.sounds.SoundEvent
 import net.minecraft.sounds.SoundEvents
 import com.mojang.blaze3d.platform.InputConstants
-import java.awt.Color
+import com.laybalt.ui.Palette
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -82,11 +82,11 @@ class SoundManagerScreen: Screen(Component.literal("SoundManager")) {
             updateFilter(resetScroll = false)
         }
 
-        graphics.drawRect(x, y, w, h, Color(20, 20, 20, 240))
-        graphics.drawRect(x, y, SIDEBAR_HEIGHT, h, Color(15, 15, 15, 200))
+        graphics.drawRect(x, y, w, h, Palette.bgPanel)
+        graphics.drawRect(x, y, SIDEBAR_HEIGHT, h, Palette.bgInset)
         graphics.drawRect(x, y, w, 2f, Style.accentColor)
 
-        graphics.drawCenteredString("§lSound Manager", x + ((w + SIDEBAR_HEIGHT) / 2), y + 8)
+        graphics.drawCenteredString("§lSound Manager", x + ((w + SIDEBAR_HEIGHT) / 2), y + 8, Palette.textPrimary)
 
         SoundCategory.entries.forEachIndexed { index, cat ->
             val catY = y + 30 + (index * 20)
@@ -94,9 +94,9 @@ class SoundManagerScreen: Screen(Component.literal("SoundManager")) {
             val isSelected = selectedCategory == cat
 
             if (isSelected) graphics.drawRect(x, catY, SIDEBAR_HEIGHT, 20f, Style.accentColor.withAlpha(40))
-            if (isHovered && ! isSelected) graphics.drawRect(x, catY, SIDEBAR_HEIGHT, 20f, Color(255, 255, 255, 10))
+            if (isHovered && ! isSelected) graphics.drawRect(x, catY, SIDEBAR_HEIGHT, 20f, Palette.hover)
 
-            val color = if (isSelected) Style.accentColor else Color.GRAY
+            val color = if (isSelected) Style.accentColor else if (isHovered) Palette.textPrimary else Palette.textSecondary
             graphics.drawString(cat.renderName, x + 10, catY + 6, color)
         }
 
@@ -132,7 +132,7 @@ class SoundManagerScreen: Screen(Component.literal("SoundManager")) {
 
             when (item) {
                 is Header -> {
-                    graphics.drawRect(viewX, itemY, viewW, ENTRY_HEIGHT, Color(255, 255, 255, 5))
+                    graphics.drawRect(viewX, itemY, viewW, ENTRY_HEIGHT, Palette.band)
                     graphics.drawCenteredString("§l${item.name}", viewX + viewW / 2, itemY + 9, Style.accentColor)
                 }
 
@@ -147,7 +147,7 @@ class SoundManagerScreen: Screen(Component.literal("SoundManager")) {
             val thumbY = viewY + (- currentScroll / maxScroll) * (viewH - thumbHeight)
             val hovered = mX >= scrollbarX - 3f && mX <= scrollbarX + SCROLLBAR_WIDTH + 3f && mY >= viewY && mY <= viewY + viewH
 
-            graphics.drawRect(scrollbarX, viewY, SCROLLBAR_WIDTH, viewH, Color(255, 255, 255, if (hovered) 24 else 15))
+            graphics.drawRect(scrollbarX, viewY, SCROLLBAR_WIDTH, viewH, if (hovered) Palette.hover else Palette.subtle)
             graphics.drawRect(scrollbarX, thumbY, SCROLLBAR_WIDTH, thumbHeight, Style.accentColor.withAlpha(if (hovered || draggingScrollbar) 255 else 190))
         }
         else draggingScrollbar = false
@@ -169,21 +169,21 @@ class SoundManagerScreen: Screen(Component.literal("SoundManager")) {
         val isHovered = mx >= x && mx <= x + w && my >= y && my <= y + h
         val playHovered = mx >= playX && mx <= playX + PLAY_SOUND_WIDTH && my >= y + 6f && my <= y + 21f
 
-        if (isHovered) ctx.drawRect(x, y, w, h, Color(255, 255, 255, 15))
+        if (isHovered) ctx.drawRect(x, y, w, h, Palette.band)
 
         val maxNameWidth = (sliderX - x - 12f).toInt()
         val name = if (UGraphics.getStringWidth(sound.cleanName) <= maxNameWidth) sound.cleanName
         else mc.font.plainSubstrByWidth(sound.cleanName, maxNameWidth - UGraphics.getStringWidth("...")) + "..."
 
-        ctx.drawString(name, x + 5f, y + 9f)
-        ctx.drawRect(sliderX, y + 17f, SLIDER_WIDTH, 5f, Color(255, 255, 255, 24))
+        ctx.drawString(name, x + 5f, y + 9f, Palette.textPrimary)
+        ctx.drawRect(sliderX, y + 17f, SLIDER_WIDTH, 5f, Palette.bgSlider)
         ctx.drawRect(sliderX, y + 17f, SLIDER_WIDTH * progress, 5f, Style.accentColor)
-        ctx.drawRect(sliderX + (SLIDER_WIDTH * progress) - 2f, y + 15f, 4f, 9f)
-        ctx.drawRect(playX, y + 6f, PLAY_SOUND_WIDTH, 15f, if (playHovered) Style.accentColor.withAlpha(100) else Color(255, 255, 255, 18))
-        ctx.drawCenteredString("Play", playX + PLAY_SOUND_WIDTH / 2f, y + 10f, if (playHovered) Color.WHITE else Color.LIGHT_GRAY)
+        ctx.drawRect(sliderX + (SLIDER_WIDTH * progress) - 2f, y + 15f, 4f, 9f, Palette.textPrimary)
+        ctx.drawRect(playX, y + 6f, PLAY_SOUND_WIDTH, 15f, if (playHovered) Style.accentColor.withAlpha(100) else Palette.subtle)
+        ctx.drawCenteredString("Play", playX + PLAY_SOUND_WIDTH / 2f, y + 10f, if (playHovered) Palette.textPrimary else Palette.textSecondary)
 
         val valueText = "$volume%"
-        ctx.drawString(valueText, sliderX + SLIDER_WIDTH - UGraphics.getStringWidth(valueText), y + 5f, Color.GRAY)
+        ctx.drawString(valueText, sliderX + SLIDER_WIDTH - UGraphics.getStringWidth(valueText), y + 5f, Palette.textSecondary)
     }
 
     private fun updateFilter(resetScroll: Boolean = true) {
@@ -292,8 +292,8 @@ class SoundManagerScreen: Screen(Component.literal("SoundManager")) {
     private fun getScrollbarThumbHeight(totalHeight: Float, viewHeight: Float) = if (totalHeight <= viewHeight) viewHeight else ((viewHeight / totalHeight) * viewHeight).coerceAtLeast(28f)
 
     private fun drawSearch(ctx: GuiGraphicsExtractor, x: Float, y: Float, w: Float, h: Float, mx: Float, my: Float) {
-        ctx.drawRect(x, y, w, h, Color(15, 15, 15, 200))
-        val color = if (searchHandler.listening) Style.accentColor else Color(255, 255, 255, 30)
+        ctx.drawRect(x, y, w, h, Palette.bgInset)
+        val color = if (searchHandler.listening) Style.accentColor else Palette.border
         ctx.drawRect(x, y + h - 1, w, 1f, color)
 
         searchHandler.x = x
@@ -302,7 +302,7 @@ class SoundManagerScreen: Screen(Component.literal("SoundManager")) {
         searchHandler.height = h
 
         if (searchQuery.isEmpty() && ! searchHandler.listening) {
-            ctx.drawCenteredString("§8Search...", x + w / 2, y + 6)
+            ctx.drawCenteredString("Search...", x + w / 2, y + 6, Palette.textMuted)
         }
         else searchHandler.draw(ctx, mx, my)
     }

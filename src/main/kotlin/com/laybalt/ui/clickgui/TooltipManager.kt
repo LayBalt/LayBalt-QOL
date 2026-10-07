@@ -8,12 +8,12 @@ import com.laybalt.utils.render.RenderHelper.width
 import com.laybalt.utils.render.RenderHelper.wrap
 import gg.essential.universal.UGraphics
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import java.awt.Color
+import com.laybalt.ui.Palette
 import kotlin.math.abs
 
 object TooltipManager {
     private const val displayDelay = 500L
-    private val backgroundColor = Color(10, 10, 10, 240)
+    private val backgroundColor get() = Palette.tooltipBg
 
     private var hoveredText: String? = null
     private var displayStartTime = 0L
@@ -51,7 +51,7 @@ object TooltipManager {
 
         var currentY = ty + padding
         lines.forEach { line ->
-            context.text(mc.font, line, (tx + padding).toInt(), currentY.toInt(), - 1, true)
+            context.text(mc.font, line, (tx + padding).toInt(), currentY.toInt(), Palette.textPrimary.rgb, true)
             currentY += mc.font.lineHeight + 2
         }
 

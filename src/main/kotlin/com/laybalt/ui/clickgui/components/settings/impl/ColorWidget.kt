@@ -14,6 +14,8 @@ import com.laybalt.utils.render.Render2D.drawVerticalGradient
 import com.laybalt.utils.render.Render2D.scissor
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import com.laybalt.ui.Palette
+import com.laybalt.utils.render.RenderHelper.width
 import java.awt.Color
 import java.util.*
 
@@ -104,11 +106,12 @@ class ColorWidget(config: ColorSetting): Widget<Color>(config) {
 
             val hexY = pickerY + pickerSize + 5f
             val hexW = width - 20f
-            ctx.drawRect(x + 10f, hexY, hexW, 12f, Color(10, 10, 10, 200))
+            ctx.drawRect(x + 10f, hexY, hexW, 12f, Palette.bgInset)
             if (hexFocused) ctx.drawRect(x + 10f, hexY + 11f, hexW, 1f, Style.accentColor)
 
             val cursor = if (hexFocused && (System.currentTimeMillis() / 500) % 2 == 0L) "|" else ""
-            ctx.drawString("Hex: §7#$hexText$cursor", x + 14f, hexY + 2f)
+            ctx.drawString("Hex: ", x + 14f, hexY + 2f, Palette.textPrimary)
+            ctx.drawString("#$hexText$cursor", x + 14f + "Hex: ".width(), hexY + 2f, Palette.textSecondary)
         }
 
         ctx.disableScissor()
@@ -188,7 +191,7 @@ class ColorWidget(config: ColorSetting): Widget<Color>(config) {
 
         val ix = sx + (s * sw)
         val iy = sy + ((1f - b) * sh)
-        ctx.drawRect(ix - 1.5f, iy - 1.5f, 3f, 3f)
+        ctx.drawRect(ix - 1.5f, iy - 1.5f, 3f, 3f, Palette.textPrimary)
         ctx.drawRect(ix - 0.5f, iy - 0.5f, 1f, 1f, Color.BLACK)
     }
 
@@ -204,7 +207,7 @@ class ColorWidget(config: ColorSetting): Widget<Color>(config) {
             ctx.drawVerticalGradient(hx, yStart, hw, (yEnd - yStart) + 0.5f, c1, c2)
         }
 
-        ctx.drawRect(hx - 1f, hy + (h * hh) - 0.5f, hw + 2f, 1f)
+        ctx.drawRect(hx - 1f, hy + (h * hh) - 0.5f, hw + 2f, 1f, Palette.textPrimary)
     }
 
     private fun drawVerticalAlphaBar(ctx: GuiGraphicsExtractor, ax: Float, ay: Float, aw: Float, ah: Float) {
@@ -214,13 +217,13 @@ class ColorWidget(config: ColorSetting): Widget<Color>(config) {
         val cBot = base.withAlpha(0)
 
         ctx.drawVerticalGradient(ax, ay, aw, ah, cTop, cBot)
-        ctx.drawRect(ax - 1f, ay + ((1f - a) * ah) - 0.5f, aw + 2f, 1f)
+        ctx.drawRect(ax - 1f, ay + ((1f - a) * ah) - 0.5f, aw + 2f, 1f, Palette.textPrimary)
     }
 
     private fun drawCheckerboard(ctx: GuiGraphicsExtractor, x: Float, y: Float, w: Float, h: Float, size: Int) {
         for (i in 0 until (w / size).toInt()) {
             for (j in 0 until (h / size).toInt()) {
-                val color = if ((i + j) % 2 == 0) Color(50, 50, 50, 200) else Color(30, 30, 30, 200)
+                val color = if ((i + j) % 2 == 0) Palette.bgSlider else Palette.bgSetting.withAlpha(200)
                 ctx.drawRect(x + i * size, y + j * size, size.toFloat(), size.toFloat(), color)
             }
         }

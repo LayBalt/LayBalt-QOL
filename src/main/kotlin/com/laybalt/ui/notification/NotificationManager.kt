@@ -14,7 +14,7 @@ import gg.essential.universal.UGraphics
 import gg.essential.universal.UMouse
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.network.chat.Component
-import java.awt.Color
+import com.laybalt.ui.Palette
 import java.util.concurrent.*
 
 object NotificationManager: ISelfInit {
@@ -84,14 +84,14 @@ object NotificationManager: ISelfInit {
 
             if (! isHovered && isAlive) notify.elapsedTime += delta
 
-            ctx.drawRect(x, y, width, height, Color(20, 20, 20, 240))
+            ctx.drawRect(x, y, width, height, Palette.bgPanel)
             ctx.drawRect(x, y, width, 2f, Style.accentColor)
 
-            ctx.drawString("§a${notify.title}", x + 10f, y + 8f, Color.GREEN)
+            ctx.drawString(notify.title, x + 10f, y + 8f, Palette.textPrimary)
 
             var lineY = y + 20f
             notify.wrappedLines.forEach { line ->
-                ctx.text(mc.font, line, (x + 10f).toInt(), lineY.toInt(), Color.GRAY.rgb, true)
+                ctx.text(mc.font, line, (x + 10f).toInt(), lineY.toInt(), Palette.textSecondary.rgb, true)
                 lineY += UGraphics.getFontHeight() + 1f
             }
 

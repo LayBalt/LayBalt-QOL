@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants
 import com.laybalt.LayBaltQOL.MOD_ID
 import com.laybalt.config.ConfigManager
 import com.laybalt.features.Feature
+import com.laybalt.ui.Palette
 import com.laybalt.ui.clickgui.components.CategoryPanel
 import com.laybalt.ui.clickgui.components.FeatureConfigWindow
 import com.laybalt.ui.clickgui.components.settings.Style
@@ -28,7 +29,6 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
 import net.minecraft.resources.Identifier
-import java.awt.Color
 
 class ClickGuiScreen: Screen(Component.literal("ClickGUI")) {
     private companion object {
@@ -36,6 +36,10 @@ class ClickGuiScreen: Screen(Component.literal("ClickGUI")) {
         const val defaultWindowHeight = 260f
         const val windowCascadeOffset = 18f
         const val searchbarButtonSize = 22f
+
+        const val panelMargin = 20
+        const val panelSpacing = 120
+        const val panelRowGap = 20
     }
 
     private val discordTexture = Identifier.fromNamespaceAndPath(MOD_ID, "textures/gui/discord.png")
@@ -48,9 +52,38 @@ class ClickGuiScreen: Screen(Component.literal("ClickGUI")) {
         textSetter = { searchQuery = it }
     )
 
+    /** Logical width the panels were last laid out for; -1 = not laid out yet. */
+    private var layoutWidth = -1f
+
     init {
-        CategoryType.entries.forEachIndexed { index, category ->
-            categoryPanels.add(CategoryPanel(category, 20 + (index * 120), 20, this))
+        CategoryType.entries.forEach { category ->
+            categoryPanels.add(CategoryPanel(category, panelMargin, panelMargin, this))
+        }
+    }
+
+    /**
+     * Masonry layout: the first row fills as many [panelSpacing]-wide columns as fit, every further panel goes under
+     * the column that currently ends highest. Each panel's body is capped so it ends above the search bar; longer
+     * lists scroll. Must run after [Resolution.push] (that is when [Resolution.width] is valid). Skipped once the
+     * user has dragged a panel so manual placement is kept.
+     */
+    private fun layoutPanels() {
+        if (layoutWidth == Resolution.width) return
+        if (layoutWidth != -1f && categoryPanels.any { it.moved }) return
+        layoutWidth = Resolution.width
+
+        val usableWidth = Resolution.width - panelMargin * 2 + (panelSpacing - CategoryPanel.WIDTH)
+        val columns = (usableWidth / panelSpacing).toInt().coerceIn(1, categoryPanels.size.coerceAtLeast(1))
+        val bottomLimit = (Resolution.height - 50).toInt()
+        val columnBottoms = IntArray(columns) { panelMargin - panelRowGap }
+
+        categoryPanels.forEachIndexed { index, panel ->
+            val column = if (index < columns) index else columnBottoms.indices.minBy { columnBottoms[it] }
+            panel.x = panelMargin + column * panelSpacing
+            panel.y = columnBottoms[column] + panelRowGap
+            panel.maxDisplayHeight = (bottomLimit - panel.y - CategoryPanel.HEADER_HEIGHT)
+                .coerceIn(CategoryPanel.MIN_DISPLAY_HEIGHT, CategoryPanel.MAX_DISPLAY_HEIGHT)
+            columnBottoms[column] = panel.y + panel.fullHeight()
         }
     }
 
@@ -58,8 +91,9 @@ class ClickGuiScreen: Screen(Component.literal("ClickGUI")) {
         val mX = Resolution.getMouseX(mouseX.toDouble())
         val mY = Resolution.getMouseY(mouseY.toDouble())
         Resolution.push(context)
+        layoutPanels()
 
-        context.drawVerticalGradient(0, 0, Resolution.width, Resolution.height, Color(0, 0, 0, 100), Color(0, 0, 0, 150))
+        context.drawVerticalGradient(0, 0, Resolution.width, Resolution.height, Palette.backdropTop, Palette.backdropBottom)
         context.drawSearchBar(mX.toFloat(), mY.toFloat())
         context.drawHudButton(mX.toFloat(), mY.toFloat())
         context.drawDiscordButton(mX.toFloat(), mY.toFloat())
@@ -84,9 +118,9 @@ class ClickGuiScreen: Screen(Component.literal("ClickGUI")) {
         val bx = (Resolution.width / 2) - (bw / 2)
         val by = Resolution.height - 40
 
-        drawRect(bx, by, bw, bh, Color(15, 15, 15, 200))
+        drawRect(bx, by, bw, bh, Palette.bgInset)
 
-        val borderColor = if (searchHandler.listening) Style.accentColor else Color(255, 255, 255, 30)
+        val borderColor = if (searchHandler.listening) Style.accentColor else Palette.border
         drawRect(bx, by + bh - 2, bw, 2f, borderColor)
 
         searchHandler.x = bx
@@ -95,7 +129,7 @@ class ClickGuiScreen: Screen(Component.literal("ClickGUI")) {
         searchHandler.height = bh
 
         if (searchQuery.isEmpty() && ! searchHandler.listening) {
-            drawCenteredString("§8Search...", Resolution.width / 2, by + 7, Color.GRAY, shadow = false)
+            drawCenteredString("Search...", Resolution.width / 2, by + 7, Palette.textMuted, shadow = false)
         }
         else searchHandler.draw(this, mX, mY)
     }
@@ -105,17 +139,17 @@ class ClickGuiScreen: Screen(Component.literal("ClickGUI")) {
         val y = searchHandler.y + (searchHandler.height - searchbarButtonSize) / 2f
 
         val hovered = isOverHudButton(mX, mY)
-        val borderColor = if (hovered) Style.accentColor else Color(255, 255, 255, 30)
+        val borderColor = if (hovered) Style.accentColor else Palette.border
 
-        drawRect(x, y, searchbarButtonSize, searchbarButtonSize, Color(15, 15, 15, 200))
+        drawRect(x, y, searchbarButtonSize, searchbarButtonSize, Palette.bgInset)
         drawRect(x, y + searchbarButtonSize - 2f, searchbarButtonSize, 2f, borderColor)
 
         val cx = x + searchbarButtonSize / 2f
         val cy = y + searchbarButtonSize / 2f
         val s = 8.485281f
 
-        val diamondColor = if (hovered) Style.accentColor.withAlpha(40) else Color(255, 255, 255, 12)
-        val iconColor = if (hovered) Style.accentColor else Color.WHITE
+        val diamondColor = if (hovered) Style.accentColor.withAlpha(40) else Palette.band
+        val iconColor = if (hovered) Style.accentColor else Palette.textPrimary
 
         pose().pushMatrix()
         pose().translate(cx, cy)
@@ -142,9 +176,9 @@ class ClickGuiScreen: Screen(Component.literal("ClickGUI")) {
         val y = searchHandler.y + (searchHandler.height - searchbarButtonSize) / 2f
 
         val hovered = isOverDiscordButton(mX, mY)
-        val borderColor = if (hovered) Style.accentColor else Color(255, 255, 255, 30)
+        val borderColor = if (hovered) Style.accentColor else Palette.border
 
-        drawRect(x, y, searchbarButtonSize, searchbarButtonSize, Color(15, 15, 15, 200))
+        drawRect(x, y, searchbarButtonSize, searchbarButtonSize, Palette.bgInset)
         drawRect(x, y + searchbarButtonSize - 2f, searchbarButtonSize, 2f, borderColor)
 
         val iconSize = 18f

@@ -1,13 +1,13 @@
 package com.laybalt.ui.utils.componnents
 
 import com.laybalt.LayBaltQOL.mc
+import com.laybalt.ui.Palette
 import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.utils.render.Render2D.drawRect
 import gg.essential.universal.UGraphics
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.components.EditBox
 import net.minecraft.network.chat.Component
-import java.awt.Color
 
 class UISearchBox(
     x: Int,
@@ -19,15 +19,15 @@ class UISearchBox(
 
     init {
         this.isBordered = false
-        this.setTextColor(Color.WHITE.rgb)
+        this.setTextColor(Palette.textPrimary.rgb)
     }
 
     override fun extractWidgetRenderState(guiGraphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, partialTick: Float) {
         if (! this.isVisible) return
 
-        guiGraphics.drawRect(x.toFloat(), y.toFloat(), width.toFloat(), height.toFloat(), Color(15, 15, 15, 200))
+        guiGraphics.drawRect(x.toFloat(), y.toFloat(), width.toFloat(), height.toFloat(), Palette.bgInset)
 
-        val borderColor = if (this.isFocused) Style.accentColor else Color(255, 255, 255, 30)
+        val borderColor = if (this.isFocused) Style.accentColor else Palette.border
         guiGraphics.drawRect(x.toFloat(), (y + height - 2).toFloat(), width.toFloat(), 2f, borderColor)
 
         val pose = guiGraphics.pose()

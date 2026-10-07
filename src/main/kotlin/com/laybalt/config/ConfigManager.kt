@@ -2,6 +2,8 @@ package com.laybalt.config
 
 import com.laybalt.LayBaltQOL
 import com.laybalt.features.FeatureManager
+import com.laybalt.features.impl.dev.ClickGui
+import com.laybalt.ui.Palette
 import com.laybalt.utils.*
 import com.laybalt.utils.GsonUtils.gsonArray
 import com.laybalt.utils.GsonUtils.gsonObject
@@ -125,11 +127,15 @@ object ConfigManager {
     private fun read(root: JsonObject) {
         root.getAsJsonArray("config").map { it.asJsonObject }.forEach { featureElement ->
             val feature = FeatureManager.getFeatureByName(featureElement.get("name")?.asString ?: return@forEach) ?: return@forEach
-            if (featureElement.get("enabled")?.asBoolean != feature.enabled) feature.toggle()
-            featureElement.getAsJsonObject("configSettings").entrySet().forEach { (name, value) ->
+            // WIP features stay disabled whatever the file says (toggle() would refuse and notify anyway).
+            if (! feature.wip && featureElement.get("enabled")?.asBoolean != feature.enabled) feature.toggle()
+            featureElement.getAsJsonObject("configSettings")?.entrySet()?.forEach { (name, value) ->
                 (feature.getSettingByName(name) as? Savable)?.read(value)
             }
         }
+
+        // Users who saved the old NA default accent (light blue) get the new LayBalt violet default.
+        if (ClickGui.accentColor.value.rgb == Palette.legacyAccent.rgb) ClickGui.accentColor.value = Palette.defaultAccent
 
         root.getAsJsonArray("hud")?.forEach { hudElement ->
             val hudObj = hudElement.asJsonObject

@@ -12,7 +12,9 @@ import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.network.chat.Component
-import java.awt.Color
+import com.laybalt.ui.Palette
+import com.laybalt.ui.clickgui.components.settings.Style
+import com.laybalt.utils.render.Render2D.drawVerticalGradient
 
 class HudEditorScreen: Screen(Component.literal("HudEditor")) {
     private val huds = FeatureManager.hudElements.filter(HudElement::toggle)
@@ -28,31 +30,33 @@ class HudEditorScreen: Screen(Component.literal("HudEditor")) {
         val btnHeight = 20
         val center = width / 2
 
-        gridToggleButton = addRenderableWidget(UIButton(center - 117, height - 40, 80, btnHeight, "§7Grid: OFF") {
+        gridToggleButton = addRenderableWidget(UIButton(center - 117, height - 40, 80, btnHeight, "Grid: OFF") {
             gridEnabled = ! gridEnabled
             updateGridButton()
         })
 
-        addRenderableWidget(UIButton(center - 32, height - 40, 35, btnHeight, "§7-") {
+        addRenderableWidget(UIButton(center - 32, height - 40, 35, btnHeight, "-") {
             gridSize = (gridSize - 5).coerceAtLeast(5)
             if (! gridEnabled) gridEnabled = true
             updateGridButton()
         })
 
-        addRenderableWidget(UIButton(center + 8, height - 40, 35, btnHeight, "§7+") {
+        addRenderableWidget(UIButton(center + 8, height - 40, 35, btnHeight, "+") {
             gridSize = (gridSize + 5).coerceAtMost(50)
             if (! gridEnabled) gridEnabled = true
             updateGridButton()
         })
 
-        addRenderableWidget(UIButton(center + 48, height - 40, 70, btnHeight, "§cReset") { button ->
+        addRenderableWidget(UIButton(center + 48, height - 40, 70, btnHeight, "Reset") { button ->
             if (! resetConfirmed) {
-                button.message = Component.literal("§c§lConfirm?")
+                button.message = Component.literal("§lConfirm?")
+                button.overrideColor = Palette.danger
                 resetConfirmed = true
                 return@UIButton
             }
             resetConfirmed = false
-            button.message = Component.literal("§cReset")
+            button.message = Component.literal("Reset")
+            button.overrideColor = null
             FeatureManager.hudElements.forEach {
                 it.x = HudElement.defaultX
                 it.y = HudElement.defaultY
@@ -64,12 +68,13 @@ class HudEditorScreen: Screen(Component.literal("HudEditor")) {
 
     private fun updateGridButton() {
         gridToggleButton.message = Component.literal(
-            if (gridEnabled) "§aGrid: ON §7(${gridSize}px)" else "§7Grid: OFF"
+            if (gridEnabled) "Grid: ON (${gridSize}px)" else "Grid: OFF"
         )
+        gridToggleButton.overrideColor = if (gridEnabled) Style.accentColor else null
     }
 
     private fun drawGrid(ctx: GuiGraphicsExtractor) {
-        val gridColor = Color(255, 255, 255, 30).rgb
+        val gridColor = Palette.grid.rgb
         val w = Resolution.width.toInt()
         val h = Resolution.height.toInt()
 
@@ -85,8 +90,8 @@ class HudEditorScreen: Screen(Component.literal("HudEditor")) {
             y += gridSize
         }
 
-        ctx.drawLine(0, h / 2, w, h / 2, Color.WHITE)
-        ctx.drawLine(w / 2, 0, w / 2, h, Color.WHITE)
+        ctx.drawLine(0, h / 2, w, h / 2, Palette.accentSoft)
+        ctx.drawLine(w / 2, 0, w / 2, h, Palette.accentSoft)
     }
 
     override fun extractRenderState(graphics: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
@@ -96,6 +101,7 @@ class HudEditorScreen: Screen(Component.literal("HudEditor")) {
         val mY = Resolution.getMouseY(mouseY)
         val midX = Resolution.width / 2
 
+        graphics.drawVerticalGradient(0, 0, Resolution.width, Resolution.height, Palette.backdropTop, Palette.backdropBottom)
         if (gridEnabled) drawGrid(graphics)
 
         val effectiveGridSize = if (gridEnabled) gridSize else 0
@@ -106,8 +112,8 @@ class HudEditorScreen: Screen(Component.literal("HudEditor")) {
         val activeElement = draggedElement ?: hoveredElement
 
         if (activeElement != null) {
-            val coords = "§7(${activeElement.x.toInt()}, ${activeElement.y.toInt()}) §7@ §f${"%.1f".format(activeElement.scale)}x"
-            graphics.drawCenteredString("${activeElement.name} $coords", midX, 10f, scale = 1.2f)
+            val coords = "(${activeElement.x.toInt()}, ${activeElement.y.toInt()}) @ ${"%.1f".format(activeElement.scale)}x"
+            graphics.drawCenteredString("${activeElement.name}  $coords", midX, 10f, Palette.textPrimary, scale = 1.2f)
         }
 
         Resolution.pop(graphics)

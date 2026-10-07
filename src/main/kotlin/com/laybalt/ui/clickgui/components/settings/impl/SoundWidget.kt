@@ -16,7 +16,7 @@ import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.input.MouseButtonInfo
 import net.minecraft.sounds.SoundEvent
 import com.mojang.blaze3d.platform.InputConstants
-import java.awt.Color
+import com.laybalt.ui.Palette
 import kotlin.math.max
 
 class SoundWidget(config: SoundSetting): Widget<SoundEvent>(config) {
@@ -54,22 +54,22 @@ class SoundWidget(config: SoundSetting): Widget<SoundEvent>(config) {
         Style.drawHoverBar(ctx, x, y, 20f, hoverAnim.value)
         Style.drawNudgedText(ctx, name, x + 8f, y + 6f, hoverAnim.value)
 
-        val valStr = "§7${cfg.prettyName(value)}"
+        val valStr = cfg.prettyName(value).orEmpty()
 
-        ctx.drawString(valStr, x + width - valStr.width() - 8f, y + 6f, scale = 1f)
+        ctx.drawString(valStr, x + width - valStr.width() - 8f, y + 6f, Palette.textSecondary, scale = 1f)
 
         if (openAnim.value > 0.01f) {
             ctx.scissor(x, y + 20, width, height)
 
             val contentY = y + 20f
             val totalContentHeight = (searchHeight + listMaxHeight) * openAnim.value
-            ctx.drawRect(x + 4f, contentY, width - 8f, totalContentHeight, Color(5, 5, 5, 150))
+            ctx.drawRect(x + 4f, contentY, width - 8f, totalContentHeight, Palette.bgInset)
 
             val searchY = contentY + 2
             val searchW = width - 16f
             val searchH = 18f
 
-            ctx.drawRect(x + 8f, searchY, searchW, searchH, Color(30, 30, 30, 180))
+            ctx.drawRect(x + 8f, searchY, searchW, searchH, Palette.bgSetting)
             val searchFocus = if (searchHandler.listening) 1f else 0f
             ctx.drawRect(x + 8f, searchY + searchH - 1f, searchW * searchFocus, 1f, Style.accentColor)
 
@@ -78,7 +78,7 @@ class SoundWidget(config: SoundSetting): Widget<SoundEvent>(config) {
             searchHandler.width = searchW
             searchHandler.height = searchH
 
-            if (searchQuery.isEmpty()) ctx.drawString("§8Search sound...", x + 12f, searchY + 5f)
+            if (searchQuery.isEmpty()) ctx.drawString("Search sound...", x + 12f, searchY + 5f, Palette.textMuted)
             else searchHandler.draw(ctx, mouseX.toFloat(), mouseY.toFloat())
 
             val listY = searchY + searchHeight
@@ -99,8 +99,8 @@ class SoundWidget(config: SoundSetting): Widget<SoundEvent>(config) {
 
                     val isSelected = sound == value
 
-                    if (isEntryHovered) ctx.drawRect(x + 4f, entryY, width - 8f, entryHeight.toFloat(), Color(255, 255, 255, 20))
-                    val textColor = if (isSelected) Style.accentColor else if (isEntryHovered) Color.WHITE else Color.GRAY
+                    if (isEntryHovered) ctx.drawRect(x + 4f, entryY, width - 8f, entryHeight.toFloat(), Palette.hover)
+                    val textColor = if (isSelected) Style.accentColor else if (isEntryHovered) Palette.textPrimary else Palette.textSecondary
 
                     ctx.drawString(cfg.prettyName(sound) !!, x + 12f, entryY + 3f, textColor)
                 }
