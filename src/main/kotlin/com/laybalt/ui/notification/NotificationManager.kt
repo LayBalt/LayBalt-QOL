@@ -13,6 +13,7 @@ import com.laybalt.utils.ChatUtils.addColor
 import gg.essential.universal.UMouse
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import java.util.concurrent.*
+import kotlin.math.min
 
 /** Rounded toast cards in the bottom-right corner with an accent progress line; hovering pauses the timer. */
 object NotificationManager: ISelfInit {
@@ -33,32 +34,35 @@ object NotificationManager: ISelfInit {
     }
 
     override fun init() {
-        EventBus.register<ScreenEvent.PostRender> {
-            val window = mc.window
-            val ctx = event.context
-
-            val activeScale = window.screenWidth.toFloat() / ctx.guiWidth().toFloat()
-            val normalScale = window.calculateScale(mc.options.guiScale().get(), mc.isEnforceUnicode).toFloat()
-            val correction = normalScale / activeScale
-
-            ctx.pose().pushMatrix()
-            ctx.pose().scale(correction)
-            render(ctx, ctx.guiWidth() / correction, ctx.guiHeight() / correction)
-            ctx.pose().popMatrix()
-        }
+        EventBus.register<ScreenEvent.PostRender> { render(event.context) }
     }
 
+    /**
+     * Draws the toasts in the LayBalt canvas units (the same density as the LayBalt windows, see
+     * [com.laybalt.ui.utils.Resolution]), never smaller than 1.5 physical pixels per unit so they stay readable in
+     * small windows. Called after every screen and on the in-game HUD.
+     */
     @JvmStatic
-    @JvmOverloads
-    fun render(ctx: GuiGraphicsExtractor, w: Float? = null, h: Float? = null) {
+    fun render(ctx: GuiGraphicsExtractor) {
+        if (notifications.isEmpty()) {
+            lastFrameTime = System.currentTimeMillis()
+            return
+        }
+        val guiW = ctx.guiWidth().toFloat()
+        val guiH = ctx.guiHeight().toFloat()
+        val physical = mc.window.screenWidth.toFloat() / guiW
+        val k = min(guiW / 960f, guiH / 540f).coerceAtLeast(1.5f / physical)
+        ctx.pose().pushMatrix()
+        ctx.pose().scale(k)
+        draw(ctx, guiW / k, guiH / k, k)
+        ctx.pose().popMatrix()
+    }
+
+    private fun draw(ctx: GuiGraphicsExtractor, screenW: Float, screenH: Float, scale: Float) {
         val now = System.currentTimeMillis()
         val delta = now - lastFrameTime
         lastFrameTime = now
-        if (notifications.isEmpty()) return
 
-        val screenW = w ?: ctx.guiWidth().toFloat()
-        val screenH = h ?: ctx.guiHeight().toFloat()
-        val scale = if (w != null) ctx.guiWidth() / w else 1f
         val mX = UMouse.Scaled.x.toFloat() / scale
         val mY = UMouse.Scaled.y.toFloat() / scale
 

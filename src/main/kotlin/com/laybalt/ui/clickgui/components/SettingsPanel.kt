@@ -1,6 +1,7 @@
 package com.laybalt.ui.clickgui.components
 
 import com.laybalt.LayBaltQOL.MOD_NAME
+import com.laybalt.LayBaltQOL.mc
 import com.laybalt.config.types.ButtonSetting
 import com.laybalt.features.Feature
 import com.laybalt.features.impl.general.CommandShortcuts
@@ -109,8 +110,8 @@ class SettingsPanel {
 
     private fun buildWidgets(f: Feature): List<Widget<*>> = buildList {
         when (f) {
-            is SoundManager -> add(ButtonWidget(ButtonSetting("Open Sound Manager") { openScreen(f) { SoundManagerScreen() } }))
-            is CommandShortcuts -> add(ButtonWidget(ButtonSetting("Open Command Shortcuts") { openScreen(f) { CommandShortcutsScreen() } }))
+            is SoundManager -> add(ButtonWidget(ButtonSetting("Open Sound Manager") { openScreen(f) { SoundManagerScreen(mc.gui.screen()) } }))
+            is CommandShortcuts -> add(ButtonWidget(ButtonSetting("Open Command Shortcuts") { openScreen(f) { CommandShortcutsScreen(mc.gui.screen()) } }))
         }
         val created = f.configSettings.mapNotNull(WidgetFactory::fromSetting)
         var lastSection: String? = null
@@ -262,7 +263,7 @@ class SettingsPanel {
             val h = wgt.height
             if (y + h >= lr.y - 40f && y <= lr.bottom + 40f) {
                 wgt.draw(ctx, wmx, wmy)
-                if (mouseInList && wgt.tooltipArea().contains(mx, my)) TooltipManager.hover(wgt.config.description, mx, my)
+                if (mouseInList && Popovers.current == null && capturing == null && wgt.tooltipArea().contains(mx, my)) TooltipManager.hover(wgt.config.description, mx, my)
             }
             y += h + ROW_GAP
         }

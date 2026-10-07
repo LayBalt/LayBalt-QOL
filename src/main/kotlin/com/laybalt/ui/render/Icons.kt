@@ -16,7 +16,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /** Line-style vector icons for the LayBalt GUI, designed on a 16x16 grid and scaled to any size. */
-enum class Icon { GEAR, SEARCH, CLOSE, CHEVRON_UP, CHEVRON_DOWN, CHEVRON_LEFT, CHEVRON_RIGHT, PLUS, MINUS, GRIP, CHECK, LAYOUT, CHAT, LINK, RESET, GRID, TRASH, INFO, DOT }
+enum class Icon { GEAR, SEARCH, CLOSE, CHEVRON_UP, CHEVRON_DOWN, CHEVRON_LEFT, CHEVRON_RIGHT, PLUS, MINUS, GRIP, CHECK, LAYOUT, CHAT, LINK, RESET, GRID, TRASH, INFO, DOT, PLAY, VOLUME, ARROW_RIGHT, PIN, COMMAND, WARNING }
 
 object Icons {
     /** Default stroke width on the 16-unit grid. */
@@ -92,6 +92,32 @@ object Icons {
                 ctx.line(px(8f), py(7.6f), px(8f), py(11.2f), w, color)
             }
             Icon.DOT -> ctx.circle(px(8f), py(8f), 3f * k, color)
+            Icon.PLAY -> ctx.polygon(pts(5f, 3.2f, 13f, 8f, 5f, 12.8f), color)
+            Icon.VOLUME -> {
+                ctx.polygon(pts(2.2f, 6f, 5f, 6f, 5f, 10f, 2.2f, 10f), color)
+                ctx.polygon(pts(5f, 6f, 8.6f, 2.8f, 8.6f, 13.2f, 5f, 10f), color)
+                ctx.arc(px(8.6f), py(8f), 2.8f * k, -55, 55, w, color)
+                ctx.arc(px(8.6f), py(8f), 5.4f * k, -55, 55, w, color)
+            }
+            Icon.ARROW_RIGHT -> {
+                ctx.line(px(2.8f), py(8f), px(12.2f), py(8f), w, color)
+                ctx.polyline(pts(8.8f, 4.2f, 12.8f, 8f, 8.8f, 11.8f), w, color)
+            }
+            Icon.PIN -> {
+                ctx.ring(px(8f), py(6.4f), 4.2f * k, w, color)
+                ctx.circle(px(8f), py(6.4f), 1.4f * k, color)
+                ctx.polyline(pts(4.6f, 9.2f, 8f, 14.2f, 11.4f, 9.2f), w, color, roundCaps = false)
+            }
+            Icon.COMMAND -> {
+                ctx.roundedOutline(px(1.8f), py(2.6f), 12.4f * k, 10.8f * k, 2.4f * k, w, color)
+                ctx.polyline(pts(4.6f, 6f, 6.8f, 8f, 4.6f, 10f), w, color)
+                ctx.line(px(8.2f), py(10.2f), px(11.4f), py(10.2f), w, color)
+            }
+            Icon.WARNING -> {
+                ctx.polyline(pts(8f, 2.4f, 14f, 13f, 2f, 13f), w, color, closed = true)
+                ctx.line(px(8f), py(6.4f), px(8f), py(9.2f), w, color)
+                ctx.circle(px(8f), py(11.1f), 0.95f * k, color)
+            }
         }
     }
 

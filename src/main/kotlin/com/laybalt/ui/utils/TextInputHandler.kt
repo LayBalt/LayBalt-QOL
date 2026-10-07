@@ -1,16 +1,13 @@
 package com.laybalt.ui.utils
 
 import com.laybalt.LayBaltQOL.mc
+import com.laybalt.ui.Palette
 import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.ui.render.Shapes.pixel
 import com.laybalt.ui.render.Shapes.roundedRect
 import com.laybalt.ui.text.UIFont
-import com.laybalt.utils.render.Render2D.drawRect
-import com.laybalt.utils.render.Render2D.drawString
-import com.laybalt.ui.Palette
 import com.laybalt.utils.ColorUtils.withAlpha
 import com.laybalt.utils.render.Render2D.scissor
-import com.laybalt.utils.render.RenderHelper.width
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.*
@@ -21,6 +18,9 @@ import kotlin.math.min
 
 
 /**
+ * Single-line text editing for the LayBalt screens (caret, mouse selection, word jumps, clipboard, undo/redo), drawn
+ * with [UIFont]. The owner positions it every frame ([x], [y], [width], [height]) and draws the field background.
+ *
  * @author Odin
  * @see <a href="https://github.com/odtheking/OdinFabric/blob/c55825af8b8b1080421cf90f61d5a3bdd5e42f14/src/main/kotlin/com/odtheking/odin/utils/ui/TextInputHandler.kt">TextInputHandler</a>
  * Modified
@@ -36,11 +36,8 @@ class TextInputHandler(
     var width = 0f
     var height = 18f
 
-    /**
-     * Inter text size for LayBalt screens; when set the field measures and draws with [UIFont] (text vertically
-     * centred, caret as tall as the text) instead of the vanilla font.
-     */
-    var fontSize: Float? = null
+    /** Inter text size; the text is vertically centred and the caret is as tall as the text. */
+    var fontSize = 7.6f
     var textColor: Color = Palette.textPrimary
     /** Horizontal inset of the text inside the field. */
     var padding = 4f
@@ -86,38 +83,7 @@ class TextInputHandler(
         previousMousePos = mouseX to mouseY
 
         val size = fontSize
-        if (size != null) {
-            drawInter(context, size, suffix)
-            return
-        }
 
-        context.scissor(x, y, width, height)
-        if (selectionWidth != 0f) context.drawRect(
-            x + selectionStartX + 4f - textOffset,
-            y + 5f,
-            selectionWidth,
-            height - 10,
-            Style.accentColor.withAlpha(110)
-        )
-
-        if (listening) {
-            val time = System.currentTimeMillis()
-            if (time - caretBlinkTime < 500) context.drawRect(
-                x + caretX + 4f - textOffset,
-                y + height / 3.4,
-                1,
-                9,
-                Palette.textPrimary,
-            )
-            else if (time - caretBlinkTime > 1000) caretBlinkTime = time
-        }
-
-        context.drawString(text + suffix.orEmpty(), x + 4f - textOffset, y + height / 2f - 5, Palette.textPrimary)
-
-        context.disableScissor()
-    }
-
-    private fun drawInter(context: GuiGraphicsExtractor, size: Float, suffix: String?) {
         val lineH = UIFont.lineHeight(size)
         val capH = UIFont.capHeight(size)
         context.scissor(x, y, width, height)
@@ -334,7 +300,7 @@ class TextInputHandler(
     }
 
     private fun caretFromMouse(mouseX: Float) {
-        val mx = mouseX - (x + (if (fontSize != null) padding else 4f)) + textOffset
+        val mx = mouseX - (x + padding) + textOffset
 
         var currWidth = 0f
         var newCaret = 0
@@ -363,7 +329,7 @@ class TextInputHandler(
             val previousX = caretX
             caretX = textWidth(text.substringSafe(0, caret))
 
-            val visible = width - (if (fontSize != null) padding * 2f else 0f)
+            val visible = width - padding * 2f
             if (previousX < caretX) {
                 if (caretX - textOffset >= visible) textOffset = caretX - visible
             }
@@ -415,7 +381,7 @@ class TextInputHandler(
         return end
     }
 
-    private fun textWidth(text: String): Float = fontSize?.let { UIFont.width(text, it) } ?: text.width().toFloat()
+    private fun textWidth(text: String): Float = UIFont.width(text, fontSize)
 
     fun resetState() {
         listening = false

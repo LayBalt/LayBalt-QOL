@@ -22,7 +22,6 @@ import com.laybalt.ui.hud.HudEditorScreen
 import com.laybalt.ui.text.UIFont
 import com.laybalt.ui.utils.Resolution
 import com.laybalt.utils.Utils
-import com.laybalt.utils.render.RenderHelper.width
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
@@ -93,7 +92,7 @@ class LayBaltScreen(private val parent: Screen? = null): Screen(Component.litera
         val list = FeatureManager.getFeaturesByCategory(category)
         return when (ClickGui.panelSorting.value) {
             0 -> list.sortedBy { it.name.lowercase() }
-            1 -> list.sortedByDescending { it.name.width() }
+            1 -> list.sortedByDescending { UIFont.width(it.name, 8f, UIFont.Weight.SEMIBOLD) }
             else -> list
         }
     }

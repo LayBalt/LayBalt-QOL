@@ -12,8 +12,12 @@ import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.input.MouseButtonInfo
 
-/** Pill-shaped search field of the top bar ("Search features…"), with a clear button while it has text. */
-class SearchField(private val onChange: (String) -> Unit) {
+/** Pill-shaped search field (top bar of the LayBalt screen, Sound Manager), with a clear button while it has text. */
+class SearchField(
+    private val placeholder: String = "Search features…",
+    private val showHint: Boolean = true,
+    private val onChange: (String) -> Unit
+) {
     companion object {
         const val TEXT_SIZE = 7.8f
     }
@@ -57,10 +61,10 @@ class SearchField(private val onChange: (String) -> Unit) {
         handler.height = r.h
         handler.opacity = UI.alpha
         if (query.isEmpty()) {
-            if (!handler.listening) UI.textMid(ctx, "Search features…", textX(), r.y + r.h / 2f, Palette.textMuted, TEXT_SIZE)
+            if (!handler.listening) UI.textMid(ctx, placeholder, textX(), r.y + r.h / 2f, Palette.textMuted, TEXT_SIZE)
             else {
                 handler.draw(ctx, mx, my)
-                UI.textMid(ctx, "Search features…", textX() + 2f, r.y + r.h / 2f, UI.fade(Palette.textMuted, 0.6f), TEXT_SIZE)
+                UI.textMid(ctx, placeholder, textX() + 2f, r.y + r.h / 2f, UI.fade(Palette.textMuted, 0.6f), TEXT_SIZE)
             }
         }
         else handler.draw(ctx, mx, my)
@@ -74,7 +78,7 @@ class SearchField(private val onChange: (String) -> Unit) {
         }
         else {
             val hint = "Ctrl F"
-            if (!handler.listening && r.w > 150f) UI.chip(ctx, hint, r.right - 10f - UI.chipWidth(hint, 6f), r.y + (r.h - 12f) / 2f, 12f, Palette.chip, Palette.textMuted, 6f)
+            if (showHint && !handler.listening && r.w > 150f) UI.chip(ctx, hint, r.right - 10f - UI.chipWidth(hint, 6f), r.y + (r.h - 12f) / 2f, 12f, Palette.chip, Palette.textMuted, 6f)
         }
     }
 
