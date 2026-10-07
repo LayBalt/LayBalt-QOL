@@ -1,5 +1,6 @@
 package com.laybalt.mixin;
 
+import com.laybalt.features.impl.render.NoRender;
 import com.laybalt.features.impl.visual.LavaToWater;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
@@ -20,7 +21,8 @@ public abstract class MixinLavaFogEnvironment {
 
     @Inject(method = "setupFog", at = @At("HEAD"), cancellable = true)
     private void hookSetupFog(FogData fog, Camera camera, ClientLevel level, float renderDistance, DeltaTracker deltaTracker, CallbackInfo ci) {
-        if (! LavaToWater.INSTANCE.enabled || ! LavaToWater.getHideFog().getValue()) return;
+        boolean lavaToWaterHides = LavaToWater.INSTANCE.enabled && LavaToWater.getHideFog().getValue();
+        if (! lavaToWaterHides && ! NoRender.active(NoRender.getLavaFog())) return;
         fog.color.set(fog.color.x, fog.color.y, fog.color.z, 0f);
         fog.environmentalStart = renderDistance;
         fog.environmentalEnd = renderDistance;

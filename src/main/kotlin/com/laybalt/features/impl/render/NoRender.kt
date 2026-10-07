@@ -28,7 +28,7 @@ import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownExper
  * One switchboard of independent "hide X" toggles.
  *
  * Deliberately NOT here (already covered elsewhere, do not duplicate):
- * fire / water / in-block / portal overlays, nausea, blindness, lava fog and the damage tilt live in Camera Helper,
+ * fire / water / in-block / portal overlays, nausea and blindness live in Camera Helper,
  * the hand swing animation lives in Animations.
  *
  * Hooks: [CheckEntityRenderEvent] and [TickEvent.End] here, plus
@@ -45,10 +45,12 @@ import net.minecraft.world.entity.projectile.throwableitemprojectile.ThrownExper
  * @see com.laybalt.mixin.MixinLightmapFullbright (darkness light-map pulse)
  * @see com.laybalt.mixin.MixinAtmosphericFogEnvironmentWorldVisuals
  * @see com.laybalt.mixin.MixinFogRendererWorldVisuals
+ * @see com.laybalt.mixin.MixinLavaFogEnvironment (lava fog)
+ * @see com.laybalt.mixin.MixinGameRenderer (hurt camera)
  */
 object NoRender: Feature(
     "Hides visual clutter: chosen entities, particles, HUD elements, fog, weather and more. " +
-        "Fire, water, block and portal overlays, nausea, blindness, lava fog and the damage tilt are in Camera Helper; " +
+        "Fire, water, block and portal overlays, nausea and blindness are in Camera Helper; " +
         "the hand swing animation is in Animations."
 ) {
     // ---------------------------------------------------------------- Entities
@@ -107,10 +109,14 @@ object NoRender: Feature(
         .withDescription("Hides the item name shown above the hotbar when you switch items")
     @JvmStatic val titles by ToggleSetting("Titles")
         .withDescription("Hides big title and subtitle texts. Only the drawing is skipped, features that read titles keep working")
+    @JvmStatic val hurtCamera by ToggleSetting("Hurt Camera")
+        .withDescription("Stops the camera from shaking and tilting when you take damage, whatever the vanilla Damage Tilt option is set to")
 
     // ---------------------------------------------------------------- World
     @JvmStatic val fog by ToggleSetting("Fog")
         .withDescription("Removes the distance fog of the open world. Water, lava, powder snow, blindness and darkness fog are kept").section("World")
+    @JvmStatic val lavaFog by ToggleSetting("Lava Fog")
+        .withDescription("Removes the thick orange fog while your camera is inside lava, so you can see through it. Lava keeps its normal colour; Lava To Water can recolour it")
     @JvmStatic val darkness by ToggleSetting("Darkness")
         .withDescription("Removes the darkness effect: the pulsing dark screen and the fog it adds")
     @JvmStatic val weather by ToggleSetting("Weather")

@@ -1,6 +1,7 @@
 package com.laybalt.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.laybalt.features.impl.render.NoRender;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
@@ -17,6 +18,6 @@ public class MixinGameRenderer {
 
     @Inject(method = "bobHurt", at = @At("HEAD"), cancellable = true)
     public void onBobHurt(CameraRenderState cameraState, PoseStack poseStack, CallbackInfo ci) {
-        if (minecraft.options.damageTiltStrength().get() == 0) ci.cancel();
+        if (minecraft.options.damageTiltStrength().get() == 0 || NoRender.active(NoRender.getHurtCamera())) ci.cancel();
     }
 }
