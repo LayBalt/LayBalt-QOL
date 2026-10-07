@@ -13,10 +13,10 @@ import java.awt.Color
  * Time is done on the 26.2 world-clock: every clock reading on the client is replaced by the chosen time
  * of the current day, so the real server time keeps being tracked and turning the option off restores it instantly.
  *
- * @see com.laybalt.mixin.MixinAtmosphericFogEnvironmentWorldVisuals
  * Sky and clouds: the sky disc colour is replaced after SkyRenderer sampled it, the cloud colour / height after the
  * level extractor read them from the camera environment attributes (a zero-alpha colour skips the cloud pass).
  *
+ * @see com.laybalt.mixin.MixinAtmosphericFogEnvironmentWorldVisuals
  * @see com.laybalt.mixin.MixinClientClockManagerWorldTweaks
  * @see com.laybalt.mixin.MixinSkyRendererWorldTweaks
  * @see com.laybalt.mixin.MixinLevelExtractorWorldTweaks

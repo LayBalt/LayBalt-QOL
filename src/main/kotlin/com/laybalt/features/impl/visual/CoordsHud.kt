@@ -21,7 +21,7 @@ object CoordsHud: Feature("Shows your coordinates, facing direction, biome, chun
     private val showBiome by ToggleSetting("Biome", true).withDescription("Shows the biome you are standing in.")
     private val showChunk by ToggleSetting("Chunk", false).withDescription("Shows the chunk coordinates and your position inside the chunk.")
     private val showNether by ToggleSetting("Dimension Coords", false).withDescription("Shows the matching Nether coordinates in the Overworld and Overworld coordinates in the Nether.")
-    private val showTime by ToggleSetting("World Time", false).withDescription("Shows the in-game time of day as a clock (server time).")
+    private val showTime by ToggleSetting("World Time", false).withDescription("Shows the in-game time of day as a clock. Follows World Tweaks > Change Time while that is on.")
     private val showDay by ToggleSetting("Day", false).withDescription("Shows the in-game day counter.")
     private val singleLine by DropdownSetting("Layout", 0, listOf("Lines", "Single Line")).withDescription("One entry per line, or everything on one line separated by dots.")
 

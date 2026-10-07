@@ -5,8 +5,8 @@ import net.minecraft.world.phys.Vec3
 import org.lwjgl.openal.AL10
 
 /**
- * @see com.laybalt.mixin.MixinChannel
- * @see com.laybalt.mixin.MixinSoundEngine
+ * @see com.laybalt.mixin.MixinChannelMonoAudio
+ * @see com.laybalt.mixin.MixinSoundEngineMonoAudio
  */
 object MonoAudio: Feature("Plays all the game audio through a single channel.") {
     @JvmStatic

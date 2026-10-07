@@ -12,6 +12,7 @@ import com.laybalt.event.impl.TickEvent
 import com.laybalt.features.Feature
 import com.laybalt.ui.notification.NotificationManager
 import com.laybalt.utils.render.Render2D.drawString
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import java.time.Instant
 import java.time.ZoneId
@@ -44,7 +45,6 @@ object SessionTimer: Feature("Shows how long you have been playing this session.
     private var inWorldMillis = 0L
     private var lastTick = 0L
     private var sessionStart = System.currentTimeMillis()
-    private var wasInWorld = false
     private var isAfk = false
 
     private var lastX = 0.0
@@ -63,7 +63,21 @@ object SessionTimer: Feature("Shows how long you have been playing this session.
         }
 
         // The timer keeps counting while the widget is turned off, so turning it on shows the real session time.
+        // TickEvent.Start is only posted while a level is loaded, so joining and leaving are tracked with the connection events.
         EventBus.register<TickEvent.Start> { tick() }
+        ClientPlayConnectionEvents.JOIN.register { _, _, client -> client.execute { onJoin() } }
+        ClientPlayConnectionEvents.DISCONNECT.register { _, client -> client.execute { onLeave() } }
+    }
+
+    private fun onJoin() {
+        lastTick = 0L
+        lastActivity = System.currentTimeMillis()
+    }
+
+    private fun onLeave() {
+        // Forget the last in-world tick so the time spent outside a world is never credited on the next join.
+        lastTick = 0L
+        if (resetOnLeave.value && countMode.value == 0) resetTimer()
     }
 
     private fun tick() {
@@ -71,12 +85,7 @@ object SessionTimer: Feature("Shows how long you have been playing this session.
         val dt = if (lastTick == 0L) 0L else (now - lastTick).coerceIn(0L, 5000L)
         lastTick = now
 
-        val player = mc.player
-        val inWorld = mc.level != null && player != null
-        if (wasInWorld && ! inWorld && resetOnLeave.value && countMode.value == 0) resetTimer()
-        if (! wasInWorld && inWorld) lastActivity = now
-        wasInWorld = inWorld
-        if (! inWorld) return
+        val player = mc.player ?: return
 
         if (player.x != lastX || player.y != lastY || player.z != lastZ || player.yRot != lastYaw || player.xRot != lastPitch) {
             lastActivity = now

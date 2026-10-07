@@ -1,5 +1,6 @@
 package com.laybalt.mixin;
 
+import com.laybalt.features.impl.render.Box3D;
 import com.laybalt.interfaces.IGlowingEntity;
 import net.minecraft.world.entity.Entity;
 import org.jspecify.annotations.NonNull;
@@ -18,7 +19,7 @@ public abstract class MixinEntity implements IGlowingEntity {
 
     @Inject(method = "getTeamColor", at = @At("HEAD"), cancellable = true)
     private void onGetTeamColorValue(CallbackInfoReturnable<Integer> cir) {
-        if (lbqmod$isGlowing()) {
+        if (lbqmod$isGlowing() && !Box3D.INSTANCE.enabled) {
             cir.setReturnValue(lbqmod$glowColor().getRGB());
         }
     }
