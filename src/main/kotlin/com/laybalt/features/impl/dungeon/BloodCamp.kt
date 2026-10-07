@@ -1,45 +1,101 @@
+// Blood Assist boxes/timings, Move HUD and Watcher Bar ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.dungeon
 
 import com.laybalt.config.types.*
 import com.laybalt.event.impl.*
 import com.laybalt.features.Feature
 import com.laybalt.utils.*
-import com.laybalt.utils.ColorUtils.invert
-import com.laybalt.utils.MathUtils.aabb
+import com.laybalt.utils.ChatUtils.unformattedText
 import com.laybalt.utils.MathUtils.add
 import com.laybalt.utils.NumbersUtils.toFixed
 import com.laybalt.utils.dungeons.DungeonListener
 import com.laybalt.utils.items.ItemUtils
 import com.laybalt.utils.location.LocationUtils
+import com.laybalt.utils.render.Render2D.drawString
 import com.laybalt.utils.render.RenderHelper.renderVec
+import com.laybalt.utils.render.RenderHelper.width
 import com.laybalt.utils.render.world.Render3D.renderBoxBounds
 import com.laybalt.utils.render.world.Render3D.renderLine
 import com.laybalt.utils.render.world.Render3D.renderString
 import gg.essential.universal.USound
+import net.minecraft.network.chat.Component
 import net.minecraft.network.protocol.game.*
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.entity.monster.zombie.Zombie
 import net.minecraft.world.item.Items
+import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import java.awt.Color
+import java.util.concurrent.*
 import kotlin.math.ceil
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 object BloodCamp: Feature("Features for Blood Room.") {
     private val bloodCamp by ToggleSetting("Blood Camp Helper", true).section("Blood Camp Helper")
+        .withDescription("Predicts where each blood mob will stop and draws a box, a line and a timer until it spawns.")
     private val decimalPlaces by SliderSetting("Decimal Places", 1, 0, 2, 1).showIf { bloodCamp.value }.withDescription("The number of decimal places shown on blood mob timers")
-    private val timerColor by ColorSetting("Timer Color", Color.WHITE).showIf { bloodCamp.value }
-    private val boxColor by ColorSetting("Box Color", Color(255, 0, 255)).showIf { bloodCamp.value }
-    private val lineColor by ColorSetting("Line Color", Color.CYAN).showIf { bloodCamp.value }
+    private val drawTime by ToggleSetting("Draw Timer", true)
+        .withDescription("Shows the time left until the blood mob spawns above its spawn box.")
+        .showIf { bloodCamp.value }
+    private val colorByTime by ToggleSetting("Color Timer By Time", true)
+        .withDescription("Colours the timer by the time left: green above 1.5s, gold above 0.5s, red until spawn, aqua once it should have spawned.")
+        .showIf { bloodCamp.value && drawTime.value }
+    private val timerColor by ColorSetting("Timer Color", Color.WHITE)
+        .withDescription("Colour of the timer text when Color Timer By Time is off.")
+        .showIf { bloodCamp.value && drawTime.value && ! colorByTime.value }
+    private val boxColor by ColorSetting("Box Color", Color(255, 0, 255))
+        .withDescription("Colour of the spawn box (where the mob will stop and spawn).")
+        .showIf { bloodCamp.value }
+    private val finalColor by ColorSetting("Final Color", Color(0, 170, 170))
+        .withDescription("Colour of the spawn box once the mob has (almost) reached it, i.e. the position box and the spawn box have merged. Set alpha to 0 to hide it.")
+        .showIf { bloodCamp.value }
+    private val positionBox by ToggleSetting("Position Box", true)
+        .withDescription("Draws a second box at the mob's current position, shifted forward by your ping, so you can see how far it still has to travel.")
+        .showIf { bloodCamp.value }
+    private val positionColor by ColorSetting("Position Color", Color(85, 255, 85))
+        .withDescription("Colour of the position box.")
+        .showIf { bloodCamp.value && positionBox.value }
+    private val boxSize by SliderSetting("Box Size", 1.0, 0.1, 1.0, 0.1)
+        .withDescription("Size of the boxes. Smaller boxes may look less accurate.")
+        .showIf { bloodCamp.value }
+    private val drawLine by ToggleSetting("Draw Line", true)
+        .withDescription("Draws a line from the mob to its predicted spawn position.")
+        .showIf { bloodCamp.value }
+    private val lineColor by ColorSetting("Line Color", Color.CYAN).showIf { bloodCamp.value && drawLine.value }
+        .withDescription("Colour of the line from the mob to its spawn position.")
+
+    private val offset by SliderSetting("Time Offset", 40, - 100, 100, 1, "ms").section("Blood Camp Advanced")
+        .withDescription("Millisecond offset used to decide when the position box has reached the spawn box (Final Color).")
+        .showIf { bloodCamp.value }
+    private val spawnTick by SliderSetting("Spawn Tick", 38, 35, 41, 1)
+        .withDescription("The server tick (after the mob starts moving) at which the mob is assumed to spawn.")
+        .showIf { bloodCamp.value }
+    private val interpolation by ToggleSetting("Interpolation", true)
+        .withDescription("Smoothly moves the boxes between server updates. Less jitter at the cost of some accuracy.")
+        .showIf { bloodCamp.value }
+    private val pingOffset by ToggleSetting("Ping Offset", true)
+        .withDescription("Offsets the position box by your average ping.")
+        .showIf { bloodCamp.value && positionBox.value }
+    private val manualOffset by SliderSetting("Mob Box Offset", 0f, 0f, 300f, 1f, "ms")
+        .withDescription("Manual millisecond offset for the position box when Ping Offset is off.")
+        .showIf { bloodCamp.value && positionBox.value && ! pingOffset.value }
 
     private val killTitle by ToggleSetting("Kill Title").section("Alerts").withDescription("Displays a Title when the blood mobs are ready to be killed. &bNOTE: Not always accurate, you will get better move times by learning when to kill the mobs yourself.")
+    private val moveHud by ToggleSetting("Move Timer HUD", true)
+        .withDescription("Shows a HUD countdown until the Watcher moves (and the blood mobs can be killed). Move it with the HUD editor.")
     private val speedAlert by ToggleSetting("Speed Alert").withDescription("Shows a title for the Watcher speed. (slow, normal, fast)")
     private val partySpeedAlert by ToggleSetting("Send Speed Alert").withDescription("Sends in party chat the Watcher speed.").showIf { speedAlert.value }
 
-    private val bloodMobs = HashMap<ArmorStand, BloodEntity>()
+    private val watcherBar by ToggleSetting("Watcher Bar", true).section("Watcher Bar")
+        .withDescription("Appends the Watcher's remaining health (current/max blood mobs) to its boss bar.")
+
+    private val bloodMobs = ConcurrentHashMap<ArmorStand, BloodEntity>()
     private var watcherEntity: Zombie? = null
     private var firstSpawns = true
+    private var moveEndTime: Long? = null
 
     private data class BloodEntity(
         var startVec: Vec3,
@@ -49,9 +105,23 @@ object BloodCamp: Feature("Features for Blood Room.") {
         var lastPosition: Vec3 = startVec,
         var currentVector: Vec3 = startVec,
         var endVector: Vec3? = null,
+        var lastEndVector: Vec3? = null,
+        var endUpdated: Long = 0L,
+        var speedVector: Vec3 = Vec3.ZERO,
     )
 
     override fun init() {
+        hudElement(
+            "Watcher Move Timer",
+            enabled = { moveHud.value },
+            shouldDraw = { LocationUtils.inDungeon && ! LocationUtils.inBoss && moveTicksLeft() > 0 }
+        ) { ctx, example ->
+            val seconds = if (example) 0.5f else moveTicksLeft() / 20f
+            val text = "§cMove Timer: ${seconds.toFixed(2)}s"
+            ctx.drawString(text, 0, 0)
+            return@hudElement text.width() to 9f
+        }
+
         register<ChatMessageEvent> {
             if (LocationUtils.inBoss) return@register
             if (event.unformattedText != "[BOSS] The Watcher: Let's see how you can handle this.") return@register
@@ -59,16 +129,17 @@ object BloodCamp: Feature("Features for Blood Room.") {
             val seconds = (DungeonListener.currentTime - startTime) / 20
             firstSpawns = false
 
-            if (killTitle.value) {
-                val moveTicks = when (seconds) {
-                    in 31 ..< 34 -> 36
-                    in 28 ..< 31 -> 33
-                    in 25 ..< 28 -> 30
-                    in 22 ..< 25 -> 27
-                    in 1 ..< 22 -> 24
-                    else -> seconds + 3
-                }
+            val moveTicks = when (seconds) {
+                in 31 ..< 34 -> 36
+                in 28 ..< 31 -> 33
+                in 25 ..< 28 -> 30
+                in 22 ..< 25 -> 27
+                in 1 ..< 22 -> 24
+                else -> seconds + 3
+            }
+            moveEndTime = DungeonListener.currentTime + moveTicks
 
+            if (killTitle.value) {
                 val moveSeconds = moveTicks / 20f
                 ChatUtils.modMessage("Watcher will move in ${moveSeconds.toFixed(2)}s.")
                 ThreadUtils.scheduledTaskServer(moveTicks) {
@@ -124,10 +195,17 @@ object BloodCamp: Feature("Features for Blood Room.") {
 
             if (delta.lengthSqr() > 0) data.deltaHistory.addLast(delta)
 
-            val spawnTime = if (data.firstSpawn) 16.1 else 11.9
+            val spawnDistance = if (data.firstSpawn) 16.1 else 11.9
             val totalDelta = data.deltaHistory.fold(Vec3.ZERO) { acc, d -> acc.add(d) }
-            val endpoint = data.startVec.add((totalDelta.normalize()).scale(spawnTime))
+            val direction = if (totalDelta.lengthSqr() > 0) totalDelta.normalize() else Vec3.ZERO
+            val endpoint = data.startVec.add(direction.scale(spawnDistance))
+
+            val timeTookMs = (DungeonListener.currentTime - data.started) * 50.0
+            data.speedVector = if (timeTookMs > 0) packetVec.subtract(data.startVec).scale(1.0 / timeTookMs) else Vec3.ZERO
+            data.currentVector = packetVec
+            data.lastEndVector = data.endVector
             data.endVector = endpoint
+            data.endUpdated = System.currentTimeMillis()
         }
 
         register<EntityUnloadEvent> {
@@ -139,28 +217,82 @@ object BloodCamp: Feature("Features for Blood Room.") {
             bloodMobs.clear()
             watcherEntity = null
             firstSpawns = true
+            moveEndTime = null
+        }
+
+        register<BossBarRenderEvent> {
+            if (! watcherBar.value || ! LocationUtils.inDungeon || LocationUtils.inBoss) return@register
+            if (event.name.unformattedText != "The Watcher") return@register
+            val progress = event.bossEvent.progress
+            if (progress < 0.05f) return@register
+            val max = 12 + (LocationUtils.dungeonFloorNumber ?: 0)
+            event.name = event.name.copy().append(Component.literal(" ${(max * progress).roundToInt()}/$max"))
         }
 
         register<RenderWorldEvent> {
             if (! bloodCamp.value) return@register
             if (LocationUtils.inBoss) return@register
-            val boxOffset = Vec3(- 0.5, 1.5, - 0.5)
+            val size = boxSize.value
+            val now = System.currentTimeMillis()
 
             bloodMobs.forEach { (entity, data) ->
+                if (! entity.isAlive) return@forEach
                 val endVector = data.endVector ?: return@forEach
-                val timeTook = DungeonListener.currentTime - data.started
-                val time = (if (data.firstSpawn) 40 else 0) + 38 - timeTook + 0.8
-                val endAABB = aabb(1, 1, 1, 0, 0, 0).move(boxOffset.add(endVector))
 
-                var timerText = ((time - 0.8) / 20).toString()
-                timerText = if (decimalPlaces.value > 0) timerText.toFixed(decimalPlaces.value)
-                else ceil(timerText.toDouble()).toInt().toString()
+                val endPoint = data.lastEndVector?.takeIf { interpolation.value }?.let { last ->
+                    lerp(last, endVector, min(now - data.endUpdated, 100L) / 100.0)
+                } ?: endVector
 
-                event.ctx.renderBoxBounds(endAABB, if (ServerUtils.averagePing > time * 50) boxColor.value.invert() else boxColor.value, fill = false, phase = true)
-                event.ctx.renderLine(entity.renderVec.add(y = 2), endVector.add(y = 2), lineColor.value, phase = true)
-                event.ctx.renderString(timerText, endVector.add(y = 2), color = timerColor.value, scale = 2f, phase = true)
+                val timeTookMs = (DungeonListener.currentTime - data.started) * 50
+                val timeMs = (if (data.firstSpawn) 2000 else 0) + spawnTick.value * 50 - timeTookMs + offset.value
+                val mobOffset = if (pingOffset.value) ServerUtils.averagePing.toDouble() else manualOffset.value.toDouble()
+                val merged = mobOffset >= timeMs
+
+                val endAABB = boxAt(endPoint, size)
+                if (positionBox.value && ! merged) {
+                    val basePos = if (interpolation.value) entity.renderVec else entity.position()
+                    val pingPoint = basePos.add(data.speedVector.scale(mobOffset))
+                    drawBox(event, boxAt(pingPoint, size), positionColor.value)
+                    drawBox(event, endAABB, boxColor.value)
+                }
+                else drawBox(event, endAABB, if (merged) finalColor.value else boxColor.value)
+
+                if (drawLine.value) event.ctx.renderLine(entity.renderVec.add(y = 2), endPoint.add(y = 2), lineColor.value, phase = true)
+
+                if (drawTime.value) {
+                    val seconds = (timeMs - offset.value) / 1000.0
+                    val timerText = if (decimalPlaces.value > 0) seconds.toFixed(decimalPlaces.value) else ceil(seconds).toInt().toString()
+                    val text = if (colorByTime.value) "${timeColorCode(seconds)}${timerText}s" else timerText
+                    val color = if (colorByTime.value) Color.WHITE else timerColor.value
+                    event.ctx.renderString(text, endPoint.add(y = 2), color = color, scale = 2f, phase = true)
+                }
             }
         }
+    }
+
+    private fun moveTicksLeft() = moveEndTime?.let { it - DungeonListener.currentTime } ?: 0L
+
+    private fun boxAt(pos: Vec3, size: Double) = AABB(
+        pos.x - size / 2.0, pos.y + 1.5, pos.z - size / 2.0,
+        pos.x + size / 2.0, pos.y + 1.5 + size, pos.z + size / 2.0
+    )
+
+    private fun drawBox(event: RenderWorldEvent, aabb: AABB, color: Color) {
+        if (color.alpha == 0) return
+        event.ctx.renderBoxBounds(aabb, color, fill = false, phase = true)
+    }
+
+    private fun lerp(from: Vec3, to: Vec3, t: Double) = Vec3(
+        from.x + (to.x - from.x) * t,
+        from.y + (to.y - from.y) * t,
+        from.z + (to.z - from.z) * t
+    )
+
+    private fun timeColorCode(seconds: Double) = when {
+        seconds > 1.5 -> "§a"
+        seconds in 0.5 .. 1.5 -> "§6"
+        seconds in 0.0 .. 0.5 -> "§c"
+        else -> "§b"
     }
 
     private val watcherSkulls = setOf(

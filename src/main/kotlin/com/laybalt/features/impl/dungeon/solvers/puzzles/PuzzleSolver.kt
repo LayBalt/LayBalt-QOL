@@ -11,6 +11,7 @@ sealed interface PuzzleSolver {
     fun onStateChange(event: DungeonEvent.RoomEvent.onStateChange) {}
     fun onRoomEnter(event: DungeonEvent.RoomEvent.onEnter) {}
     fun onTick() {}
+    fun onClientTick() {}
     fun onPacket(event: MainThreadPacketReceivedEvent.Pre) {}
     fun onChat(event: ChatMessageEvent) {}
     fun onRenderWorld(ctx: RenderContext) {}
