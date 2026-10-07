@@ -205,7 +205,6 @@ object PartyFinder: Feature(), ICommandProvider {
 
         val data = ProfileUtils.getProfile(cleanName).onFailure {
             ChatUtils.modMessage("&cFailed to get stats for $name. ${it.message}")
-            it.printStackTrace()
         }.getOrNull() ?: return
         val dungeons = data.dungeons
 
@@ -369,8 +368,7 @@ object PartyFinder: Feature(), ICommandProvider {
                     scope.launch {
                         fetchSemaphore.withPermit {
                             ProfileUtils.getProfile(key).onFailure {
-                                ChatUtils.chat(it.message)
-                                it.printStackTrace()
+                                ChatUtils.debug("pf", "Failed to fetch stats for $key: ${it.message}")
                             }
                             pendingFetches.remove(key)
                         }

@@ -10,13 +10,14 @@ import com.laybalt.utils.location.LocationUtils
 import com.laybalt.utils.network.cache.*
 import com.laybalt.utils.network.data.DungeonStats
 import com.laybalt.utils.network.data.MojangData
-import com.laybalt.websocket.WebSocket
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.jsonObject
 import java.util.*
 import java.util.concurrent.*
 
 object ProfileUtils {
+    class StatsUnavailableException: Exception("Player stats lookup is not available in LayBalt QOL")
+
     private val apiCooldowns = ConcurrentHashMap<String, Long>()
 
     private val nameToUuidApis = listOf(
@@ -101,30 +102,19 @@ object ProfileUtils {
 
         SecretCache.check(name)?.let { return it }
 
-        return getUUIDbyName(name).mapCatching { mojangData ->
-            LayBaltAPI.getSecrets(mojangData.uuid).getOrThrow()
-        }.apply {
-            onSuccess { SecretCache.addToCache(name, it) }
-            onFailure { error ->
-                if (error is LayBaltAPI.LayBaltAPIException) return@onFailure
-                SecretCache.addFailedToCache(name)
-            }
-        }
+        // LayBalt QOL has no stats backend (NoammAddons used its own api server), so other players
+        // secrets cannot be looked up. The failure is cached to avoid repeated lookups.
+        SecretCache.addFailedToCache(name)
+        return Result.failure(StatsUnavailableException())
     }
 
     suspend fun getProfile(playerName: String): Result<DungeonStats> {
         val name = playerName.lowercase()
         ProfileCache.check(name)?.let { return it }
 
-        return getUUIDbyName(name).mapCatching { mojangData ->
-            LayBaltAPI.getDungeonStats(mojangData.uuid).getOrThrow()
-        }.apply {
-            onSuccess { ProfileCache.addToCache(name, it) }
-            onFailure { error ->
-                if (error is LayBaltAPI.LayBaltAPIException) return@onFailure
-                ProfileCache.addFailedToCache(name)
-            }
-        }
+        // LayBalt QOL has no stats backend (NoammAddons used its own api server).
+        ProfileCache.addFailedToCache(name)
+        return Result.failure(StatsUnavailableException())
     }
 
     // usually I don't like running commands in the background
@@ -149,7 +139,6 @@ object ProfileUtils {
 
         if (event.unformattedText.substringBefore(":") != mc.user.name) return@listener
         _totalSecrets = event.unformattedText.substringAfter(": ").toLongOrNull()
-        WebSocket.send(mapOf("type" to "secretcount", "secrets" to _totalSecrets))
         ThreadUtils.scheduledTaskServer(5) { listener.unregister() }
     }
 }

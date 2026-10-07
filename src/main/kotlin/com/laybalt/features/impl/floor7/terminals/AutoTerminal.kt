@@ -23,12 +23,6 @@ object AutoTerminal: Feature("Automatically clicks terminals for you.") {
     private val clickOrder by DropdownSetting("Click Order", 2, listOf("None", "Random", "Human", "Skizo")).withDescription("Human: Logic pathing. Skizo: Chaotic/Furthest.")
     private val invwalk by ToggleSetting("Fake InvWalk").withDescription("Draws the Term name and progress on screen rather then the solution")
 
-    private val autoMelody by ToggleSetting("Melody", true).section("Melody-AutoTerm")
-    private val melodyFcDelay by ToggleSetting("First Click Delay", true).showIf { autoMelody.value }
-    private val melodySkip by ToggleSetting("Melody Skip").showIf { autoMelody.value }
-    private val melodySkipMode by DropdownSetting("Skip Mode", 0, listOf("Edges", "All")).showIf { autoMelody.value && melodySkip.value }
-    private val melodySkipFirstRow by ToggleSetting("&cSkip First Row").showIf { autoMelody.value && melodySkip.value }
-
     private val autoNumbers by ToggleSetting("Numbers", true).section("Terminals")
     private val autoColors by ToggleSetting("Colors", true)
     private val autoRubix by ToggleSetting("Rubix", true)
@@ -60,44 +54,6 @@ object AutoTerminal: Feature("Automatically clicks terminals for you.") {
             x = Resolution.width / 2
             y = Resolution.height / 2 - Resolution.height / 10
             scale = 3f
-        }
-
-        register<TickEvent.Server> {
-            if (! autoMelody.value) return@register
-            if (! TerminalListener.inTerm) return@register
-            if (melodyFcDelay.value && TerminalListener.checkFcDelay()) return@register
-            val handler = TerminalListener.currentHandler ?: return@register
-            if (handler !is MelodyTerminal) return@register
-            if (System.currentTimeMillis() - lastClickTime < 250) return@register
-
-            val current = MelodyTerminal.current ?: return@register
-            val correct = MelodyTerminal.correct ?: return@register
-            val buttonRow = MelodyTerminal.buttonRow ?: return@register
-            if (current != correct) return@register
-
-            val actualSlot = buttonRow * 9 + 16
-            if (lastClickedSlot == actualSlot) return@register
-
-            clickSlot(actualSlot)
-            lastClickTime = System.currentTimeMillis()
-            lastClickedSlot = actualSlot
-
-            if (buttonRow == 3) return@register // todo change back to 2
-            if (! melodySkip.value) return@register
-            if (! melodySkipFirstRow.value && buttonRow == 0 && current != 4) return@register
-            if (! (melodySkipMode.value == 1 || (melodySkipMode.value == 0 && (current == 0 || current == 4)))) return@register
-
-            val windowId = TerminalListener.lastWindowId
-            val check = { TerminalListener.inTerm && TerminalListener.currentHandler is MelodyTerminal && windowId == TerminalListener.lastWindowId }
-            if (buttonRow < 3) ThreadUtils.scheduledTask(1) { if (check()) clickSlot(actualSlot + 9) }
-            if (buttonRow < 2) ThreadUtils.scheduledTask(2) { if (check()) clickSlot(actualSlot + 18) }
-            if (buttonRow < 1) ThreadUtils.scheduledTask(3) { if (check()) clickSlot(actualSlot + 27) } // todo remove when mel 3
-        }
-
-        register<TerminalEvent.SlotUpdate> {
-            if (! autoMelody.value) return@register
-            if (event.handler !is MelodyTerminal) return@register
-            lastClickedSlot = null
         }
 
         register<TickEvent.Server> {
@@ -156,7 +112,7 @@ object AutoTerminal: Feature("Automatically clicks terminals for you.") {
     private fun Terminal.enabled() = when (this) {
         is NumberTerminal -> autoNumbers.value
         is ColorsTerminal -> autoColors.value
-        is MelodyTerminal -> autoMelody.value
+        is MelodyTerminal -> false // Auto Melody is not part of LayBalt QOL
         is RubixTerminal -> autoRubix.value
         is RedGreenTerminal -> autoRedGreen.value
         is StartWithTerminal -> autoStartWith.value
@@ -172,7 +128,5 @@ object AutoTerminal: Feature("Automatically clicks terminals for you.") {
 
         else -> autoDelay.value
     }.coerceAtLeast(0)
-
-    private fun clickSlot(slot: Int) = TerminalClick(slot).send()
 }
 //#endif

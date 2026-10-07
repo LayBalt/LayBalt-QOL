@@ -5,8 +5,6 @@ import com.laybalt.event.EventBus
 import com.laybalt.event.impl.DungeonEvent
 import com.laybalt.event.impl.MainThreadPacketReceivedEvent
 import com.laybalt.event.impl.WorldChangeEvent
-import com.laybalt.features.impl.dungeon.ScoreCalculator
-import com.laybalt.init.RemoteFeatures
 import com.laybalt.init.types.ISelfInit
 import com.laybalt.utils.ChatUtils
 import com.laybalt.utils.ChatUtils.formattedText
@@ -18,10 +16,6 @@ import com.laybalt.utils.dungeons.DungeonUtils
 import com.laybalt.utils.dungeons.map.core.RoomState
 import com.laybalt.utils.equalsOneOf
 import com.laybalt.utils.location.LocationUtils
-import com.laybalt.websocket.WebSocket
-import com.laybalt.websocket.packets.S2CPacketDungeonBat
-import com.laybalt.websocket.packets.S2CPacketDungeonMimic
-import com.laybalt.websocket.packets.S2CPacketDungeonPrince
 import net.minecraft.network.protocol.game.ClientboundEntityEventPacket
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket.Action.ADD_PLAYER
@@ -42,7 +36,7 @@ object ScoreCalculation: ISelfInit {
     private val timeElapsedPattern = Regex(" Elapsed: (?:(?<hrs>\\d+)h )?(?:(?<min>\\d+)m )?(?:(?<sec>\\d+)s)?")
     private val mimicCharmRegex = Regex("charm you charmed a mimic and captured \\d+ shards from it\\.")
     private val partyChatRegex = Regex("^party > (?:\\[[^]]+] )?(?<name>\\w+): (?<message>.+)$")
-    private val maxBats = RemoteFeatures.getFeature(ScoreCalculation::class.simpleName)["maxBats"]?.asInt ?: 1
+    private const val maxBats = 5
 
     private var bloodDone = false
     private var secretPercentage = 0.0
@@ -159,14 +153,6 @@ object ScoreCalculation: ISelfInit {
                     if ((LocationUtils.dungeonFloorNumber ?: 0) < 6 || LocationUtils.inBoss) return@register
                     if ((packet.getEntity(mc.level !!) as? Zombie)?.isBaby != true) return@register
                     mimicKilled = true
-
-                    if (DungeonListener.dungeonTeammatesNoSelf.isNotEmpty()) {
-                        WebSocket.send(S2CPacketDungeonMimic)
-                    }
-
-                    if (ScoreCalculator.enabled && ScoreCalculator.sendMimic.value) {
-                        ChatUtils.sendPartyMessage("Mimic Killed")
-                    }
                 }
 
                 is ClientboundSystemChatPacket -> {
@@ -176,14 +162,6 @@ object ScoreCalculation: ISelfInit {
                     if (! princeKilled) {
                         if (msg == "a prince falls. +1 bonus score") {
                             princeKilled = true
-
-                            if (DungeonListener.dungeonTeammatesNoSelf.isNotEmpty()) {
-                                WebSocket.send(S2CPacketDungeonPrince)
-                            }
-
-                            if (ScoreCalculator.enabled && ScoreCalculator.sendPrince.value) {
-                                ChatUtils.sendPartyMessage("Prince Killed")
-                            }
                         }
                         else if (princeMessages.any { msg.contains(it) }) {
                             princeKilled = true
@@ -193,14 +171,6 @@ object ScoreCalculation: ISelfInit {
                     if (! mimicKilled && (LocationUtils.dungeonFloorNumber ?: 0) > 5 && ! LocationUtils.inBoss) {
                         if (mimicCharmRegex.matches(msg) || msg == "charm you charmed a mimic and captured its shard.") {
                             mimicKilled = true
-
-                            if (DungeonListener.dungeonTeammatesNoSelf.isNotEmpty()) {
-                                WebSocket.send(S2CPacketDungeonMimic)
-                            }
-
-                            if (ScoreCalculator.enabled && ScoreCalculator.sendMimic.value) {
-                                ChatUtils.sendPartyMessage("Mimic Killed")
-                            }
                         }
                         else if (mimicMessages.any { msg.contains(it) }) {
                             mimicKilled = true
@@ -210,14 +180,6 @@ object ScoreCalculation: ISelfInit {
                     if (msg == "a bat has been slain. +1 bonus score" && batKillers.size < maxBats) {
                         if (batKillers.add(mc.user.name.lowercase())) {
                             batKilled = true
-
-                            if (DungeonListener.dungeonTeammatesNoSelf.isNotEmpty()) {
-                                WebSocket.send(S2CPacketDungeonBat)
-                            }
-
-                            if (ScoreCalculator.enabled && ScoreCalculator.sendBat.value) {
-                                ChatUtils.sendPartyMessage("Bat Killed")
-                            }
                         }
                     }
                     else partyChatRegex.matchEntire(msg)?.let { match ->

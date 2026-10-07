@@ -11,9 +11,6 @@ import com.laybalt.utils.dungeons.map.core.*
 import com.laybalt.utils.dungeons.map.utils.ScanUtils
 import com.laybalt.utils.equalsOneOf
 import com.laybalt.utils.location.LocationUtils
-import com.laybalt.websocket.WebSocket
-import com.laybalt.websocket.packets.S2CPacketDungeonDoor
-import com.laybalt.websocket.packets.S2CPacketDungeonRoom
 import net.minecraft.core.BlockPos
 import net.minecraft.world.level.block.Blocks
 
@@ -86,16 +83,6 @@ object DungeonScanner: ISelfInit {
             scanTile(wX, wZ, z, x, roofHeight)?.let { tile ->
                 dungeonList[z * 11 + x] = tile
                 EventBus.post(DungeonEvent.TileScannedEvent(tile))
-
-                if (DungeonListener.dungeonTeammatesNoSelf.isEmpty()) return@let
-
-                if (tile is RoomTile && ! tile.data.isUnknown()) {
-                    WebSocket.send(S2CPacketDungeonRoom(tile.data.name, wX, wZ, x, z, tile.isSeparator))
-                }
-
-                if (tile is DoorTile) {
-                    WebSocket.send(S2CPacketDungeonDoor(wX, wZ, x, z, tile.type))
-                }
             }
         }
 

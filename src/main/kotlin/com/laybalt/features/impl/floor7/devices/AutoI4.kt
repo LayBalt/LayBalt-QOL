@@ -6,7 +6,6 @@ import com.laybalt.config.types.*
 import com.laybalt.event.EventBus
 import com.laybalt.event.impl.*
 import com.laybalt.features.Feature
-import com.laybalt.features.impl.floor7.MelodyDisplay
 import com.laybalt.ui.utils.Animation.Companion.easeInOutCubic
 import com.laybalt.utils.*
 import com.laybalt.utils.ActionUtils.queue
@@ -42,6 +41,7 @@ object AutoI4: Feature("Fully Automated I4") {
     private val swapOrder by DropdownSetting("Swap Order", 0, listOf("Rod First", "Mask First")).showIf { rodSetting.value && maskSetting.value }
     private val preferredLeapClass by DropdownSetting("Leap Priority", 0, leapPriorities.map { it.name }).showIf { leapSetting.value }
 
+    private val melodyRegex = Regex("""Party > (?:\[[^]]+]\s)?(\w+):""")
     private const val STORM_DEATH_MESSAGE = "[BOSS] Storm: I should have known that I stood no chance."
 
     private val doneCoords = ConcurrentHashMap.newKeySet<BlockPos>()
@@ -60,9 +60,7 @@ object AutoI4: Feature("Fully Automated I4") {
         register<ChatMessageEvent> {
             if (! LocationUtils.inBoss || LocationUtils.dungeonFloorNumber != 7) return@register
             val msg = event.unformattedText
-            MelodyDisplay.parseMelodyMessage(msg)?.let { melody ->
-                melodyLeapTargetName = melody.name
-            }
+            parseMelodyMessage(msg)?.let { melodyLeapTargetName = it }
 
             if (msg == STORM_DEATH_MESSAGE) {
                 ThreadUtils.setTimeout(30_000L) { tickTimer.set(- 1) }
@@ -310,6 +308,14 @@ object AutoI4: Feature("Fully Automated I4") {
         lastAttemptTime.set(0)
         watchdogJob?.cancel()
         watchdogJob = null
+    }
+
+    /** Returns the name of the party member who reported melody progress, or null. */
+    private fun parseMelodyMessage(message: String): String? {
+        if (! message.startsWith("Party > ")) return null
+        val name = melodyRegex.find(message)?.groupValues?.get(1)?.takeUnless { it == mc.user.name } ?: return null
+        if ((4 downTo 0).none { i -> message.containsOneOf("$i/4", "${i * 25}%") }) return null
+        return name
     }
 }
 //#endif

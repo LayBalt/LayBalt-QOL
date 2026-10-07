@@ -4,12 +4,8 @@ import com.laybalt.debug.DebugHUD;
 import com.laybalt.event.EventBus;
 import com.laybalt.event.impl.ActionBarMessageEvent;
 import com.laybalt.event.impl.RenderOverlayEvent;
-import com.laybalt.features.impl.general.FEAT_ItemRarity;
-import com.laybalt.features.impl.misc.Camera;
-import com.laybalt.features.impl.misc.Tweaks;
 import com.laybalt.features.impl.visual.DarkMode;
 import com.laybalt.features.impl.visual.PlayerHud;
-import com.laybalt.features.impl.visual.Scoreboard;
 import com.laybalt.utils.location.LocationUtils;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -17,7 +13,6 @@ import net.minecraft.client.gui.Hud;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -94,21 +89,6 @@ public abstract class MixinGui {
         if (DarkMode.getTintHud().getValue()) DarkMode.drawOverlay(graphics);
     }
 
-    @Inject(method = "extractPortalOverlay", at = @At("HEAD"), cancellable = true)
-    public void onRenderPortalOverlay(GuiGraphicsExtractor graphics, float alpha, CallbackInfo ci) {
-        if (Camera.INSTANCE.enabled && Camera.getHidePortalOverlay().getValue()) ci.cancel();
-    }
-
-    @Inject(method = "extractConfusionOverlay", at = @At("HEAD"), cancellable = true)
-    public void onRenderConfusionOverlay(GuiGraphicsExtractor graphics, float strength, CallbackInfo ci) {
-        if (Camera.INSTANCE.enabled && Camera.getDisableNausea().getValue()) ci.cancel();
-    }
-
-    @Inject(method = "extractScoreboardSidebar", at = @At("HEAD"), cancellable = true)
-    public void renderScoreboardSidebar(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
-        if (Scoreboard.INSTANCE.enabled) ci.cancel();
-    }
-
     @ModifyVariable(method = "setOverlayMessage", at = @At("HEAD"), argsOnly = true)
     private Component onSetOverlayMessage(Component string) {
         var event = new ActionBarMessageEvent(string);
@@ -121,16 +101,4 @@ public abstract class MixinGui {
         if (LocationUtils.inSkyblock) ci.cancel();
     }
 
-    @Inject(method = "extractSlot", at = @At("HEAD"))
-    private void onRenderHotbarSlot(GuiGraphicsExtractor graphics, int x, int y, DeltaTracker deltaTracker, Player player, ItemStack itemStack, int seed, CallbackInfo ci) {
-        if (! FEAT_ItemRarity.INSTANCE.enabled) return;
-        if (FEAT_ItemRarity.getDrawOnHotbar().getValue()) {
-            FEAT_ItemRarity.onSlotDraw(graphics, itemStack, x, y);
-        }
-    }
-
-    @Inject(method = "extractSelectedItemName", at = @At("HEAD"), cancellable = true)
-    private void onItemOverlayMessage(GuiGraphicsExtractor graphics, CallbackInfo ci) {
-        if (Tweaks.INSTANCE.enabled && Tweaks.getHideHotbarTooltips().getValue()) ci.cancel();
-    }
 }

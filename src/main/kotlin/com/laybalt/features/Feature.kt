@@ -5,11 +5,9 @@ import com.laybalt.config.SettingProvider
 import com.laybalt.event.*
 import com.laybalt.event.priority.EventPriority
 import com.laybalt.features.annotations.AlwaysActive
-import com.laybalt.init.RemoteFeatures
 import com.laybalt.ui.clickgui.enums.CategoryType
 import com.laybalt.ui.hud.HudElement
 import com.laybalt.ui.hud.HudProvider
-import com.laybalt.ui.notification.NotificationManager
 import com.laybalt.utils.spaceCaps
 import net.minecraft.client.gui.GuiGraphicsExtractor
 
@@ -25,7 +23,6 @@ open class Feature(
     open val category = initCategory()
 
     private val alwaysActive = this::class.java.isAnnotationPresent(AlwaysActive::class.java)
-    private val remotelyDisabled get() = RemoteFeatures.isDisabled(this::class.java.simpleName)
 
     override val configSettings = mutableSetOf<ConfigHolder<*>>()
     val listeners = mutableSetOf<EventListener<*>>()
@@ -33,11 +30,6 @@ open class Feature(
 
     fun initialize() {
         init()
-
-        if (remotelyDisabled) {
-            enabled = false
-            return
-        }
 
         if (enabled || alwaysActive) onEnable() else onDisable()
     }
@@ -50,8 +42,6 @@ open class Feature(
     }
 
     open fun toggle() {
-        if (remotelyDisabled) return NotificationManager.push("Config GUI", "&b$name&f is temporarily disabled.")
-
         enabled = ! enabled
         if (enabled || alwaysActive) onEnable()
         else onDisable()

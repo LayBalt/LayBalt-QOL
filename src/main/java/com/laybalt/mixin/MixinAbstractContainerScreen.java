@@ -2,7 +2,6 @@ package com.laybalt.mixin;
 
 import com.laybalt.event.EventBus;
 import com.laybalt.event.impl.ContainerEvent;
-import com.laybalt.features.impl.general.ItemTooltip;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
@@ -95,7 +94,6 @@ public abstract class MixinAbstractContainerScreen extends Screen {
     private void onRenderTooltipMerged(GuiGraphicsExtractor instance, Font font, List<Component> texts, Optional<TooltipComponent> optionalImage, int xo, int yo, @org.jspecify.annotations.Nullable Identifier style, Operation<Void> original, @Local ItemStack item) {
         if (item == null || item.isEmpty() || texts.isEmpty()) original.call(instance, font, texts, optionalImage, xo, yo, style);
         else {
-            ItemTooltip.setSlot(this.hoveredSlot.index);
 
             var event = new ContainerEvent.Render.Tooltip(this, instance, item, xo, yo, new ArrayList<>(texts));
             if (EventBus.post(event)) return;

@@ -11,14 +11,12 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.UserAgent
 import io.ktor.client.plugins.compression.ContentEncoding
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
-import io.ktor.websocket.WebSocketDeflateExtension
 import kotlinx.coroutines.*
 import java.util.concurrent.*
 import java.util.zip.*
@@ -27,15 +25,6 @@ object WebUtils {
     private val sharedRequests = ConcurrentHashMap<String, Deferred<Result<HttpResponse>>>()
 
     val client = HttpClient(CIO) {
-        install(WebSockets) {
-            pingIntervalMillis = 10_000
-
-            extensions {
-                install(WebSocketDeflateExtension) {
-                    compressionLevel = Deflater.BEST_SPEED
-                }
-            }
-        }
         install(UserAgent) { agent = "$MOD_NAME/$MOD_VERSION (+https://github.com/LayBalt/LayBalt-QOL)" }
         install(HttpTimeout) { connectTimeoutMillis = 10_000 }
         install(ContentNegotiation) { json(JsonUtils.json) }

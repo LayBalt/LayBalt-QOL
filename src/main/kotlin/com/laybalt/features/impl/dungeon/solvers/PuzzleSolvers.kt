@@ -11,13 +11,6 @@ import com.laybalt.utils.render.RenderHelper.width
 import java.awt.Color
 
 object PuzzleSolvers: Feature() {
-    val blaze by ToggleSetting("Enabled").section("Blaze Solver")
-    val blazeCount by SliderSetting("Blazes to Highlight", 3, 1, 10, 1).showIf { blaze.value }
-    val firstBlazeColor by ColorSetting("First Blaze", Color.GREEN).showIf { blaze.value }
-    val secondBlazeColor by ColorSetting("Second Blaze", Color.YELLOW).showIf { blaze.value }
-    val thirdBlazeColor by ColorSetting("Other Blazes", Color.RED).showIf { blaze.value }
-    val lineColor by ColorSetting("Line Color", Color.WHITE).showIf { blaze.value }
-
     val boulder by ToggleSetting("Enabled ").section("Boulder Solver")
     val showAll by ToggleSetting("Show All Moves", false).showIf { boulder.value }
     val boxColor by ColorSetting("Boulder Box Color", Color.BLUE.withAlpha(100)).showIf { boulder.value }
@@ -81,7 +74,6 @@ object PuzzleSolvers: Feature() {
         register<MainThreadPacketReceivedEvent.Pre> { puzzles.forEach { if (it.enabled) it.onPacket(event) } }
         register<DungeonEvent.RoomEvent.onEnter> { puzzles.forEach { if (it.enabled && ! inBoss) it.onRoomEnter(event) } }
         register<RenderWorldEvent> { puzzles.forEach { if (it.enabled) it.onRenderWorld(event.ctx) } }
-        register<CheckEntityGlowEvent> { if (BlazeSolver.enabled) BlazeSolver.onEntityGlow(event) }
         register<DungeonEvent.RoomEvent.onExit> { puzzles.forEach { if (it.enabled) it.onRoomExit() } }
         register<ChatMessageEvent> { puzzles.forEach { if (it.enabled) it.onChat(event) } }
         register<TickEvent.Server> { puzzles.forEach { if (it.enabled) it.onTick() } }

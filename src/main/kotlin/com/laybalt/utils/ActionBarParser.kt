@@ -12,8 +12,6 @@ import com.laybalt.utils.dungeons.map.core.RoomTile
 import com.laybalt.utils.dungeons.map.handlers.DungeonScanner
 import com.laybalt.utils.dungeons.map.utils.ScanUtils
 import com.laybalt.utils.location.LocationUtils
-import com.laybalt.websocket.WebSocket
-import com.laybalt.websocket.packets.S2CPacketRoomSecrets
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket
 import kotlin.math.roundToInt
@@ -111,9 +109,6 @@ object ActionBarParser: ISelfInit {
 
                 if (roomTile.uniqueRoom?.foundSecrets != secrets && roomTile.data.secrets == maxSecrets) {
                     roomTile.uniqueRoom?.foundSecrets = secrets !!
-                    if (DungeonListener.dungeonTeammatesNoSelf.isNotEmpty()) {
-                        WebSocket.send(S2CPacketRoomSecrets(roomTile.data.name, secrets !!))
-                    }
                 }
             }
 

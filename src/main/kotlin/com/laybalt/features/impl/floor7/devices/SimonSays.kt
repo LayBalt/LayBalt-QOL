@@ -4,7 +4,6 @@ import com.laybalt.config.types.*
 import com.laybalt.event.EventBus
 import com.laybalt.event.impl.*
 import com.laybalt.features.Feature
-import com.laybalt.init.RemoteFeatures
 import com.laybalt.ui.clickgui.components.*
 import com.laybalt.utils.*
 import com.laybalt.utils.MathUtils.add
@@ -26,7 +25,7 @@ import java.awt.Color
 import java.util.*
 
 object SimonSays: Feature("Simon Says Solver") {
-    private val maxStage = RemoteFeatures.getFeature(SimonSays::class.simpleName)["maxClicks"]?.asInt ?: 0
+    private const val maxStage = 5
 
     private val progressDisplay by ToggleSetting("Progress Display").withDescription("Displays the current Simon Says stage.").section("HUD")
     private val progressFormat by TextInputSetting("Progress Format", "&7SS: {stage}/&a{maxStage}").withDescription("Replaces {stage} and {maxStage} with the current and maximum Simon Says stage. Supports color codes.").showIf { progressDisplay.value }

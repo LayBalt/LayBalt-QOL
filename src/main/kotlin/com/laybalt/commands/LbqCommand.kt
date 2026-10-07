@@ -5,7 +5,6 @@ import com.laybalt.config.ConfigManager
 import com.laybalt.event.EventBus
 import com.laybalt.event.impl.ChatMessageEvent
 import com.laybalt.event.impl.LayBaltDebugFlagEvent
-import com.laybalt.features.impl.dev.UpdateChecker
 import com.laybalt.features.impl.dungeon.LeapMenu
 import com.laybalt.init.types.ICommandProvider
 import com.laybalt.ui.clickgui.ClickGuiScreen
@@ -15,10 +14,8 @@ import com.laybalt.utils.ChatUtils.addColor
 import com.laybalt.utils.dungeons.DungeonListener
 import com.laybalt.utils.dungeons.enums.DungeonClass
 import com.laybalt.utils.items.ItemUtils.skyblockId
-import com.laybalt.utils.network.LayBaltAPI
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.context.CommandContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.network.chat.Component
@@ -49,11 +46,6 @@ object LbqCommand: ICommandProvider {
         literal("hud") {
             description("HUD editor")
             runs { GuiUtils.setScreen(HudEditorScreen()) }
-        }
-
-        literal("update") {
-            description("Checks for an update of the mod")
-            runs { ThreadUtils.async { UpdateChecker.runCheck(true) } }
         }
 
         literal("ping") {
@@ -135,16 +127,6 @@ object LbqCommand: ICommandProvider {
                             }
                         }
                     }
-                }
-            }
-        }
-
-        literal("rtca") {
-            description("Shows the runs needed for each class to hit class average 50")
-            runs { sendRtca() }
-            argument("name", StringArgumentType.word()) {
-                runs {
-                    sendRtca(StringArgumentType.getString(it, "name"))
                 }
             }
         }
@@ -253,19 +235,5 @@ object LbqCommand: ICommandProvider {
         val currentAmount = inventory.sumOf { stack -> if (stack.skyblockId == itemId) stack.count else 0 }
         val missingAmount = amount - currentAmount
         if (missingAmount > 0) ChatUtils.sendCommand("gfs $sackName $missingAmount")
-    }
-
-    private fun sendRtca(name: String = LayBaltQOL.mc.user.name) = LayBaltQOL.scope.launch(Dispatchers.IO) {
-        LayBaltAPI.getRtca(name).onSuccess {
-            ChatUtils.modMessage("${it.name} is ${it.runs} M7 runs away from ca50 (${formatClassRuns(it.classes)})")
-        }.onFailure {
-            ChatUtils.modMessage("An error occurred meow! (${it.message})")
-        }
-    }
-
-    private fun formatClassRuns(runs: Map<String, Int>): String {
-        return runs.filterValues { it > 0 }.entries.joinToString(" | ") { (name, runs) ->
-            "${name.take(4).uppercaseFirst()} $runs"
-        }
     }
 }

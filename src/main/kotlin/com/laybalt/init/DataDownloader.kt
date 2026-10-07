@@ -3,87 +3,32 @@ package com.laybalt.init
 import com.laybalt.LayBaltQOL
 import com.laybalt.utils.GsonUtils
 import org.slf4j.LoggerFactory
-import java.io.*
-import java.net.URI
-import java.nio.file.*
-import java.util.zip.*
-import javax.net.ssl.HttpsURLConnection
-import kotlin.io.path.*
 
+/**
+ * Loads the JSON data files bundled inside the mod jar (`/data/<fileName>`).
+ *
+ * NoammAddons downloaded these files from its own server at startup; LayBalt QOL ships them
+ * with the jar instead, so there is no network access, hash check or background update thread.
+ */
 object DataDownloader {
-    private const val DOWNLOAD_URL = "https://api.noamm.org/na/data/download"
-    private const val HASH_URL = "https://api.noamm.org/na/data/version"
-    private const val MOD_NAME = LayBaltQOL.CONFIG_DIR
-    private val LOGGER = LoggerFactory.getLogger("$MOD_NAME-DataDownloader")
+    private const val DATA_ROOT = "/data/"
+    private val LOGGER = LoggerFactory.getLogger("${LayBaltQOL.CONFIG_DIR}-DataDownloader")
 
-    val modDataPath = File("config/$MOD_NAME/data").toPath().also {
-        if (! it.exists()) it.createDirectories()
+    /** Reads `/data/<fileName>` from the mod's classpath resources as text. */
+    fun readData(fileName: String): String {
+        val path = DATA_ROOT + fileName
+        val stream = DataDownloader::class.java.getResourceAsStream(path)
+            ?: throw IllegalStateException("Bundled data file not found on classpath: $path")
+        return stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
     }
 
-    @JvmStatic
-    fun downloadData() {
-        val versionFile = modDataPath.resolve("version.txt")
+    /** Decodes the bundled `/data/<fileName>` JSON file into [T]. */
+    inline fun <reified T: Any> loadJson(fileName: String): T = GsonUtils.decode<T>(readData(fileName))
 
-        LOGGER.info("Checking for remote data updates...")
+    /** Whether `/data/<fileName>` is bundled in the jar. */
+    fun exists(fileName: String) = DataDownloader::class.java.getResource(DATA_ROOT + fileName) != null
 
-        val connection = URI.create(HASH_URL).toURL().openConnection() as HttpsURLConnection
-        connection.setRequestProperty("User-Agent", "LayBaltQOL-DataDownloader")
-
-        val remoteHash = connection.inputStream.bufferedReader().use(BufferedReader::readText)
-        val localHash = if (versionFile.exists()) versionFile.readText().trim() else null
-
-        if (remoteHash != localHash || ! modDataPath.exists()) {
-            LOGGER.info("Update required. Remote: $remoteHash, Local: ${localHash ?: "None"}")
-            update(versionFile, remoteHash)
-        }
-        else LOGGER.info("Data is up-to-date (Version: $localHash).")
+    init {
+        LOGGER.debug("Using bundled data files from classpath {}", DATA_ROOT)
     }
-
-    private fun update(versionFile: Path, newHash: String) = runCatching {
-        val tempZipFile = Files.createTempFile("data-download-", ".zip")
-        val connection = URI.create(DOWNLOAD_URL).toURL().openConnection() as HttpsURLConnection
-        connection.setRequestProperty("User-Agent", "LayBaltQOL-DataDownloader")
-
-        connection.inputStream.use { input ->
-            Files.copy(input, tempZipFile, StandardCopyOption.REPLACE_EXISTING)
-        }
-
-        if (modDataPath.exists()) modDataPath.toFile().deleteRecursively()
-        modDataPath.createDirectories()
-
-        unzip(tempZipFile)
-
-        versionFile.writeText(newHash)
-        tempZipFile.deleteIfExists()
-
-        LOGGER.info("Data update successful.")
-    }.onFailure {
-        LOGGER.error("Error while updating $MOD_NAME-data", it)
-    }
-
-    private fun unzip(zipFilePath: Path) = ZipInputStream(zipFilePath.inputStream()).use { zis ->
-        val root = modDataPath.toAbsolutePath().normalize()
-        var rootDirName: String? = null
-
-        while (true) {
-            val entry = zis.nextEntry ?: break
-
-            if (rootDirName == null) rootDirName = entry.name.substringBefore('/') + "/"
-
-            val entryName = entry.name.removePrefix(rootDirName).ifEmpty { continue }
-            val targetPath = root.resolve(entryName).normalize()
-
-            if (! targetPath.startsWith(root)) throw IOException("Blocked path traversal entry: ${entry.name}")
-
-            if (entry.isDirectory) targetPath.createDirectories()
-            else {
-                targetPath.parent?.createDirectories()
-                Files.copy(zis, targetPath, StandardCopyOption.REPLACE_EXISTING)
-            }
-
-            zis.closeEntry()
-        }
-    }
-
-    inline fun <reified T: Any> loadJson(fileName: String) = GsonUtils.decode<T>(modDataPath.resolve(fileName).readText())
 }

@@ -8,7 +8,6 @@ import com.laybalt.event.impl.MainThreadPacketReceivedEvent
 import com.laybalt.event.impl.PacketEvent
 import com.laybalt.event.impl.WorldChangeEvent
 import com.laybalt.features.Shortcuts
-import com.laybalt.features.impl.dev.FEAT_WebSocket
 import com.laybalt.init.types.ISelfInit
 import com.laybalt.mixin.IServerboundMovePlayerPacket
 import com.laybalt.utils.ChatUtils.removeFormatting
@@ -60,7 +59,6 @@ object LocationUtils: ISelfInit, Shortcuts {
                     dungeonFloor = text.substringAfter("(").substringBefore(")")
                     dungeonFloorNumber = dungeonFloor?.lastOrNull()?.digitToIntOrNull() ?: 0
 
-                    FEAT_WebSocket.sendDungeonInfo()
                 }
             }
             else if (event.packet is ClientboundSetObjectivePacket) {
