@@ -17,6 +17,7 @@ import com.laybalt.features.FeatureManager
 import com.laybalt.features.impl.floor7.terminals.TerminalPBs
 import com.laybalt.features.impl.general.SlotBinding
 import com.laybalt.features.impl.kuudra.KuudraTracker
+import com.laybalt.features.impl.visual.RunSplits
 import com.laybalt.init.types.ICommandProvider
 import com.laybalt.utils.ChatUtils
 import com.laybalt.utils.ThreadUtils
@@ -213,14 +214,8 @@ object ForeignConfigImport: ICommandProvider {
     /** Modules that are deliberately not imported, with the reason written to the report. Keys are lowercase. */
     private val unsupported = mapOf(
         Source.ODIN to mapOf(
-            "room clear" to NO_EQUIVALENT, "splits" to "LayBaltQOL Run Splits is NoammAddons' splits; Odin split times are not converted",
-            "positional messages" to NO_EQUIVALENT, "inactive waypoints" to NO_EQUIVALENT, "secrets counter" to NO_EQUIVALENT,
-            "waypoints" to NO_EQUIVALENT, "puzzle hud" to NO_EQUIVALENT, "player size" to NO_EQUIVALENT,
-            "render optimizer" to "no LayBaltQOL equivalent (No Render has different options)",
-            "map info" to "no LayBaltQOL equivalent (score/secret HUDs)", "extra stats" to NO_EQUIVALENT, "dungeon queue" to NO_EQUIVALENT,
-            "click gui" to "Odin's own GUI settings", "etherwarp" to NO_EQUIVALENT, "mage beam" to NO_EQUIVALENT,
-            "no cursor reset" to NO_EQUIVALENT, "hide players" to NO_EQUIVALENT,
-            "dungeon waypoints" to "LayBaltQOL Dungeon Waypoints is NoammAddons' system; Odin waypoint packs are not converted",
+            "click gui" to "Odin's own GUI settings",
+            "dungeon waypoints" to "settings not converted; import the waypoint packs with /lbq dwp importodin (or Dungeon Waypoints > Import Odin Waypoints)",
         ),
         Source.ODINCLIENT to mapOf(
             "--- odinclient settings ---" to "OdinClient's own settings", "etherwarp helper" to NO_EQUIVALENT,
@@ -410,6 +405,27 @@ object ForeignConfigImport: ICommandProvider {
         }
         odin("Blessing Display", "Blessing Display") { alias("Life Color", "Red Color") }
         odin("Auto Sprint", "Auto Sprint")
+        odin("Etherwarp", "Etherwarp") {
+            alias("Show Guess", "Etherwarp Overlay")
+            custom("Color") { c, v -> set(c, "Color", "Outline Color", v); set(c, "Color", "Fill Color", v) }
+            alias("Show when failed", "Show Fail")
+            custom("Fail Color") { c, v -> set(c, "Fail Color", "Invalid Outline Color ", v); set(c, "Fail Color", "Invalid Fill Color ", v) }
+            alias("Render Style", "Mode")
+            alias("Depth", "Phase")
+            alias("Custom Sounds", "Etherwarp Sound")
+            skip(SOUND, "Etherwarp Sound", "Etherwarp Sound Pitch", "Etherwarp Sound Volume")
+            skip("Odin menu header, no value", "Sounds")
+        }
+        odin("Mage Beam", "Mage Beam") { alias("Color", "Primary Color") }
+        odin("Render Optimizer", "Render Optimizer") {
+            alias("Hide Lightning", "Hide Lightning Bolts")
+            alias("Hide Experience Orbs", "Hide XP Orbs")
+            alias("Hide Death Animation", "Hide Dead Mobs")
+            alias("Hide Armor Stands", "Hide Dying Armor Stands")
+            alias("Hide Tentacle Head", "Hide P5 Tentacles")
+            skip("in No Render > Explosions", "Hide Explosion Particles")
+            skip("in Camera Helper > Hide Fire Overlay", "Hide Fire Overlay")
+        }
         odin("Puzzle Solvers", "Puzzle Solvers") {
             alias("Blaze Solver", "@section:Blaze Solver")
             alias("Boulder Solver", "@section:Boulder Solver")
@@ -488,6 +504,44 @@ object ForeignConfigImport: ICommandProvider {
         }
         odin("Livid Solver", "Livid Solver")
         odin("Door Highlight", "Door Keys")
+        odin("Map Info", "Score Calculator") {
+            alias("300 Score Alert", "300 score Title")
+            alias("Room Secrets", "Room Secrets HUD")
+            alias("Full Hud", "Full HUD")
+        }
+        odin("Secrets Counter", "Secrets Counter")
+        odin("Positional Messages", "Positional Messages") {
+            custom("Pos Messages") { c, v -> set(c, "Pos Messages", "Pos Messages", odinPosMessages(v)) }
+        }
+        odin("Puzzle HUD", "Puzzle HUD")
+        odin("Room Clear", "Room Clear")
+        odin("Dungeon Queue", "Dungeon Queue") { alias("Warp Cooldown", "Warp Cooldown HUD") }
+        odin("Inactive Waypoints", "Inactive Waypoints") {
+            val shows = listOf("All", "TermsAndLevers", "Terminals", "Devices", "Levers")
+            val styles = listOf("Full", "BoxText", "Box", "Text")
+            custom("Show") { c, v -> set(c, "Show", "Show", JsonPrimitive(shows.indexOf(v.asString).coerceAtLeast(0))) }
+            custom("Style") { c, v -> set(c, "Style", "Style", JsonPrimitive(styles.indexOf(v.asString).coerceAtLeast(0))) }
+            alias("Term Info", "Term Info HUD")
+        }
+        odin("Extra Stats", "Extra Stats")
+        odin("Waypoints", "Waypoints")
+        odin("No Cursor Reset", "No Cursor Reset")
+        odin("Hide Players", "Hide Players")
+        odin("Player Size", "Player Size") {
+            skip("Odin dev-size data lives on Odin's server and is not used", "Dev Size", "Show Hidden", "Passcode", "Send Dev Data")
+        }
+        odin("Splits", "Run Splits") {
+            alias("Current Split HUD", "Current Split HUD")
+            custom("Location") { c, v -> set(c, "Location", "Kuudra Splits", JsonPrimitive(v.asString != "DUNGEONS_ONLY")) }
+            skip(NO_EQUIVALENT, "Fixed Width", "Boss Entry Split", "Show 0 splits")
+            val groups = listOf("E", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "M1", "M2", "M3", "M4", "M5", "M6", "M7").map { "Dungeon$it" } +
+                (1 .. 5).map { "KuudraT$it" }
+            for (group in groups) custom(group) { c, v ->
+                val pbs = v.takeIf { it.isJsonObject }?.asJsonObject?.entrySet()
+                    ?.mapNotNull { (k, time) -> runCatching { k to time.asDouble }.getOrNull() }?.toMap().orEmpty()
+                if (pbs.isNotEmpty()) RunSplits.importOdinPBs(group, pbs) { c.report.line(it) }
+            }
+        }
 
         // ---------------- OdinClient ----------------
         odinClient("Auto Harp", "Auto Harp")
@@ -890,6 +944,18 @@ object ForeignConfigImport: ICommandProvider {
                 else -> c.report.line("    = PB $key: kept ${PersonalBest.getPB(key)} (better than $seconds)")
             }
         }
+    }
+
+    /** Odin positional messages with their "#RRGGBBAA" colours turned into LayBaltQOL's ARGB ints. */
+    private fun odinPosMessages(raw: JsonElement): JsonElement {
+        if (! raw.isJsonArray) fail("expected a list, got $raw")
+        val out = JsonArray()
+        for (el in raw.asJsonArray) {
+            val obj = el.takeIf { it.isJsonObject }?.asJsonObject?.deepCopy() ?: continue
+            obj.get("color")?.let { obj.addProperty("color", runCatching { color(it) }.getOrDefault(-1)) }
+            out.add(obj)
+        }
+        return out
     }
 
     private val terminalNames = mapOf(
