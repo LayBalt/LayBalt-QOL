@@ -24,31 +24,40 @@ object RubixTerminal: Terminal() {
 
     private val allowedSlots = listOf(12, 13, 14, 21, 22, 23, 30, 31, 32)
 
+    /** Target colour, locked on the first solve so re-solving from server updates never switches target mid-way. */
+    private var lockedOrigin: Int? = null
+
     override fun onSlotUpdate(items: Map<Int, ItemStack>, title: String, updatedSlot: Int, updatedItem: ItemStack): Boolean {
         val panes = items.filter { it.key in allowedSlots && it.value.item in rubixOrder }
-        val costs = IntArray(5) { 0 }
-        for (i in 0 until 5) {
-            panes.forEach { (_, itemStack) ->
-                val itemIdx = rubixOrder.indexOf(itemStack.item)
-                if (itemIdx != - 1) {
-                    val dist = abs(i - itemIdx)
-                    costs[i] += if (dist > 2) 5 - dist else dist
-                }
-            }
+        val leftOnly = TerminalSolver.rubixMode.value == 1
+
+        // Signed number of clicks (positive = left clicks) needed to turn colour [from] into colour [to].
+        fun clicks(from: Int, to: Int): Int {
+            if (leftOnly) return (to - from + 5) % 5
+            var diff = to - from
+            if (diff > 2) diff -= 5
+            if (diff < - 2) diff += 5
+            return diff
         }
 
-        val origin = costs.indices.minByOrNull { costs[it] } ?: 0
+        val origin = lockedOrigin ?: run {
+            val costs = IntArray(5) { target -> panes.values.sumOf { abs(clicks(rubixOrder.indexOf(it.item), target)) } }
+            costs.indices.minByOrNull { costs[it] } ?: 0
+        }.also { if (panes.size == allowedSlots.size) lockedOrigin = it }
+
         panes.forEach { (slotId, stack) ->
             val currentIdx = rubixOrder.indexOf(stack.item)
             if (currentIdx != - 1 && currentIdx != origin) {
-                var diff = origin - currentIdx
-                if (diff > 2) diff -= 5
-                if (diff < - 2) diff += 5
-                solution.add(TerminalClick(slotId, diff))
+                solution.add(TerminalClick(slotId, clicks(currentIdx, origin)))
             }
         }
 
         return true
+    }
+
+    override fun reset() {
+        super.reset()
+        lockedOrigin = null
     }
 
     override fun remainingClicks() = solution.sumOf { abs(it.btn) }

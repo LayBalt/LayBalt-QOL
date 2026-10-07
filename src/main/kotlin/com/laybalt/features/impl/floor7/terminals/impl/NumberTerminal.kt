@@ -29,12 +29,13 @@ object NumberTerminal: Terminal() {
     override fun getClickForSlot(slot: Int) = solution.firstOrNull()?.takeIf { it.slotId == slot }
 
     override fun renderSlot(ctx: GuiGraphicsExtractor, x: Number, y: Number, index: Int, click: TerminalClick, baseColor: Color) {
-        if (index > 2) return
+        if (index > 3) return
 
         val color = when (index) {
             0 -> TerminalSolver.firstColor.value
             1 -> TerminalSolver.secondColor.value
-            else -> TerminalSolver.thirdColor.value
+            2 -> TerminalSolver.thirdColor.value
+            else -> TerminalSolver.fourthColor.value
         }
 
         TerminalSolver.drawSlot(ctx, x, y, color)
@@ -43,6 +44,13 @@ object NumberTerminal: Terminal() {
             val count = slotCounts[click.slotId] ?: 0
             TerminalSolver.drawCenteredText(ctx, count.toString(), x, y)
         }
+    }
+
+    override fun renderVanillaSlot(ctx: GuiGraphicsExtractor, slot: Int, x: Int, y: Int, baseColor: Color): Boolean {
+        val index = solution.indexOfFirst { it.slotId == slot }
+        if (index !in 0 .. 3) return false
+        renderSlot(ctx, x, y, index, solution[index], baseColor)
+        return true
     }
 
     override fun reset() {
