@@ -5,6 +5,7 @@ package com.laybalt.init
 import com.laybalt.LayBaltQOL
 import com.laybalt.commands.CommandBuilder
 import com.laybalt.config.ConfigManager
+import com.laybalt.config.LegacyConfigImport
 import com.laybalt.event.EventBus.register
 import com.laybalt.event.impl.RenderOverlayEvent
 import com.laybalt.features.Feature
@@ -73,6 +74,7 @@ class ClassGraphInitializer {
         }
 
         ConfigManager.load()
+        LegacyConfigImport.run()
 
         register<RenderOverlayEvent> {
             if (UMinecraft.currentScreenObj is HudEditorScreen) return@register
