@@ -1,3 +1,4 @@
+// Ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.floor7.terminals.impl
 
 import com.laybalt.features.impl.floor7.terminals.TerminalClick
@@ -71,6 +72,26 @@ object MelodyTerminal: Terminal() {
 
             if (mx in x .. x + slotSize && my in y .. y + slotSize) hoveredSlot.set(i)
         }
+    }
+
+    override fun getVanillaClick(slot: Int) = slot.takeIf { it in claySlots }?.let(::TerminalClick)
+
+    override fun renderVanillaSlot(ctx: GuiGraphicsExtractor, slot: Int, x: Int, y: Int, baseColor: Color): Boolean {
+        val correctColumn = correct ?: return false
+        val currentColumn = current ?: return false
+        val button = buttonRow ?: return false
+        val row = slot / 9 - 1
+        val column = slot % 9 - 1
+
+        val color = when {
+            slot == claySlots.getOrNull(button) -> baseColor
+            row == button && column == currentColumn -> TerminalSolver.indicatorColor.value
+            row in 0 until gridSize.second && column == correctColumn -> TerminalSolver.columnColor.value
+            else -> return false
+        }
+
+        TerminalSolver.drawSlot(ctx, x, y, color)
+        return true
     }
 
     override fun reset() {

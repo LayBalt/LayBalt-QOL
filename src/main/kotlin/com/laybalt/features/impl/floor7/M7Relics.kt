@@ -1,3 +1,4 @@
+// Ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.floor7
 
 import com.laybalt.config.PersonalBest
@@ -6,7 +7,14 @@ import com.laybalt.config.types.ToggleSetting
 import com.laybalt.event.impl.*
 import com.laybalt.features.Feature
 import com.laybalt.utils.ChatUtils
+import com.laybalt.utils.ChatUtils.removeFormatting
 import com.laybalt.utils.ChatUtils.unformattedText
+import com.laybalt.utils.WorldUtils
+import com.laybalt.utils.render.world.Render3D.renderBoxBounds
+import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket
+import net.minecraft.world.item.Items
+import net.minecraft.world.level.block.Blocks
+import net.minecraft.world.phys.AABB
 import com.laybalt.utils.MathUtils.center
 import com.laybalt.utils.MathUtils.toPos
 import com.laybalt.utils.MathUtils.vec
@@ -32,6 +40,14 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
     private val relicBox by ToggleSetting("Box Relics").withDescription("Draws a box on where the relics are spawning and the cauldron you need to place.")
     private val relicSpawnTimer by ToggleSetting("Spawn Timer").withDescription("Shows on screen when the relic will spawn.")
     private val relicTimer by ToggleSetting("Place Timer").withDescription("Sends in chat the time it took to place the relic after you picked it up.")
+    private val relicSpawnTicks by SliderSetting("Relic Spawn Ticks", 42, 0, 100, 1).showIf { relicSpawnTimer.value }
+        .withDescription("Server ticks between Necron's \"All this, for nothing...\" line and the relics spawning (used by the Spawn Timer). Odin uses 38.")
+    private val announceSpawnTime by ToggleSetting("Announce Spawn Time", true)
+        .withDescription("Prints how long after Necron's last line the relics actually spawned.")
+    private val instantPlaceTime by ToggleSetting("Instant Place Time", true)
+        .withDescription("Prints your own relic place time (from the start of P5) with a personal-best comparison as soon as you click the cauldron, without waiting for all 5 relics.")
+    private val relicBeacon by ToggleSetting("Relic Beacon", false)
+        .withDescription("Draws a beacon-style beam above the cauldron of the relic you are holding.")
 
     //#if CHEAT
     private val relicLook by ToggleSetting("Relic Look").withDescription("Automatically rotate to the relic cauldron after you pick it up.")
@@ -45,6 +61,10 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
     private val relicTimes = mutableListOf<RelicEntry>()
     private var spawnTimerTicks: Long = 0
     private var p5StartTime = 0L
+    private var hasAnnouncedSpawn = false
+
+    /** Relics you placed yourself this run -> whether that place time was a new PB (from Instant Place Time). */
+    private val ownPlaceResults = mutableMapOf<WitherRelic, Boolean>()
 
     private data class RelicEntry(
         val relic: WitherRelic,
@@ -72,6 +92,9 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
         register<WorldChangeEvent> {
             spawnTimerTicks = 0
             relicTimes.clear()
+            p5StartTime = 0L
+            hasAnnouncedSpawn = false
+            ownPlaceResults.clear()
             //#if CHEAT
             lastRelicClick = 0L
             //#endif
@@ -84,8 +107,10 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
             when {
                 msg == "[BOSS] Necron: All this, for nothing..." -> {
                     p5StartTime = DungeonListener.currentTime
+                    hasAnnouncedSpawn = false
+                    ownPlaceResults.clear()
                     if (relicSpawnTimer.value) {
-                        spawnTimerTicks = DungeonListener.currentTime + 42
+                        spawnTimerTicks = DungeonListener.currentTime + relicSpawnTicks.value
                     }
                 }
 
@@ -107,6 +132,62 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
             }
         }
 
+        register<RenderWorldEvent> {
+            if (! relicBeacon.value || LocationUtils.F7Phase != 5) return@register
+            val relic = heldRelic() ?: return@register
+            val base = relic.cauldronPos
+            val beamColor = Color(relic.color.red, relic.color.green, relic.color.blue, 90)
+            event.ctx.renderBoxBounds(
+                AABB(base.x + 0.3, base.y + 1.0, base.z + 0.3, base.x + 0.7, base.y + 120.0, base.z + 0.7),
+                beamColor, outline = false, fill = true, phase = true
+            )
+            event.ctx.renderBoxBounds(
+                AABB(base.x, base.y, base.z, base.x + 1.0, base.y + 1.0, base.z + 1.0),
+                Color(relic.color.red, relic.color.green, relic.color.blue, 255), beamColor, outline = true, fill = true, phase = true
+            )
+        }
+
+        // Odin: "relic spawned in Xs", measured from Necron's last line to the first relic head being equipped.
+        register<MainThreadPacketReceivedEvent.Post> {
+            if (! announceSpawnTime.value || hasAnnouncedSpawn || p5StartTime == 0L || LocationUtils.F7Phase != 5) return@register
+            val packet = event.packet as? ClientboundSetEquipmentPacket ?: return@register
+            val relic = packet.slots.firstNotNullOfOrNull { entry ->
+                val slot = entry.first
+                val stack = entry.second
+                if (slot != EquipmentSlot.HEAD || stack.item != Items.PLAYER_HEAD) null
+                else WitherRelic.fromName(stack.hoverName.string.removeFormatting())
+            } ?: return@register
+
+            hasAnnouncedSpawn = true
+            val seconds = ((DungeonListener.currentTime - p5StartTime) / 20.0).toFixed(2)
+            ChatUtils.modMessage("${relic.coloredName} relic §7spawned in §6${seconds}s")
+        }
+
+        // Odin "Relic Time": announce your own place time immediately when you click the cauldron.
+        register<PlayerInteractEvent.RIGHT_CLICK.BLOCK> {
+            if (! instantPlaceTime.value || p5StartTime == 0L || LocationUtils.F7Phase != 5) return@register
+            val relic = event.item?.hoverName?.string?.removeFormatting()?.let(WitherRelic::fromName) ?: return@register
+            if (relic in ownPlaceResults) return@register
+            if (WorldUtils.getBlockAt(event.pos) !in placeBlocks) return@register
+            val dx = event.pos.x - relic.cauldronPos.x
+            val dz = event.pos.z - relic.cauldronPos.z
+            if (dx * dx + dz * dz > 2.5) return@register
+
+            val key = "M7_relic_${relic.name}"
+            val seconds = ((DungeonListener.currentTime - p5StartTime) / 20.0).toFixed(2).toDouble()
+            val oldPB = PersonalBest.getPB(key)?.toDouble()
+            val isPB = PersonalBest.checkAndSetPB(key, seconds, lowerIsBetter = true)
+            ownPlaceResults[relic] = isPB
+
+            val pbText = when {
+                isPB && oldPB != null -> " §7(§d§lNew PB§r§7) Old PB was §8${oldPB.toFixed(2)}s"
+                isPB -> " §7(§d§lNew PB§r§7)"
+                oldPB != null -> " §8(§7${oldPB.toFixed(2)}s§8)"
+                else -> ""
+            }
+            ChatUtils.modMessage("${relic.coloredName} relic §7placed in §6${seconds}s§7!$pbText")
+        }
+
         register<TickEvent.Start> {
             if (! relicTimer.value || LocationUtils.F7Phase != 5 || relicTimes.isEmpty()) return@register
             val activeRelics = relicTimes.filter { ! it.isPlaced }.takeUnless { it.isEmpty() } ?: return@register
@@ -122,7 +203,7 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
                 entry.isPlaced = true
 
                 if (entry.player != mc.user.name) continue
-                entry.isPB = PersonalBest.checkAndSetPB(
+                entry.isPB = ownPlaceResults[entry.relic] ?: PersonalBest.checkAndSetPB(
                     key = "M7_relic_${entry.relic.name}",
                     value = entry.placeTimeSeconds,
                     lowerIsBetter = true
@@ -178,6 +259,10 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
         }
         //#endif
     }
+
+    private val placeBlocks = setOf(Blocks.CAULDRON, Blocks.ANVIL)
+
+    private fun heldRelic(): WitherRelic? = WitherRelic.fromName(player.inventory.getItem(8).hoverName.string.removeFormatting())
 
     private fun isEntityAtCauldron(pos: Vec3, relic: WitherRelic): Boolean {
         val relicVec2 = vec(relic.coords.first, 0, relic.coords.second)

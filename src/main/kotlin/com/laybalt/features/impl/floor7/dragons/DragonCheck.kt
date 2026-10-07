@@ -1,3 +1,4 @@
+// Ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.floor7.dragons
 
 import net.minecraft.world.entity.EntityTypes
@@ -8,6 +9,7 @@ import com.laybalt.utils.MathUtils.xzInAABB
 import com.laybalt.utils.ScoreboardUtils
 import com.laybalt.utils.dungeons.DungeonListener
 import com.laybalt.utils.remove
+import gg.essential.universal.USound
 import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.network.protocol.game.*
 import net.minecraft.sounds.SoundEvents
@@ -53,8 +55,37 @@ object DragonCheck {
         }
 
         if (dragons.isNotEmpty()) {
-            WitherDragons.priorityDragon = DragonPriority.findPriority(dragons)
+            val priority = DragonPriority.findPriority(dragons)
+            WitherDragons.priorityDragon = priority
+            announcePriority(priority, dragons)
         }
+    }
+
+    /**
+     * Odin behaviour: once both dragons of the first split are known (or at least two dragons
+     * have spawned already) show the "X is spawning!" title and the priority message, once per spawn.
+     */
+    private fun announcePriority(priority: WitherDragonEnum, dragons: List<WitherDragonEnum>) {
+        if (! WitherDragons.enabled || priority == WitherDragonEnum.None) return
+        val spawnedTotal = WitherDragonEnum.entries.sumOf { it.timesSpawned }
+        if (dragons.size < 2 && spawnedTotal < 2) return
+
+        // Announce once per spawn wave (Odin guards on priorityDragon == null): while the dragon we
+        // announced is still spawning in that same cycle, a later particle packet of another dragon
+        // must not trigger a second title/message even if the computed priority changes.
+        val last = WitherDragons.lastAnnounced
+        if (last != null && last.first.state == WitherDragonState.SPAWNING && last.first.timesSpawned == last.second) return
+        val key = priority to priority.timesSpawned
+        if (last == key) return
+        WitherDragons.lastAnnounced = key
+
+        if (WitherDragons.dragonTitle.value) {
+            ChatUtils.showTitle("&${priority.colorCode}${priority.name} is spawning!")
+            USound.playSoundStatic(SoundEvents.NOTE_BLOCK_PLING.value(), 1f, 1f)
+        }
+        if (WitherDragons.dragonPriorityToggle.value && WitherDragons.priorityMessage.value && dragons.size > 1) ChatUtils.modMessage(
+            "${dragons.joinToString("&7, ") { "&${it.colorCode}${it.name}" }} &7-> &${priority.colorCode}${priority.name} &7is your priority dragon!"
+        )
     }
 
     fun dragonUpdate(packet: ClientboundSetEntityDataPacket) {

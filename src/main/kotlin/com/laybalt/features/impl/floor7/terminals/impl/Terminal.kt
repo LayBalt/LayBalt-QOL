@@ -1,3 +1,4 @@
+// Ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.floor7.terminals.impl
 
 import com.laybalt.features.impl.floor7.terminals.TerminalClick
@@ -43,6 +44,20 @@ sealed class Terminal {
 
     open fun renderSlot(ctx: GuiGraphicsExtractor, x: Number, y: Number, index: Int, click: TerminalClick, baseColor: Color) = TerminalSolver.drawSlot(ctx, x, y, baseColor)
     open fun render(ctx: GuiGraphicsExtractor, baseColor: Color, getSlotPos: (slot: Int) -> Pair<Float, Float>, mx: Float, my: Float, hoveredSlot: KMutableProperty0<Int?>) = Unit
+
+    /** Click for a real container slot index (vanilla render modes). */
+    open fun getVanillaClick(slot: Int) = getClickForSlot(slot)
+
+    /**
+     * Draws the solver overlay for one real container slot in the vanilla render modes.
+     * @return true if something was drawn (the slot's item is then hidden).
+     */
+    open fun renderVanillaSlot(ctx: GuiGraphicsExtractor, slot: Int, x: Int, y: Int, baseColor: Color): Boolean {
+        val index = solution.indexOfFirst { it.slotId == slot }
+        if (index == - 1) return false
+        renderSlot(ctx, x, y, index, solution[index], baseColor)
+        return true
+    }
 
     protected open fun remainingClicks() = solution.size
     open fun maxClicks() = totalClicks.takeIf { it > 0 }
