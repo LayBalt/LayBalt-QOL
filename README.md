@@ -57,7 +57,7 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **Ragnarock** - Ragnarock alerts.
 - **Room Alerts** - Alerts when certain stuff happens in your current room.
 - **Salvage Overlay** - Highlights dungeon gear that is safe to salvage.
-- **Secret Waypoints** - Shows waypoints for every secret of the room you are in (chests, items, bats, wither essence, redstone keys, plus any entrance/superboom/stonk/lever/... waypoints you record with /lsw add). Found secrets are hidden automatically.
+- **Secret Waypoints** - Shows waypoints for every secret of the room you are in. Chests, items, bats, wither essence and redstone keys work out of the box; entrance, superboom, lever, stonk, AOTV, pearl, fairy soul and prince waypoints have no built-in data and come from /lsw add or from a dataset you already have, loaded with /lsw import <path> (folder, .json, .zip or .jar). Found secrets are hidden automatically.
 - **Secrets** - Secret count HUD, auto close for secret chests, bigger secret hitboxes and highlights for clicked secrets.
 - **Sellable Items Highlighter** - Highlights dungeon junk in your inventory (Defuse Kits, Training Weights, Journal Entries, Revive Stones, Healing VIII splash potions) while the Ophelia or Booster Cookie menu is open, so you can sell it quickly.
 - **Star Mob ESP** - Highlights all starred mobs in a dungeon.
@@ -117,7 +117,7 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **No Bob** - Removes the side-to-side sway and tilt of the view while walking, keeping an optional small vertical bounce.
 - **No Camera Clip** - Lets the third-person camera pass through blocks and sets how far it sits from you. Do not combine with the camera clip, distance and front-camera options of Camera Helper.
 - **No Glow** - Disables the vanilla Minecraft glow effect (Spectral arrows, Glowing effect, server-side glowing). Glow added by LayBalt features such as ESP keeps working.
-- **No Render** - Hides visual clutter: chosen entities, particles, HUD elements, fog, weather and more.
+- **No Render** - Hides visual clutter: chosen entities, particles, HUD elements, the hurt camera shake, fog (including lava fog), weather and more.
 - **Skeleton** - Draws the skeleton (head, spine, arms and legs) of players as lines that follow their animation.
 - **Sound ESP** - Shows the name of every sound played around you as a fading label where it came from.
 - **Storage ESP** - Highlights chests, shulker boxes, barrels and other containers around you.
