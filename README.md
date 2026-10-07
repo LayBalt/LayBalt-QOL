@@ -24,7 +24,7 @@ On the first launch LayBaltQOL imports your existing setup once. A NoammAddons c
 Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> are shown greyed out and cannot be enabled yet.
 </p>
 
-#### General (15)
+#### General (16)
 
 - **Auto Clicker** - Auto clicker for left click, right click or both, while a hold key is held.
 - **Auto Enchanting** - Solves Chronomatron and Ultrasequencer (and, experimentally, Superpairs) at the Experimentation Table.
@@ -39,14 +39,16 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **Party Helper** - Chat commands for party, guild, private and co-op chat, plus party list reformatting.
 - **Slot Binding** - Allows you to bind slots to hotbar slots for quick item swaps.
 - **Storage Overlay** - Shows all storage pages in an overlay when opening storage.
+- **Tac Timer** - Shows a 3 second timer (and optionally marks the start block) when you use the Tactical Insertion ability.
 - **Term AC** - Automatically uses Salvation ability when holding right click.
 - **Wardrobe Keybinds** - Make it possible to bind armor slots to your keyboard.
 
-#### Dungeon (25)
+#### Dungeon (30)
 
 - **Architect Draft** - Announces and can automatically get an Architect's First Draft after a failed puzzle.
 - **Auto Abilities** - Allows you to use dungeon class abilities with keybinds and automatically trigger ultimates when needed.
 - **Auto GFS** - Automatically refills dungeon items from your sacks using /gfs.
+- **Auto Requeue** - Automatically starts the next dungeon run when the current one ends, with party, leader and downtime checks.
 - **Auto Sell** - Automatically sells listed items in trade and Booster Cookie sell menus. Manage the list with /lbqsell.
 - **Auto Superboom** - Automatically swaps to Superboom TNT and uses it when you click a cracked (breakable) dungeon wall.
 - **Blood Camp** - Features for Blood Room.
@@ -55,7 +57,10 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **Door Keys** - ESP box & Tracer for wither and blood doors.
 - **Dungeon Map** - Custom dungeon map HUD with room names, checkmarks, player heads and run info under the map.
 - **Dungeon Waypoints** - Add a custom waypoint with /ndw add while looking at a block.
+- **F4 Features** - Thorn, Spirit Bow and Spirit Bear highlights plus a Spirit Bear progress and spawn timer HUD for F4/M4.
 - **Ghost Block** - Turns blocks into client-side ghost blocks (air) with a held key or by right-clicking with a pickaxe. Use at your own risk.
+- **Hidden Mobs** - Reveals invisible Fels, Shadow Assassins, Watcher mobs and stealthy Giants in dungeons.
+- **I Hate Doors** - Visually replaces entrance, wither and blood doors with colored glass (works with Sodium).
 - **Leap Menu** - Custom Leap Menu and leap message.
 - **Livid Solver** - Finds the real Livid in F5/M5, with HP display, tracer and hiding of the wrong Livids.
 - **Mimic** - Detects and announces Mimic, Prince and Bat kills in dungeons.
@@ -68,9 +73,10 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **Secrets** - Secret count HUD, auto close for secret chests, bigger secret hitboxes and highlights for clicked secrets.
 - **Sellable Items Highlighter** - Highlights dungeon junk in your inventory (Defuse Kits, Training Weights, Journal Entries, Revive Stones, Healing VIII splash potions) while the Ophelia or Booster Cookie menu is open, so you can sell it quickly.
 - **Star Mob ESP** - Highlights all starred mobs in a dungeon.
+- **Teammate ESP** - Highlights your dungeon party in their class colors and shows their class and name through walls.
 - **Terracotta Timer** - Displays a timer until Terracottas respawn in F6/M6.
 
-#### Floor 7 (18)
+#### Floor 7 (22)
 
 - **Arrow Align** - Arrow Align Solver.
 - **Arrows Device** - Shows a solution for the Sharp Shooter (arrows) device in Floor 7 phase 3.
@@ -78,12 +84,16 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **Auto Terminal** - Automatically clicks terminals for you.
 - **Debuff Helper** - Automatically pulls and fires bows based on Server Ticks (Lag Proof).
 - **F7 Titles** - Custom Titles for F7 boss fight.
+- **Gate Highlight** - Highlights the P3 section gate until it is destroyed.
 - **I Hate Diorite** - Replaces the diorite pillars in the Storm (P2) fight with glass.
 - **I4 Helper** - Highlights the targets for the F7 4th device (I4) and predicts the next block to shoot.
+- **Leap Counter** - Shows how many players have leaped to you at each P3 stack spot and alerts when everyone is there.
 - **M7 Relics** - A bunch of M7 Relics features.
 - **Maxors Crystals** - Utilities for F7 Maxor's Crystals.
 - **Melody Alert** - Tells your party when you open Melody and how far you are, and shows your teammates' Melody progress.
+- **Melody Display** - Pops up an on-screen alert (with sound) when a teammate reports Melody progress.
 - **Simon Says** - Simon Says Solver.
+- **Terminal ESP** - Highlights the hitboxes of inactive terminals in your current P3 section and flashes them when clicked.
 - **Terminal Simulator** - Practice floor 7 terminals in a local simulator. Clicking the toggle opens it; also /lbq termsim [type] [ping].
 - **Terminal Solver** - Renders solutions for Floor 7 terminals.
 - **Terminal Times** - Times every terminal you complete in floor 7 (with personal bests per terminal type) and adds section splits to the terminal messages.
@@ -91,7 +101,7 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **Wither Dragons** - M7 dragons timers, boxes, priority, health, and alerts.
 - **Wither ESP** - Highlights all Withers in F7.
 
-#### Visual (13)
+#### Visual (14)
 
 - **Animations** - Allows you to modify your hand view-model.
 - **Blessing Display** - Displays the current active blessings in the dungeon.
@@ -106,6 +116,7 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **Quiver Display** - Displays the arrow type and the number of arrows left in your quiver.
 - **Run Splits** - A Splits HUD for Dungeons.
 - **Spring Boots** - Shows the spring boots charge progress on screen.
+- **Warp Cooldown** - Displays on screen how long until you can start another dungeon run.
 
 #### Render (22)
 
