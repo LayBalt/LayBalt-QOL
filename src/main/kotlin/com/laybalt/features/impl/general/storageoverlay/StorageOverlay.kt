@@ -5,6 +5,7 @@ import com.laybalt.config.types.*
 import com.laybalt.event.impl.*
 import com.laybalt.event.priority.EventPriority
 import com.laybalt.features.Feature
+import com.laybalt.features.impl.general.ItemTooltip
 import com.laybalt.init.types.ICustomMenu
 import com.laybalt.utils.ChatUtils.unformattedText
 import com.laybalt.utils.ThreadUtils
@@ -32,6 +33,8 @@ object StorageOverlay: Feature("Shows all storage pages in an overlay when openi
     val maxHeightSetting by SliderSetting("Max Height", 324, 80, 600, 1).withDescription("The maximum height of the entire menu")
     val scrollSpeedSetting by SliderSetting("Scroll Speed", 10, 1, 50, 1).withDescription("How fast you scroll")
     val retainScrollSetting by ToggleSetting("Retain Scroll", true).withDescription("Keeps the scroll offset after closing the menu")
+    val enableTooltipInStorage by ToggleSetting("Tooltip Scroll").withDescription("Lets the scroll wheel move and scale item tooltips inside the overlay (requires ${ItemTooltip.name} with Scrollable Tooltips enabled)")
+    val hideNonMatchingPages by ToggleSetting("Hide Non-Matching Pages").withDescription("Hides storage pages that contain no item matching the current Inventory Search query")
     val alwaysShowCustomNames by ToggleSetting("Always Show Custom Names", true).jsonName("Show Custom Names").withDescription("Shows custom titles on inactive pages. When disabled, only the open page has a title. Default titles are only shown on the open page")
     val storageNames by MapSetting<Int, String>("Custom Names")
 
