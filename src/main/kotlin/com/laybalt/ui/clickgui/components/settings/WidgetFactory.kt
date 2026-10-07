@@ -5,7 +5,7 @@ import com.laybalt.config.types.*
 import com.laybalt.ui.clickgui.components.settings.impl.*
 
 object WidgetFactory {
-    fun fromSetting(configHolder: ConfigHolder<*>) = when (configHolder) {
+    fun fromSetting(configHolder: ConfigHolder<*>): Widget<*>? = when (configHolder) {
         is ToggleSetting -> ToggleWidget(configHolder)
         is DropdownSetting -> DropdownWidget(configHolder)
         is MultiCheckboxSetting -> MultiCheckboxWidget(configHolder)
@@ -21,4 +21,7 @@ object WidgetFactory {
         is ListSetting<*> -> null
         else -> error("Unknown config holder type: ${configHolder::class.qualifiedName}")
     }
+
+    /** Whether [configHolder] is shown as a row in the settings panel. */
+    fun hasWidget(configHolder: ConfigHolder<*>) = configHolder !is UnitSetting && configHolder !is MapSetting<*, *> && configHolder !is ListSetting<*>
 }

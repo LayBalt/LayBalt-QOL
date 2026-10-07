@@ -1,22 +1,29 @@
 package com.laybalt.ui.utils
 
 import com.laybalt.LayBaltQOL.mc
+import com.laybalt.ui.Palette
 import com.laybalt.ui.clickgui.components.settings.Style
+import com.laybalt.ui.render.Shapes.pixel
+import com.laybalt.ui.render.Shapes.roundedRect
+import com.laybalt.ui.text.UIFont
+import com.laybalt.utils.ColorUtils.withAlpha
 import com.laybalt.utils.render.Render2D.drawRect
 import com.laybalt.utils.render.Render2D.drawString
-import com.laybalt.ui.Palette
-import com.laybalt.utils.ColorUtils.withAlpha
 import com.laybalt.utils.render.Render2D.scissor
 import com.laybalt.utils.render.RenderHelper.width
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.*
 import net.minecraft.util.StringUtil
+import java.awt.Color
 import kotlin.math.max
 import kotlin.math.min
 
 
 /**
+ * Single-line text editing for the LayBalt screens (caret, mouse selection, word jumps, clipboard, undo/redo), drawn
+ * with [UIFont]. The owner positions it every frame ([x], [y], [width], [height]) and draws the field background.
+ *
  * @author Odin
  * @see <a href="https://github.com/odtheking/OdinFabric/blob/c55825af8b8b1080421cf90f61d5a3bdd5e42f14/src/main/kotlin/com/odtheking/odin/utils/ui/TextInputHandler.kt">TextInputHandler</a>
  * Modified
@@ -31,6 +38,19 @@ class TextInputHandler(
     var y = 0f
     var width = 0f
     var height = 18f
+
+    /** Inter text size; the text is vertically centred and the caret is as tall as the text. */
+    var fontSize = 7.6f
+    var textColor: Color = Palette.textPrimary
+    /** Horizontal inset of the text inside the field. */
+    var padding = 4f
+    /** Multiplies the alpha of everything the field draws (screen fade). */
+    var opacity = 1f
+    /**
+     * Draw and measure with the vanilla font (9-unit line, shadowed, § colour codes) instead of Inter: for in-game
+     * overlays such as the container search bar, which keep the vanilla look. [fontSize] is ignored.
+     */
+    var useVanillaFont = false
 
     private var caret = text.length
         set(value) {
@@ -70,30 +90,49 @@ class TextInputHandler(
         if (previousMousePos != mouseX to mouseY) mouseDragged(mouseX)
         previousMousePos = mouseX to mouseY
 
-        context.scissor(x, y, width, height)
-        if (selectionWidth != 0f) context.drawRect(
-            x + selectionStartX + 4f - textOffset,
-            y + 5f,
-            selectionWidth,
-            height - 10,
-            Style.accentColor.withAlpha(110)
-        )
+        if (useVanillaFont) return drawVanilla(context, suffix)
+        val size = fontSize
 
+        val lineH = UIFont.lineHeight(size)
+        val capH = UIFont.capHeight(size)
+        context.scissor(x, y, width, height)
+        if (selectionWidth != 0f) context.roundedRect(
+            x + selectionStartX + padding - textOffset, y + (height - capH * 1.9f) / 2f,
+            selectionWidth, capH * 1.9f, 1.5f, fade(Style.accentColor.withAlpha(110))
+        )
+        UIFont.draw(context, text + suffix.orEmpty(), x + padding - textOffset, y + (height - lineH) / 2f, fade(textColor), size)
         if (listening) {
             val time = System.currentTimeMillis()
-            if (time - caretBlinkTime < 500) context.drawRect(
-                x + caretX + 4f - textOffset,
-                y + height / 3.4,
-                1,
-                9,
-                Palette.textPrimary,
+            if (time - caretBlinkTime < 530) context.roundedRect(
+                x + caretX + padding - textOffset, y + (height - capH * 1.7f) / 2f,
+                0.9f.coerceAtLeast(context.pixel()), capH * 1.7f, 0f, fade(Style.accentColor)
             )
+            else if (time - caretBlinkTime > 1060) caretBlinkTime = time
+        }
+        context.disableScissor()
+    }
+
+    /** The pre-LayBalt-GUI look: vanilla text, a 9-unit caret and a flat selection box. */
+    private fun drawVanilla(context: GuiGraphicsExtractor, suffix: String?) {
+        context.scissor(x, y, width, height)
+        if (selectionWidth != 0f) context.drawRect(x + selectionStartX + padding - textOffset, y + 5f, selectionWidth, height - 10, fade(Style.accentColor.withAlpha(110)))
+        if (listening) {
+            val time = System.currentTimeMillis()
+            if (time - caretBlinkTime < 500) context.drawRect(x + caretX + padding - textOffset, y + height / 3.4, 1, 9, fade(textColor))
             else if (time - caretBlinkTime > 1000) caretBlinkTime = time
         }
-
-        context.drawString(text + suffix.orEmpty(), x + 4f - textOffset, y + height / 2f - 5, Palette.textPrimary)
-
+        context.drawString(text + suffix.orEmpty(), x + padding - textOffset, y + height / 2f - 5, fade(textColor))
         context.disableScissor()
+    }
+
+    private fun fade(color: Color) = if (opacity >= 0.999f) color else color.withAlpha((color.alpha * opacity).toInt())
+
+    /** Moves the caret to the end of the text and starts listening (used to focus a field from the keyboard). */
+    fun focusEnd() {
+        listening = true
+        caret = text.length
+        clearSelection()
+        updateCaretPosition()
     }
 
     fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
@@ -268,7 +307,7 @@ class TextInputHandler(
             caret = if (selection > caret) caret else selection
         }
         val tl = text.length
-        textSetter(text.substringSafe(0, caret) + string + text.substring(caret))
+        textSetter(text.substringSafe(0, caret) + string + text.substringSafe(caret, text.length))
         if (text.length != tl) caret += string.length
         clearSelection()
         updateCaretPosition()
@@ -283,7 +322,7 @@ class TextInputHandler(
     }
 
     private fun caretFromMouse(mouseX: Float) {
-        val mx = mouseX - (x + textOffset)
+        val mx = mouseX - (x + padding) + textOffset
 
         var currWidth = 0f
         var newCaret = 0
@@ -312,15 +351,16 @@ class TextInputHandler(
             val previousX = caretX
             caretX = textWidth(text.substringSafe(0, caret))
 
+            val visible = width - padding * 2f
             if (previousX < caretX) {
-                if (caretX - textOffset >= width) textOffset = caretX - width
+                if (caretX - textOffset >= visible) textOffset = caretX - visible
             }
             else {
                 if (caretX - textOffset <= 0f) textOffset = textWidth(text.substringSafe(0, caret - 1))
             }
 
-            if (textOffset > 0 && textWidth(text) - textOffset < width)
-                textOffset = (textWidth(text) - width).coerceAtLeast(0f)
+            if (textOffset > 0 && textWidth(text) - textOffset < visible)
+                textOffset = (textWidth(text) - visible).coerceAtLeast(0f)
         }
         else {
             caretX = 0f
@@ -363,7 +403,7 @@ class TextInputHandler(
         return end
     }
 
-    private fun textWidth(text: String): Float = text.width().toFloat()
+    private fun textWidth(text: String): Float = if (useVanillaFont) text.width().toFloat() else UIFont.width(text, fontSize)
 
     fun resetState() {
         listening = false

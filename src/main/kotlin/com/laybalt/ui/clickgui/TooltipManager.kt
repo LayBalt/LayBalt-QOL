@@ -1,60 +1,75 @@
 package com.laybalt.ui.clickgui
 
-import com.laybalt.LayBaltQOL.mc
-import com.laybalt.ui.clickgui.components.settings.Style
-import com.laybalt.ui.utils.Resolution
-import com.laybalt.utils.render.Render2D.drawRect
-import com.laybalt.utils.render.RenderHelper.width
-import com.laybalt.utils.render.RenderHelper.wrap
-import gg.essential.universal.UGraphics
-import net.minecraft.client.gui.GuiGraphicsExtractor
 import com.laybalt.ui.Palette
+import com.laybalt.ui.text.UIFont
+import com.laybalt.ui.utils.Resolution
+import net.minecraft.client.gui.GuiGraphicsExtractor
 import kotlin.math.abs
 
+/**
+ * Delayed hover tooltips of the LayBalt screens: a rounded popover card with Inter text. Call [hover] while the
+ * mouse is over something during a frame and [draw] once at the end of that frame.
+ */
 object TooltipManager {
-    private const val displayDelay = 500L
-    private val backgroundColor get() = Palette.tooltipBg
+    private const val DELAY = 450L
+    private const val MAX_WIDTH = 190f
+    private const val SIZE = 7.2f
+    private const val PAD = 7f
 
     private var hoveredText: String? = null
+    private var shownText: String? = null
     private var displayStartTime = 0L
-    private var lastMouseX = 0
-    private var lastMouseY = 0
+    private var lastMouseX = 0f
+    private var lastMouseY = 0f
+    private val appear = UI.Smooth(0f, 20f)
 
-    fun hover(text: String?, mouseX: Int, mouseY: Int) {
+    fun hover(text: String?, mouseX: Number, mouseY: Number) {
         if (text.isNullOrBlank()) return
-        if (abs(mouseX - lastMouseX) > 5 || abs(mouseY - lastMouseY) > 5) {
+        val mx = mouseX.toFloat()
+        val my = mouseY.toFloat()
+        if (abs(mx - lastMouseX) > 5 || abs(my - lastMouseY) > 5 || text != shownText) {
             displayStartTime = System.currentTimeMillis()
+            appear.snap(0f)
         }
-
-        lastMouseX = mouseX
-        lastMouseY = mouseY
+        lastMouseX = mx
+        lastMouseY = my
         hoveredText = text
+        shownText = text
     }
 
-    fun draw(context: GuiGraphicsExtractor, logicalWidth: Float = Resolution.width, logicalHeight: Float = Resolution.height) {
-        val text = hoveredText ?: return
-        if (System.currentTimeMillis() - displayStartTime < displayDelay) return
-
-        val lines = text.wrap(150)
-        val padding = 6
-        val textWidth = lines.maxOf { it.width() }
-        val textHeight = lines.size * (UGraphics.getFontHeight() + 2)
-
-        var tx = lastMouseX + 12f
-        var ty = lastMouseY + 12f
-
-        if (tx + textWidth + (padding * 2) > logicalWidth) tx = lastMouseX - textWidth - (padding * 2) - 4f
-        if (ty + textHeight + (padding * 2) > logicalHeight) ty = logicalHeight - textHeight - (padding * 2) - 4f
-
-        context.drawRect(tx, ty, textWidth + (padding * 2f), textHeight + (padding * 1.5f), backgroundColor)
-        context.drawRect(tx, ty, textWidth + (padding * 2f), 1.5f, Style.accentColor)
-
-        var currentY = ty + padding
-        lines.forEach { line ->
-            context.text(mc.font, line, (tx + padding).toInt(), currentY.toInt(), Palette.textPrimary.rgb, true)
-            currentY += mc.font.lineHeight + 2
-        }
-
+    fun draw(ctx: GuiGraphicsExtractor, logicalWidth: Float = Resolution.width, logicalHeight: Float = Resolution.height) {
+        val text = hoveredText
         hoveredText = null
+        if (text == null) {
+            shownText = null
+            return
+        }
+        if (System.currentTimeMillis() - displayStartTime < DELAY) return
+
+        val lines = UIFont.wrap(text, MAX_WIDTH, SIZE)
+        val lineH = UIFont.lineHeight(SIZE) + 1f
+        val w = lines.maxOf { UIFont.width(it, SIZE) } + PAD * 2f
+        val h = lines.size * lineH - 1f + PAD * 2f - 2f
+
+        var tx = lastMouseX + 10f
+        var ty = lastMouseY + 12f
+        if (tx + w > logicalWidth - 4f) tx = lastMouseX - w - 6f
+        if (ty + h > logicalHeight - 4f) ty = lastMouseY - h - 6f
+        tx = tx.coerceAtLeast(4f)
+        ty = ty.coerceAtLeast(4f)
+
+        val t = appear.update(1f)
+        ctx.nextStratum()
+        val saved = UI.alpha
+        UI.alpha = saved * t
+        UI.shadow(ctx, tx, ty, w, h, 6f, 10f, Palette.shadowStrong, offsetY = 3f)
+        UI.rect(ctx, tx, ty, w, h, 6f, Palette.popover)
+        UI.outline(ctx, tx, ty, w, h, 6f, Palette.outlineHover)
+        var ly = ty + PAD - 1f
+        for (line in lines) {
+            UI.text(ctx, line, tx + PAD, ly, Palette.textPrimary, SIZE)
+            ly += lineH
+        }
+        UI.alpha = saved
     }
 }

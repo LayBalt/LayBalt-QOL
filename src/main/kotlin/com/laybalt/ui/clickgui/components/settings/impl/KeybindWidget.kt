@@ -1,46 +1,64 @@
 package com.laybalt.ui.clickgui.components.settings.impl
 
-import com.mojang.blaze3d.platform.InputConstants
 import com.laybalt.config.types.KeybindSetting
+import com.laybalt.ui.Palette
+import com.laybalt.ui.clickgui.UI
+import com.laybalt.ui.clickgui.components.Rect
 import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.ui.clickgui.components.settings.Widget
-import com.laybalt.ui.utils.Animation
-import com.laybalt.utils.render.Render2D.drawString
-import com.laybalt.utils.render.RenderHelper.width
-import com.laybalt.ui.Palette
+import com.laybalt.ui.text.UIFont
+import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.input.KeyEvent
+import kotlin.math.sin
 
+/**
+ * Key chip on the right. Click it, then press a key (Backspace clears, Escape cancels) or a mouse button to bind.
+ */
 class KeybindWidget(config: KeybindSetting): Widget<Int>(config) {
     private inline val cfg get() = config as KeybindSetting
 
-    private val hoverAnim = Animation(200)
     private var listening = false
+    private var chip = Rect(0f, 0f, 0f, 0f)
 
-    override fun draw(ctx: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        val isHovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height
-        hoverAnim.update(if (isHovered) 1f else 0f)
+    override val capturing get() = listening
 
-        Style.drawBackground(ctx, x, y, width, height)
-        Style.drawHoverBar(ctx, x, y, height, hoverAnim.value)
-        Style.drawNudgedText(ctx, name, x + 8f, y + 6f, hoverAnim.value)
+    override fun draw(ctx: GuiGraphicsExtractor, mx: Float, my: Float) {
+        drawRow(ctx, mx, my, active = listening)
+        val text = if (listening) "Press a key…" else cfg.displayName().let { if (it == "NONE") "None" else it }
+        val w = (UI.width(text, VALUE_SIZE, UIFont.Weight.MEDIUM) + 16f).coerceAtLeast(44f)
+        chip = Rect(x + width - PAD - w + 3f, y + 4f, w, 18f)
+        drawLabel(ctx, chip.x - x - PAD - 6f)
 
-        val bindText = if (listening) "..." else cfg.displayName()
-        ctx.drawString(bindText, x + width - bindText.width() - 8f, y + 6f, if (listening) Style.accentColor else Palette.textSecondary)
+        val hot = listening || chip.contains(mx, my)
+        UI.rect(ctx, chip.x, chip.y, chip.w, chip.h, 5f, if (listening) Palette.accentPill else if (hot) Palette.inputHover else Palette.input)
+        if (listening) {
+            val pulse = 0.55f + 0.45f * sin(System.currentTimeMillis() / 180.0).toFloat()
+            UI.outline(ctx, chip.x, chip.y, chip.w, chip.h, 5f, UI.fade(Palette.accent, pulse), 1.1f)
+        }
+        else {
+            UI.outline(ctx, chip.x, chip.y, chip.w, chip.h, 5f, if (hot) Palette.outlineHover else Palette.outline)
+            // keycap bottom edge
+            UI.rect(ctx, chip.x + 3f, chip.bottom - 1.6f, chip.w - 6f, 0.8f, 0.4f, Palette.outline)
+        }
+        val color = when {
+            listening -> Palette.accentText
+            cfg.value == InputConstants.UNKNOWN.value -> Palette.textMuted
+            else -> Palette.textPrimary
+        }
+        UI.textMidCentered(ctx, text, chip.x + chip.w / 2f, chip.y + chip.h / 2f, color, VALUE_SIZE, UIFont.Weight.MEDIUM)
     }
 
-    override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        val isInside = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height
-
+    override fun mouseClicked(mx: Float, my: Float, button: Int): Boolean {
         if (listening) {
-            this.value = button
+            value = button
             cfg.isMouse = true
             cfg.scanCode = 0
-            this.listening = false
+            listening = false
             Style.playClickSound(1f)
             return true
         }
-
-        if (isInside) {
+        if (isHovered(mx, my)) {
             listening = true
             Style.playClickSound(1f)
             return true
@@ -48,25 +66,26 @@ class KeybindWidget(config: KeybindSetting): Widget<Int>(config) {
         return false
     }
 
-    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
-        if (listening) {
-            if (keyCode == InputConstants.KEY_ESCAPE) {
-                listening = false
-                return true
-            }
+    override fun clearFocus() {
+        listening = false
+    }
 
-            if (keyCode == InputConstants.KEY_BACKSPACE) {
+    override fun keyPressed(event: KeyEvent): Boolean {
+        if (!listening) return false
+        when (event.key) {
+            InputConstants.KEY_ESCAPE -> {}
+            InputConstants.KEY_BACKSPACE -> {
                 value = InputConstants.UNKNOWN.value
                 cfg.isMouse = false
             }
-            else {
-                this.value = keyCode
-                cfg.scanCode = scanCode
+            else -> {
+                value = event.key
+                cfg.scanCode = event.scancode
                 cfg.isMouse = false
             }
-            listening = false
-            return true
         }
-        return false
+        listening = false
+        Style.playClickSound(1.1f)
+        return true
     }
 }

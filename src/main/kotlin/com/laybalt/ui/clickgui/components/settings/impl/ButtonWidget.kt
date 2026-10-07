@@ -1,53 +1,45 @@
 package com.laybalt.ui.clickgui.components.settings.impl
 
-import com.mojang.blaze3d.platform.InputConstants
-
 import com.laybalt.config.types.ButtonSetting
+import com.laybalt.ui.clickgui.UI
 import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.ui.clickgui.components.settings.Widget
-import com.laybalt.ui.utils.Animation
-import com.laybalt.utils.ColorUtils.withAlpha
-import com.laybalt.utils.render.Render2D.drawCenteredString
-import com.laybalt.utils.render.Render2D.drawRect
-import com.laybalt.utils.render.RenderHelper.width
+import com.mojang.blaze3d.platform.InputConstants
+import com.mojang.blaze3d.platform.cursor.CursorTypes
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import com.laybalt.ui.Palette
 
+/**
+ * Full-width rounded button. Buttons that reset or delete something use the danger style, "open"-style actions the
+ * accent style, everything else the secondary style.
+ */
 class ButtonWidget(config: ButtonSetting): Widget<Unit>(config) {
     private inline val cfg get() = config as ButtonSetting
+    private val press = UI.Smooth(0f, 24f)
+    private var pressedAt = 0L
 
-    private val hoverAnim = Animation(200)
+    override val height get() = 24f
 
-    override fun draw(ctx: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        val isHovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height
-        hoverAnim.update(if (isHovered) 1f else 0f)
-
-        Style.drawBackground(ctx, x.toFloat(), y.toFloat(), width.toFloat(), height.toFloat())
-
-        if (hoverAnim.value > 0.01f) {
-            ctx.drawRect(x.toFloat(), y.toFloat(), width.toFloat(), height.toFloat(), Palette.hover.withAlpha((Palette.hover.alpha * hoverAnim.value).toInt()))
-        }
-
-        ctx.drawCenteredString(name, x + (width / 2), y + 6, Palette.textPrimary)
-
-        if (hoverAnim.value > 0.01f) {
-            val textWidth = name.width()
-            val maxLineWidth = (textWidth + 10).toFloat()
-            val currentLineWidth = maxLineWidth * hoverAnim.value
-
-            val lineX = x + (width / 2f) - (currentLineWidth / 2f)
-            val lineY = y + 15.5f
-
-            ctx.drawRect(lineX, lineY, currentLineWidth, 1f, Style.accentColor.withAlpha((200 * hoverAnim.value).toInt()))
+    private val style = name.lowercase().let {
+        when {
+            it.startsWith("reset") || it.startsWith("clear") || it.startsWith("delete") || it.startsWith("remove") -> UI.ButtonStyle.DANGER
+            it.startsWith("open") || it.startsWith("edit") -> UI.ButtonStyle.PRIMARY
+            else -> UI.ButtonStyle.SECONDARY
         }
     }
 
-    override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        if (button == InputConstants.MOUSE_BUTTON_LEFT && mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
-            if (cfg.clickSound) Style.playClickSound(1f)
-            cfg.invoke()
-            return true
-        }
-        return false
+    override fun draw(ctx: GuiGraphicsExtractor, mx: Float, my: Float) {
+        val hot = hover.update(isHovered(mx, my))
+        if (hot > 0.5f) ctx.requestCursor(CursorTypes.POINTING_HAND)
+        val p = press.update(System.currentTimeMillis() - pressedAt < 110)
+        val inset = p * 1f
+        UI.button(ctx, name, x + inset, y + inset, width - inset * 2f, height - inset * 2f, hot, style)
+    }
+
+    override fun mouseClicked(mx: Float, my: Float, button: Int): Boolean {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT || !isHovered(mx, my)) return false
+        if (cfg.clickSound) Style.playClickSound(1f)
+        pressedAt = System.currentTimeMillis()
+        cfg.invoke()
+        return true
     }
 }

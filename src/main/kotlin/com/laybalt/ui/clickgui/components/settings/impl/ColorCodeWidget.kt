@@ -1,105 +1,88 @@
 package com.laybalt.ui.clickgui.components.settings.impl
 
-import com.mojang.blaze3d.platform.InputConstants
-
 import com.laybalt.config.types.ColorCodeSetting
+import com.laybalt.ui.Palette
+import com.laybalt.ui.clickgui.UI
+import com.laybalt.ui.clickgui.components.Popover
+import com.laybalt.ui.clickgui.components.Popovers
+import com.laybalt.ui.clickgui.components.Rect
 import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.ui.clickgui.components.settings.Widget
-import com.laybalt.ui.utils.Animation
-import com.laybalt.utils.render.Render2D.drawBorder
-import com.laybalt.utils.render.Render2D.drawRect
-import com.laybalt.utils.render.Render2D.drawString
-import com.laybalt.utils.render.Render2D.scissor
-import com.laybalt.ui.Palette
+import com.laybalt.ui.text.UIFont
+import com.mojang.blaze3d.platform.InputConstants
 import gg.essential.universal.ChatColor
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import java.awt.Color
 
+/** Minecraft chat colour: a select with the colour's swatch and name, choices in a swatch grid popover. */
 class ColorCodeWidget(config: ColorCodeSetting): Widget<ChatColor>(config) {
-    private var expanded = false
-    private val openAnim = Animation(250)
-    private val hoverAnim = Animation(200)
+    private var box = Rect(0f, 0f, 0f, 0f)
+    private val grid = Grid()
 
-    private val cols = 8
-    private val rows = 2
-    private val cellH = 14f
-
-    override val height get() = 20 + (openAnim.value * 48).toInt()
-
-    private fun swatchColor(format: ChatColor) = format.color ?: ChatColor.WHITE.color !!
+    private fun swatch(format: ChatColor): Color = format.color ?: ChatColor.WHITE.color!!
     private fun prettyName(format: ChatColor) = format.name.split('_').joinToString(" ") { it.lowercase().replaceFirstChar(Char::uppercase) }
 
-    override fun draw(ctx: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        val isHovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + 20
-        openAnim.update(if (expanded) 1f else 0f)
-        hoverAnim.update(if (isHovered) 1f else 0f)
-
-        Style.drawBackground(ctx, x.toFloat(), y.toFloat(), width.toFloat(), 20f)
-        Style.drawHoverBar(ctx, x.toFloat(), y.toFloat(), 20f, hoverAnim.value)
-        Style.drawNudgedText(ctx, name, x + 8f, y + 6f, hoverAnim.value)
-
-        ctx.drawRect(x + width - 18f, y + 6f, 8f, 8f, swatchColor(value))
-
-        ctx.scissor(x, y, width, height)
-
-        if (expanded) {
-            val gridX = x + 10f
-            val gridW = width - 20f
-            val cellW = gridW / cols
-            val gridY = y + 24f
-            var hoveredName: String? = null
-
-            ColorCodeSetting.COLORS.forEachIndexed { index, format ->
-                val col = index % cols
-                val row = index / cols
-                val cx = gridX + col * cellW
-                val cy = gridY + row * (cellH + 2f)
-
-                val hov = mouseX >= cx && mouseX <= cx + cellW - 2f && mouseY >= cy && mouseY <= cy + cellH
-                if (hov) hoveredName = prettyName(format)
-
-                ctx.drawRect(cx, cy, cellW - 2f, cellH, swatchColor(format))
-                if (format == value) ctx.drawBorder(cx, cy, cellW - 1, cellH, Palette.textPrimary)
-            }
-
-            val label = hoveredName ?: prettyName(value)
-            ctx.drawString(label, gridX, gridY + rows * (cellH + 2f) + 2f, swatchColor(value), 1f)
-        }
-
-        ctx.disableScissor()
+    override fun draw(ctx: GuiGraphicsExtractor, mx: Float, my: Float) {
+        val open = Popovers.isOpen(grid)
+        drawRow(ctx, mx, my, active = open)
+        val text = prettyName(value)
+        box = selectBox(text).let { Rect(it.x - 12f, it.y, it.w + 12f, it.h) }
+        drawLabel(ctx, box.x - x - PAD - 6f)
+        drawSelectBox(ctx, box, text, mx, my, open, swatch(value))
     }
 
-    override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + 20) {
-            if (button == InputConstants.MOUSE_BUTTON_LEFT) {
-                expanded = ! expanded
-                Style.playClickSound(1f)
-                return true
+    override fun mouseClicked(mx: Float, my: Float, button: Int): Boolean {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT || !isHovered(mx, my)) return false
+        Popovers.open(grid)
+        Style.playClickSound(1f)
+        return true
+    }
+
+    private inner class Grid: Popover() {
+        private val cols = 8
+        private val cell = 16f
+        private val gap = 4f
+        private val pad = 9f
+        private val rows get() = (ColorCodeSetting.COLORS.size + cols - 1) / cols
+
+        override val width get() = pad * 2f + cols * cell + (cols - 1) * gap
+        override val height get() = pad * 2f + rows * cell + (rows - 1) * gap + 16f
+
+        override fun anchor() = box
+
+        private fun cellRect(index: Int) = Rect(x + pad + (index % cols) * (cell + gap), y + pad + (index / cols) * (cell + gap), cell, cell)
+
+        override fun drawContent(ctx: GuiGraphicsExtractor, mx: Float, my: Float) {
+            var hovered: ChatColor? = null
+            ColorCodeSetting.COLORS.forEachIndexed { index, format ->
+                val r = cellRect(index)
+                val hot = r.contains(mx, my)
+                if (hot) hovered = format
+                val grow = if (hot) 1f else 0f
+                UI.rect(ctx, r.x - grow, r.y - grow, r.w + grow * 2f, r.h + grow * 2f, 4.5f, swatch(format))
+                if (format == value) {
+                    UI.outline(ctx, r.x - 2.5f, r.y - 2.5f, r.w + 5f, r.h + 5f, 6.5f, Palette.accentText, 1.2f)
+                }
+                else UI.outline(ctx, r.x, r.y, r.w, r.h, 4.5f, Palette.outline)
             }
+            val shown = hovered ?: value
+            val labelY = y + height - pad - 6f
+            UI.circle(ctx, x + pad + 3f, labelY, 3f, swatch(shown))
+            UI.textMid(ctx, prettyName(shown), x + pad + 10f, labelY, Palette.textPrimary, VALUE_SIZE, UIFont.Weight.MEDIUM)
+            UI.textMidRight(ctx, "&" + shown.char, x + width - pad, labelY, Palette.textMuted, 6.5f)
         }
 
-        if (expanded) {
-            val gridX = x + 10f
-            val gridW = width - 20f
-            val cellW = gridW / cols
-            val gridY = y + 24f
-
+        override fun mouseClicked(mx: Float, my: Float, button: Int): Boolean {
+            if (button != InputConstants.MOUSE_BUTTON_LEFT) return true
             ColorCodeSetting.COLORS.forEachIndexed { index, format ->
-                val col = index % cols
-                val row = index / cols
-                val cx = gridX + col * cellW
-                val cy = gridY + row * (cellH + 2f)
-
-                if (mouseX >= cx && mouseX <= cx + cellW - 2f && mouseY >= cy && mouseY <= cy + cellH) {
+                if (cellRect(index).contains(mx, my)) {
                     value = format
                     Style.playClickSound(1f)
-                    expanded = false
+                    Popovers.close()
                     return true
                 }
             }
-
-            expanded = false
+            return true
         }
-
-        return false
     }
 }

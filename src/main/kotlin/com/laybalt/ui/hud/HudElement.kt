@@ -1,11 +1,9 @@
 package com.laybalt.ui.hud
 
 import com.laybalt.ui.Palette
-import com.laybalt.ui.clickgui.components.settings.Style
-import com.laybalt.utils.ColorUtils.withAlpha
-import com.laybalt.utils.render.Render2D.drawRect
+import com.laybalt.ui.clickgui.UI
+import com.laybalt.ui.text.UIFont
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import java.awt.Color
 import kotlin.math.roundToInt
 import kotlin.reflect.jvm.jvmName
 
@@ -33,19 +31,53 @@ abstract class HudElement {
     private var dragX = 0f
     private var dragY = 0f
 
+    /** Set by the HUD editor for the element that was clicked last. */
+    var editorSelected = false
+    private val editorHover = UI.Smooth()
+    private var editorHot = 0f
+
     abstract fun draw(ctx: GuiGraphicsExtractor, example: Boolean): Pair<Number, Number>
 
-    open fun drawBackground(ctx: GuiGraphicsExtractor, mx: Int, my: Int) {
-        val scaledW = width * scale
-        val scaledH = height * scale
-        val centeredOffset = if (centered()) scaledW / 2f else 0f
-        val hovered = mx >= x - centeredOffset && mx <= x - centeredOffset + scaledW && my >= y && my <= y + scaledH
+    /** Left edge of the drawn element (centred elements are drawn around [x]). */
+    val left get() = x - if (centered()) width * scale / 2f else 0f
+    val scaledWidth get() = width * scale
+    val scaledHeight get() = height * scale
 
-        val borderColor = if (isDragging || hovered) Style.accentColor else Palette.border
+    /** HUD editor frame: translucent rounded box with an outline (accent when selected); the name tag is [drawEditorTag]. */
+    open fun drawBackground(ctx: GuiGraphicsExtractor, mx: Int, my: Int) = drawEditorFrame(ctx, mx.toFloat(), my.toFloat())
 
-        ctx.drawRect(x - centeredOffset, y, scaledW, scaledH, Palette.bgDeep.withAlpha(150))
-        ctx.drawRect(x - centeredOffset, y, scaledW, 1f, borderColor)
-        ctx.drawRect(x - centeredOffset, y + scaledH - 1f, scaledW, 1f, borderColor)
+    fun drawEditorFrame(ctx: GuiGraphicsExtractor, mx: Float, my: Float) {
+        val bx = left - 2f
+        val by = y - 2f
+        val bw = scaledWidth + 4f
+        val bh = scaledHeight + 4f
+        val active = isDragging || editorSelected
+        val hot = editorHover.update(active || isHovered(mx.toInt(), my.toInt()))
+        editorHot = hot
+
+        UI.rect(ctx, bx, by, bw, bh, 4f, if (active) UI.fade(Palette.accent, 0.14f) else UI.fade(Palette.bgDeep, 0.45f + 0.15f * hot))
+        UI.outline(ctx, bx, by, bw, bh, 4f, if (active) Palette.accent else UI.mix(Palette.outlineHover, Palette.accentBorder, hot), if (active) 1.1f else UI.hair(ctx))
+    }
+
+    /**
+     * The element's name tag above its frame (or below when there is no room). The HUD editor draws every tag in a
+     * pass after all elements so no other element's content can cover one.
+     */
+    fun drawEditorTag(ctx: GuiGraphicsExtractor) {
+        if (! toggle) return
+        val bx = left - 2f
+        val by = y - 2f
+        val bh = scaledHeight + 4f
+        val active = isDragging || editorSelected
+        val hot = editorHot
+        val size = 6.2f
+        val label = name
+        val tw = UI.width(label, size, UIFont.Weight.MEDIUM) + 8f
+        val tagH = 10f
+        val ty = if (by - tagH - 2f >= 0f) by - tagH - 2f else by + bh + 2f
+        val tx = bx
+        UI.rect(ctx, tx, ty, tw, tagH, 3f, if (active) Palette.accent else UI.fade(Palette.popover, 0.75f + 0.25f * hot))
+        UI.textMid(ctx, label, tx + 4f, ty + tagH / 2f, if (active) java.awt.Color(250, 247, 255) else UI.mix(Palette.textSecondary, Palette.textPrimary, hot), size, UIFont.Weight.MEDIUM)
     }
 
     fun renderElement(ctx: GuiGraphicsExtractor, example: Boolean) {
@@ -63,7 +95,11 @@ abstract class HudElement {
         ctx.pose().popMatrix()
     }
 
-    fun drawEditor(ctx: GuiGraphicsExtractor, mx: Int, my: Int, gridSize: Int = 0) {
+    /**
+     * Moves the element while it is dragged ([gridSize] > 0 snaps to the grid, [snapper] adjusts the new position,
+     * e.g. to screen guides) and draws the editor frame plus the element.
+     */
+    fun drawEditor(ctx: GuiGraphicsExtractor, mx: Int, my: Int, gridSize: Int = 0, snapper: ((HudElement) -> Unit)? = null) {
         if (! toggle) return
 
         if (isDragging) {
@@ -73,6 +109,7 @@ abstract class HudElement {
                 x = (x / gridSize).roundToInt() * gridSize.toFloat()
                 y = (y / gridSize).roundToInt() * gridSize.toFloat()
             }
+            else snapper?.invoke(this)
         }
 
         drawBackground(ctx, mx, my)

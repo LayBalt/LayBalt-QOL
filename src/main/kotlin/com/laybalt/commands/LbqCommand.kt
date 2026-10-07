@@ -7,7 +7,7 @@ import com.laybalt.event.impl.ChatMessageEvent
 import com.laybalt.event.impl.LayBaltDebugFlagEvent
 import com.laybalt.features.impl.dungeon.LeapMenu
 import com.laybalt.init.types.ICommandProvider
-import com.laybalt.ui.clickgui.ClickGuiScreen
+import com.laybalt.ui.clickgui.LayBaltScreen
 import com.laybalt.ui.hud.HudEditorScreen
 import com.laybalt.utils.*
 import com.laybalt.utils.ChatUtils.addColor
@@ -24,7 +24,7 @@ object LbqCommand: ICommandProvider {
     override fun CommandBuilder.command() {
         setName("lbq", "laybalt")
         description("opens the Config GUI")
-        runs { GuiUtils.setScreen(ClickGuiScreen()) }
+        runs { GuiUtils.setScreen(LayBaltScreen()) }
 
         com.laybalt.features.impl.floor7.terminals.TerminalSimulator.registerCommand(this) // /lbq termsim (P2)
 
