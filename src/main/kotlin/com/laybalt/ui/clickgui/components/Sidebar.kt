@@ -60,7 +60,7 @@ class Sidebar(
         listed.forEachIndexed { i, c -> rows += Entry.Category(c) to Rect(r.x + INSET, listTop + i * (rowH + GAP), r.w - INSET * 2f, rowH) }
         bottomEntries.forEachIndexed { i, e -> rows += e to Rect(r.x + INSET, bottomTop + i * (bottomRowH + GAP), r.w - INSET * 2f, bottomRowH) }
 
-        UI.textMid(ctx, "CATEGORIES", r.x + INSET + 7f, listTop - 8f, Palette.textMuted, 5.8f, UIFont.Weight.SEMIBOLD)
+        UI.textMid(ctx, "CATEGORIES", r.x + INSET + 7f, listTop - 8f, Palette.textMuted, 6.4f, UIFont.Weight.SEMIBOLD)
         UI.hLine(ctx, r.x + 14f, bottomTop - 8f, r.w - 28f, Palette.divider)
 
         // animated selection pill
@@ -105,17 +105,17 @@ class Sidebar(
         val features = FeatureManager.getFeaturesByCategory(category)
         val enabled = features.count { it.enabled && !it.wip }
         val iconSize = (row.h - 6f).coerceAtMost(16f)
-        if (UI.alpha > 0.55f) CategoryIcons.draw(ctx, category, row.x + 7f, row.y + (row.h - iconSize) / 2f, iconSize)
+        CategoryIcons.draw(ctx, category, row.x + 7f, row.y + (row.h - iconSize) / 2f, iconSize, UI.alpha)
         val label = if (category == CategoryType.DEV) "Client" else category.displayName
         val color = if (selected) Palette.textPrimary else UI.mix(Palette.textSecondary, Palette.textPrimary, hot)
         UI.textMid(ctx, label, row.x + 13f + iconSize, row.y + row.h / 2f, color, 8f, if (selected) UIFont.Weight.SEMIBOLD else UIFont.Weight.MEDIUM)
         val chip = "$enabled/${features.size}"
-        val cw = UI.chipWidth(chip, 6.2f, padX = 4.5f)
+        val cw = UI.chipWidth(chip, 6.6f, padX = 4.5f)
         UI.chip(
             ctx, chip, row.right - 6f - cw, row.y + (row.h - 12f) / 2f, 12f,
             if (selected) UI.fade(Palette.accent, 0.3f) else Palette.chip,
             if (selected) Palette.accentText else if (enabled > 0) Palette.chipText else Palette.textMuted,
-            6.2f, padX = 4.5f
+            6.6f, padX = 4.5f
         )
     }
 

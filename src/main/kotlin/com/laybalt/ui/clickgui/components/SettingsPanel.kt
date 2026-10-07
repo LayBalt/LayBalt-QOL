@@ -194,8 +194,8 @@ class SettingsPanel {
         var cx = x + PAD
         cx += UI.chip(ctx, label, cx, y, 12f, Palette.chip, Palette.chipText, 6.2f) + 4f
         if (f.wip) cx += UI.chip(ctx, "WIP", cx, y, 12f, UI.fade(Palette.warning, 0.16f), Palette.warning, 6.2f) + 4f
-        // only settings the user can currently see (showIf-hidden ones are not counted)
-        val count = widgets.count { it !is CategoryWidget && it !is SeparatorWidget && it.config.visibility() }
+        // every setting of the feature, including ones hidden until their parent option is switched on
+        val count = widgets.count { it !is CategoryWidget && it !is SeparatorWidget }
         if (count > 0) UI.chip(ctx, if (count == 1) "1 setting" else "$count settings", cx, y, 12f, UI.fade(Palette.chip, 0.6f), Palette.textMuted, 6.2f)
         y += 18f
 
