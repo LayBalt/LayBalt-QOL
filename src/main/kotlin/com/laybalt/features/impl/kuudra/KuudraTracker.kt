@@ -151,6 +151,24 @@ object KuudraTracker: Feature("Tracks the loot and profit of every Kuudra chest 
         updateDisplay()
     }
 
+    /**
+     * Takes over Odin's Kuudra Tracker totals (used by [com.laybalt.config.ForeignConfigImport]), but only while this
+     * tracker has no data of its own, so a repeated import never counts chests twice. @return true if imported.
+     */
+    fun importTotals(single: Map<String, Int>, multi: Map<String, Int>, paid: Int, free: Int, keys: List<Int>): Boolean {
+        val d = stats
+        val empty = d.singleItems.isEmpty() && d.multiItems.isEmpty() && d.paid == 0 && d.free == 0 && d.totalKeys.all { it == 0 }
+        val incoming = single.isNotEmpty() || multi.isNotEmpty() || paid > 0 || free > 0 || keys.any { it > 0 }
+        if (! empty || ! incoming) return false
+        d.singleItems = single.toMutableMap()
+        d.multiItems = multi.toMutableMap()
+        d.paid = paid
+        d.free = free
+        d.totalKeys = MutableList(5) { keys.getOrNull(it) ?: 0 }
+        data.save()
+        return true
+    }
+
     private fun sanitize(d: TrackerData) {
         @Suppress("SENSELESS_COMPARISON")
         if (d.singleItems == null) d.singleItems = mutableMapOf()

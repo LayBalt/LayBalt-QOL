@@ -12,6 +12,13 @@ LayBalt mod is a Minecraft Mod made by LayBalt for Hypixel QOL. This mod is a <i
 
 ---
 
+<h3 align="center">Switching from NoammAddons, Odin or OdinClient</h3>
+<p align="center">
+On the first launch LayBaltQOL imports your existing setup once. A NoammAddons config (<code>config/NoammAddons</code>) is copied as a whole on a fresh install: settings, profiles, personal bests, slot binds, storage overlay pages, command shortcuts, chat hiders, dungeon waypoints and sounds. Odin (<code>config/odin/odin-config.json</code>) and OdinClient (<code>config/odin/addons/odinClient</code>, <code>config/OdinClient</code>) modules are mapped to the LayBaltQOL features that now carry them, including slot bind profiles, relic, dragon, puzzle and terminal personal bests, the Auto Sell list and the Auto Clicker whitelists. NoammAddons values win where both mods had the same setting, unless you used the Odin version instead. Every imported or skipped setting is listed in <code>config/LayBaltQOL/import-report.txt</code>. Run <code>/lbq import &lt;na|odin|odinclient|all&gt;</code> to import a source again.
+</p>
+
+---
+
 <h3 align="center">Features</h3>
 <p align="center">
 Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> are shown greyed out and cannot be enabled yet.

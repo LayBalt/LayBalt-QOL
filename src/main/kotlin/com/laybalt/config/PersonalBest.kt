@@ -23,4 +23,18 @@ object PersonalBest {
     }
 
     fun getPB(key: String) = pbData.get()[key]
+
+    /**
+     * Imports a time (lower is better) from another mod: kept only when it is positive and beats the stored one.
+     * A stored value <= 0 is treated as invalid and replaced. Used by [ForeignConfigImport].
+     */
+    fun importTimePB(key: String, seconds: Double): Boolean {
+        if (! seconds.isFinite() || seconds <= 0.0) return false
+        val data = pbData.get()
+        val current = data[key]?.toDouble()
+        if (current != null && current > 0.0 && current <= seconds) return false
+        data[key] = seconds
+        pbData.save()
+        return true
+    }
 }

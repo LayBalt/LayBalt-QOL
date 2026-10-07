@@ -24,6 +24,13 @@
     "modmenu": [
       "com.laybalt.ui.clickgui.ModMenuIntegration"
     ],
+    // Runs before Minecraft and every LayBaltQOL object load: copies a NoammAddons config on a fresh install.
+    "preLaunch": [
+      {
+        "value": "com.laybalt.config.ForeignConfigPreLaunch",
+        "adapter": "kotlin"
+      }
+    ],
     "client": [
       {
         "value": "com.laybalt.LayBaltQOL",

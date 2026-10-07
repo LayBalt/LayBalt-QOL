@@ -129,8 +129,10 @@ object ConfigManager {
             val feature = FeatureManager.getFeatureByName(featureElement.get("name")?.asString ?: return@forEach) ?: return@forEach
             // WIP features stay disabled whatever the file says (toggle() would refuse and notify anyway).
             if (! feature.wip && featureElement.get("enabled")?.asBoolean != feature.enabled) feature.toggle()
+            // Unknown features/settings (e.g. from a NoammAddons config) are skipped; a value of the wrong shape only logs.
             featureElement.getAsJsonObject("configSettings")?.entrySet()?.forEach { (name, value) ->
-                (feature.getSettingByName(name) as? Savable)?.read(value)
+                runCatching { (feature.getSettingByName(name) as? Savable)?.read(value) }
+                    .onFailure { LayBaltQOL.logger.warn("[ConfigManager] could not read ${feature.jsonName} / $name = $value: ${it.message}") }
             }
         }
 

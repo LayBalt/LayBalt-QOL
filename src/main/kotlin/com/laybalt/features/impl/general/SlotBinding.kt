@@ -49,6 +49,28 @@ object SlotBinding: Feature("Allows you to bind slots to hotbar slots for quick 
 
     private fun save() = if (profile.value <= 0) legacyBinds.save() else profileBinds.save()
 
+    /**
+     * Merges slot binds imported from another mod (used by [com.laybalt.config.ForeignConfigImport]) into profile
+     * [profileIndex] (0 = Profile 1). Each pair is normalised to inventory slot -> hotbar slot; pairs that do not link
+     * exactly one hotbar slot are ignored, and an inventory slot that already has a bind keeps it.
+     * @return the number of binds added.
+     */
+    fun importBinds(profileIndex: Int, pairs: Map<Int, Int>): Int {
+        val name = profileNames.getOrNull(profileIndex) ?: return 0
+        val target = if (profileIndex == 0) legacyBinds.get() else profileBinds.get().getOrPut(name) { mutableMapOf() }
+        var added = 0
+        for ((a, b) in pairs) {
+            if (! isBindable(a) || ! isBindable(b) || isHotbar(a) == isHotbar(b)) continue
+            val inv = if (isHotbar(a)) b else a
+            val hb = if (isHotbar(a)) a else b
+            if (inv in target) continue
+            target[inv] = hb
+            added ++
+        }
+        if (added > 0) if (profileIndex == 0) legacyBinds.save() else profileBinds.save()
+        return added
+    }
+
     private fun feedback(msg: String) {
         if (chatFeedback.value) ChatUtils.modMessage(msg)
     }

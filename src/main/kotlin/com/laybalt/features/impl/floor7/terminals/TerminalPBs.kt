@@ -46,6 +46,19 @@ object TerminalPBs {
         ChatUtils.modMessage("§a${terminal.displayName}$sim §7solved in §6${seconds.toFixed(2)}s§7! $pbText")
     }
 
+    /**
+     * Imports a PB (seconds) from another mod: kept only when it is positive and beats the stored one
+     * (a stored value <= 0 counts as invalid). Used by [com.laybalt.config.ForeignConfigImport].
+     */
+    fun importPB(key: String, seconds: Double): Boolean {
+        if (! seconds.isFinite() || seconds <= 0.0) return false
+        val old = data.get()[key]
+        if (old != null && old > 0.0 && old <= seconds) return false
+        data.get()[key] = seconds
+        data.save()
+        return true
+    }
+
     /** Removes the simulator PBs ([simulator] = true) or the real terminal PBs. */
     fun reset(simulator: Boolean) {
         data.get().keys.removeIf { it.startsWith(SIM_PREFIX) == simulator }
