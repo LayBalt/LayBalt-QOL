@@ -56,7 +56,7 @@ public class MixinClientPacketListener {
 
     @WrapMethod(method = "sendCommand")
     private void onSendCommand(String command, Operation<Void> original) {
-        var event = new MessageSentEvent(command);
+        var event = new MessageSentEvent(command, true);
         if (EventBus.post(event)) return;
         original.call(event.getMessage());
     }

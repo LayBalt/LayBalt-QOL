@@ -1,3 +1,4 @@
+// Ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking (parts of this file)
 package com.laybalt.features.impl.general
 
 import net.minecraft.network.chat.TextColor
@@ -104,6 +105,7 @@ object ChatFeatures: Feature(jsonName = "Chat", description = "Useful tweaks for
         register<MessageSentEvent> {
             if (! chatEmoji.value) return@register
             event.message = escapedKeys.replace(event.message) { emotes[it.value] ?: it.value }
+                .let { replaceWordEmotes(it, event.isCommand) }
         }
 
         //#if CHEAT
@@ -208,6 +210,26 @@ object ChatFeatures: Feature(jsonName = "Chat", description = "Useful tweaks for
         ":dog:" to "(ᵔᴥᵔ)",
         ":sob:" to ".ᐟ(つ╥﹏╥)つ",
         ":joy:" to "৻(≧ᗜ≦৻)",
-        ":skull:" to "☠"
+        ":skull:" to "☠",
+        ":bum:" to "♿" // from Odin ChatCommands emotes (https://github.com/odtheking/Odin, BSD-3-Clause, Copyright (c) 2025 odtheking)
     )
+
+    /** Emotes that are plain words, so they are only replaced as a whole word (Odin ChatCommands). */
+    private val wordEmotes = mapOf("ez" to "ｅｚ")
+
+    /**
+     * Commands that send chat text (Odin ChatCommands whitelist: /pc /ac /gc /cc /msg /w /r, plus their aliases),
+     * mapped to how many leading words (command, recipient) must never be replaced. Any other command is left alone,
+     * so commands that take player names or search terms (/ah, /trade, /duel, ...) are never rewritten.
+     */
+    private val chatCommands = mapOf(
+        "pc" to 1, "ac" to 1, "gc" to 1, "cc" to 1, "oc" to 1, "r" to 1, "reply" to 1,
+        "msg" to 2, "w" to 2, "tell" to 2, "whisper" to 2, "message" to 2
+    )
+
+    private fun replaceWordEmotes(message: String, isCommand: Boolean): String {
+        val words = message.split(" ")
+        val keep = if (isCommand) chatCommands[words.first().lowercase()] ?: return message else 0
+        return words.mapIndexed { i, word -> if (i < keep) word else wordEmotes[word] ?: word }.joinToString(" ")
+    }
 }
