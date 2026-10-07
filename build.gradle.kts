@@ -183,7 +183,7 @@ listOf("jarCheat", "jarLegit").forEach { taskName ->
     }
 }
 
-// The published artifact is the cheat variant, with no classifier: LayBaltQOL-3.0.0-26.2.jar
+// The published artifact is the cheat variant, with no classifier: LayBaltQOL-<version>-26.2.jar
 tasks.named<Jar>("jarCheat") {
     archiveClassifier.set("")
 }
