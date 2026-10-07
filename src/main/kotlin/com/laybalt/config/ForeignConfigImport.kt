@@ -214,9 +214,7 @@ object ForeignConfigImport: ICommandProvider {
     /** Modules that are deliberately not imported, with the reason written to the report. Keys are lowercase. */
     private val unsupported = mapOf(
         Source.ODIN to mapOf(
-            "waypoints" to NO_EQUIVALENT, "player size" to NO_EQUIVALENT,
             "click gui" to "Odin's own GUI settings",
-            "no cursor reset" to NO_EQUIVALENT, "hide players" to NO_EQUIVALENT,
             "dungeon waypoints" to "settings not converted; import the waypoint packs with /lbq dwp importodin (or Dungeon Waypoints > Import Odin Waypoints)",
         ),
         Source.ODINCLIENT to mapOf(
@@ -526,6 +524,12 @@ object ForeignConfigImport: ICommandProvider {
             alias("Term Info", "Term Info HUD")
         }
         odin("Extra Stats", "Extra Stats")
+        odin("Waypoints", "Waypoints")
+        odin("No Cursor Reset", "No Cursor Reset")
+        odin("Hide Players", "Hide Players")
+        odin("Player Size", "Player Size") {
+            skip("Odin dev-size data lives on Odin's server and is not used", "Dev Size", "Show Hidden", "Passcode", "Send Dev Data")
+        }
         odin("Splits", "Run Splits") {
             alias("Current Split HUD", "Current Split HUD")
             custom("Location") { c, v -> set(c, "Location", "Kuudra Splits", JsonPrimitive(v.asString != "DUNGEONS_ONLY")) }
