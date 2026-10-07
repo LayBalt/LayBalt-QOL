@@ -93,6 +93,9 @@ dependencies {
 afterEvaluate {
     bundled.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
         artifact.moduleVersion.id.let { id ->
+            // WebSocket support was removed from LayBalt QOL; keep the transitive ktor
+            // websocket artifacts off the shipped jar (nothing loads them at runtime).
+            if (id.group == "io.ktor" && id.name.startsWith("ktor-websocket")) return@let
             val include = dependencies.add("include", "${id.group}:${id.name}:${id.version}") as ModuleDependency
             if ("${id.group}:${id.name}" == "me.owdding:item-data-fixer") {
                 include.capabilities { requireCapability(datafixerCapability) }

