@@ -107,7 +107,9 @@ class FeatureConfigWindow(val feature: Feature, startX: Float, startY: Float, st
         context.drawRect(x, y, width, 2f, Style.accentColor.withAlpha(if (focused) 255 else 170))
         context.drawBorder(x, y, width, height, frameColor)
 
-        context.drawCenteredString("§l${feature.name}", x + (width / 2f), y + 8f, Palette.textPrimary)
+        // Centred on the window; keeps clear of the close button on the right (and the same margin on the left).
+        val titleSpace = width - 2f * (windowPadding + closeButtonSize + 4f)
+        context.drawFittedCenteredString(feature.name, x + (width / 2f), y + 8f, titleSpace, Palette.textPrimary, prefix = "§l")
         drawCloseButton(context, closeHovered)
 
         visibleWidgets = settings.filter { it.config.visibility.invoke() }

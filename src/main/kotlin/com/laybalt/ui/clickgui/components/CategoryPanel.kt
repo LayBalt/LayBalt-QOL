@@ -34,6 +34,8 @@ class CategoryPanel(val category: CategoryType, var x: Int, var y: Int, private 
         const val BUTTON_HEIGHT = 16
         const val MAX_DISPLAY_HEIGHT = 350
         const val MIN_DISPLAY_HEIGHT = BUTTON_HEIGHT * 3
+        /** Horizontal padding (both sides together) around a feature name in its row. */
+        private const val NAME_PADDING = 8
 
         private val headerBg get() = Palette.bgPanel
         private val bodyBg = Palette.bgDeep.withAlpha(200)
@@ -108,7 +110,7 @@ class CategoryPanel(val category: CategoryType, var x: Int, var y: Int, private 
                             context.drawRect(x, currentY, WIDTH, BUTTON_HEIGHT, hoverColor)
                         }
 
-                        context.drawCenteredString(feature.name, x + WIDTH / 2, currentY + 4, Palette.textPrimary)
+                        context.drawFittedCenteredString(feature.name, x + WIDTH / 2, currentY + 4, WIDTH - NAME_PADDING, Palette.textPrimary)
                     }
 
                     if (isHovered && ! screen.isMouseOverConfigWindow(mouseX, mouseY)) {
@@ -139,7 +141,9 @@ class CategoryPanel(val category: CategoryType, var x: Int, var y: Int, private 
         context.drawRect(tagX, rowY + 3, tagW, BUTTON_HEIGHT - 6, wipTagBg)
         context.drawString(tag, tagX + 2, rowY + 4, Palette.textMuted, shadow = false)
 
-        context.drawCenteredString(feature.name, x + WIDTH / 2, rowY + 4, Palette.textMuted, shadow = false)
+        // Centre the name in the space left of the tag so the tag never covers it.
+        val nameSpace = WIDTH - NAME_PADDING - (tagW + 4)
+        context.drawFittedCenteredString(feature.name, x + NAME_PADDING / 2 + nameSpace / 2f, rowY + 4, nameSpace, Palette.textMuted, shadow = false)
     }
 
     /** Header plus the fully expanded (unfiltered, uncollapsed) body, used for the panel layout. */
