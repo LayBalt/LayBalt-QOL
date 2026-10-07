@@ -158,7 +158,7 @@ class FeatureGrid(
         var chipX = sw.right + 8f
         if (showCategory) {
             val label = if (feature.category.name == "DEV") "Client" else feature.category.displayName
-            chipX += UI.chip(ctx, label, chipX, rowY, 13f, Palette.chip, Palette.chipText, 6.2f) + 5f
+            chipX += UI.chip(ctx, label, chipX, rowY, 13f, Palette.chip, Palette.chipText, 6.6f) + 5f
         }
         if (wip) UI.textMid(ctx, "Coming soon", chipX, rowY + 6.5f, Palette.textMuted, 6.4f, UIFont.Weight.MEDIUM)
         if (hasSettings(feature)) {

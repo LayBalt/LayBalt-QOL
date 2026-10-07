@@ -33,6 +33,20 @@ object NotificationManager: ISelfInit {
         mc.execute { notifications.add(Notification(t, m, duration)) }
     }
 
+    private var anchorRight = 0f
+    private var anchorBottom = 0f
+    private var anchorAt = 0L
+
+    /**
+     * Bottom-right corner (GUI units) of the LayBalt window drawn this frame. While one is open the toasts stack inside
+     * its bottom-right corner instead of straddling its border.
+     */
+    fun anchorTo(rightGui: Float, bottomGui: Float) {
+        anchorRight = rightGui
+        anchorBottom = bottomGui
+        anchorAt = System.currentTimeMillis()
+    }
+
     override fun init() {
         EventBus.register<ScreenEvent.PostRender> { render(event.context) }
     }
@@ -73,6 +87,10 @@ object NotificationManager: ISelfInit {
         val mX = UMouse.Scaled.x.toFloat() / scale
         val mY = UMouse.Scaled.y.toFloat() / scale
 
+        val anchored = now - anchorAt < 150L
+        val right = if (anchored) minOf(screenW, anchorRight / scale) - 4f else screenW
+        val bottom = if (anchored) minOf(screenH, anchorBottom / scale) - 4f else screenH
+
         val savedAlpha = UI.alpha
         var offset = 0f
         ctx.nextStratum()
@@ -91,8 +109,8 @@ object NotificationManager: ISelfInit {
 
             val t = notify.anim.value
             val height = notify.height()
-            val x = screenW - (WIDTH + 10f) * (0.35f + 0.65f * t) + (1f - t) * 12f
-            val y = screenH - height - 10f - offset
+            val x = right - (WIDTH + 10f) * (0.35f + 0.65f * t) + (1f - t) * 12f
+            val y = bottom - height - 10f - offset
 
             val hovered = mX >= x && mX <= x + WIDTH && mY >= y && mY <= y + height
             if (!hovered && alive) notify.elapsedTime += delta

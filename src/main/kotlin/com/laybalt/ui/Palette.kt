@@ -19,7 +19,7 @@ object Palette {
 
     val textPrimary = Color(236, 230, 248)
     val textSecondary = Color(170, 160, 196)
-    val textMuted = Color(120, 110, 145)
+    val textMuted = Color(138, 128, 165)
 
     val danger = Color(190, 70, 100, 220)
     val backdropTop = Color(10, 8, 16, 120)

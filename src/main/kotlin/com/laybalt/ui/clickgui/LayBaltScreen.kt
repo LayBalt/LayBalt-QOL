@@ -19,6 +19,7 @@ import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.ui.clickgui.components.settings.WidgetFactory
 import com.laybalt.ui.clickgui.enums.CategoryType
 import com.laybalt.ui.hud.HudEditorScreen
+import com.laybalt.ui.notification.NotificationManager
 import com.laybalt.ui.text.UIFont
 import com.laybalt.ui.utils.Resolution
 import com.laybalt.utils.Utils
@@ -164,9 +165,10 @@ class LayBaltScreen(private val parent: Screen? = null): Screen(Component.litera
     override fun extractRenderState(ctx: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
         acceptChars = true
         UI.beginFrame()
-        Resolution.push(ctx)
-        val mx = mouseX / Resolution.scale
-        val my = mouseY / Resolution.scale
+        Resolution.pushUi(ctx)
+        canvasScale = Resolution.scale
+        val mx = mouseX / canvasScale
+        val my = mouseY / canvasScale
         layout()
 
         val now = System.currentTimeMillis()
@@ -203,6 +205,7 @@ class LayBaltScreen(private val parent: Screen? = null): Screen(Component.litera
 
         ctx.pose().popMatrix()
         UIFont.transientScale = 1f
+        NotificationManager.anchorTo(window.right * canvasScale, window.bottom * canvasScale)
         TooltipManager.draw(ctx, Resolution.width, Resolution.height)
         Resolution.pop(ctx)
         UI.alpha = 1f
@@ -261,13 +264,16 @@ class LayBaltScreen(private val parent: Screen? = null): Screen(Component.litera
             name to "${list.size} features · $enabled enabled"
         }
         UI.textMidRight(ctx, title, right, window.y + 17.5f, Palette.textPrimary, 10f, UIFont.Weight.SEMIBOLD)
-        UI.textMidRight(ctx, sub, right, window.y + 30.5f, Palette.textMuted, 6.8f)
+        UI.textMidRight(ctx, sub, right, window.y + 30.5f, Palette.textMuted, 7.2f)
     }
 
     // ------------------------------------------------------------------ input
 
-    private fun canvasX(x: Double) = (x / Resolution.scale).toFloat()
-    private fun canvasY(y: Double) = (y / Resolution.scale).toFloat()
+    /** Canvas scale of the last frame (input arrives between frames, after other code may have re-pushed [Resolution]). */
+    private var canvasScale = 1f
+
+    private fun canvasX(x: Double) = (x / canvasScale).toFloat()
+    private fun canvasY(y: Double) = (y / canvasScale).toFloat()
 
     override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
         if (closingAt != 0L) return true

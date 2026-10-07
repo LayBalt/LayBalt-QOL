@@ -8,6 +8,7 @@ import com.laybalt.ui.clickgui.components.Rect
 import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.ui.render.Icon
 import com.laybalt.ui.render.Shapes.roundedRectGradient
+import com.laybalt.ui.notification.NotificationManager
 import com.laybalt.ui.text.UIFont
 import com.laybalt.ui.utils.Resolution
 import com.mojang.blaze3d.platform.InputConstants
@@ -100,9 +101,10 @@ abstract class LayBaltSubScreen(name: String): Screen(Component.literal(name)) {
 
     override fun extractRenderState(ctx: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
         UI.beginFrame()
-        Resolution.push(ctx)
-        val mx = mouseX / Resolution.scale
-        val my = mouseY / Resolution.scale
+        Resolution.pushUi(ctx)
+        canvasScale = Resolution.scale
+        val mx = mouseX / canvasScale
+        val my = mouseY / canvasScale
         layout()
 
         val now = System.currentTimeMillis()
@@ -140,6 +142,7 @@ abstract class LayBaltSubScreen(name: String): Screen(Component.literal(name)) {
 
         ctx.pose().popMatrix()
         UIFont.transientScale = 1f
+        NotificationManager.anchorTo(window.right * canvasScale, window.bottom * canvasScale)
         TooltipManager.draw(ctx, Resolution.width, Resolution.height)
         Resolution.pop(ctx)
         UI.alpha = 1f
@@ -180,8 +183,11 @@ abstract class LayBaltSubScreen(name: String): Screen(Component.literal(name)) {
 
     // ------------------------------------------------------------------ input
 
-    private fun canvasX(x: Double) = (x / Resolution.scale).toFloat()
-    private fun canvasY(y: Double) = (y / Resolution.scale).toFloat()
+    /** Canvas scale of the last frame (input arrives between frames, after other code may have re-pushed [Resolution]). */
+    private var canvasScale = 1f
+
+    private fun canvasX(x: Double) = (x / canvasScale).toFloat()
+    private fun canvasY(y: Double) = (y / canvasScale).toFloat()
 
     final override fun mouseClicked(event: MouseButtonEvent, doubleClick: Boolean): Boolean {
         if (closing) return true
