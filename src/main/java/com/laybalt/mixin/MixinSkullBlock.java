@@ -32,7 +32,7 @@ abstract class MixinSkullBlock extends AbstractSkullBlock {
 
     @Inject(method = "getShape", at = @At("HEAD"), cancellable = true)
     private void modifyShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
-        if (Secrets.INSTANCE.enabled && Secrets.getSkull().getValue() && DungeonUtils.isSecret(pos)) {
+        if (Secrets.shouldModifySkull() && DungeonUtils.isSecret(pos)) {
             cir.setReturnValue(Shapes.block());
         }
     }
