@@ -6,7 +6,6 @@ import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -33,16 +32,8 @@ public abstract class MixinItemInHandRenderer {
 
     @Inject(method = "submitArmWithItem", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V", shift = At.Shift.AFTER))
     private void onBeforeRenderItem(AbstractClientPlayer player, float f, float g, InteractionHand hand, float attack, ItemStack itemStack, float inverseArmHeight, PoseStack poseStack, SubmitNodeCollector submitNodeCollector, int lightCoords, CallbackInfo ci) {
-        if (!Animations.INSTANCE.enabled) return;
         if (itemStack.isEmpty()) return;
-
-        float sign = hand == InteractionHand.MAIN_HAND ? 1.0f : -1.0f;
-
-        poseStack.translate(
-            Animations.getMainHandX().getValue().floatValue() * sign,
-            Animations.getMainHandY().getValue().floatValue(),
-            Animations.getMainHandZ().getValue().floatValue()
-        );
+        Animations.applyHandOffset(poseStack, hand == InteractionHand.MAIN_HAND);
     }
 
     @ModifyVariable(method = "submitArmWithItem", at = @At("HEAD"), ordinal = 2, argsOnly = true)
@@ -60,13 +51,7 @@ public abstract class MixinItemInHandRenderer {
 
     @Inject(method = "submitArmWithItem", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/ItemInHandRenderer;renderItem(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemDisplayContext;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;I)V"))
     private void onRenderItem(AbstractClientPlayer player, float frameInterp, float xRot, InteractionHand hand, float attack, ItemStack itemStack, float inverseArmHeight, PoseStack poseStack, SubmitNodeCollector submitNodeCollector, int lightCoords, CallbackInfo ci) {
-        if (!Animations.INSTANCE.enabled) return;
-
-        var s = (1.0f + Animations.getMainHandItemScale().getValue().floatValue());
-        poseStack.mulPose(Axis.XP.rotationDegrees(Animations.getMainHandPositiveX().getValue().floatValue()));
-        poseStack.mulPose(Axis.YP.rotationDegrees(Animations.getMainHandPositiveY().getValue().floatValue()));
-        poseStack.mulPose(Axis.ZP.rotationDegrees(Animations.getMainHandPositiveZ().getValue().floatValue()));
-        poseStack.scale(s, s, s);
+        Animations.applyItemTransform(poseStack, hand == InteractionHand.MAIN_HAND);
     }
 
     @WrapOperation(method = "swingArm", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;translate(FFF)V"))
