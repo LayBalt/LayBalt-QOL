@@ -216,9 +216,8 @@ object ForeignConfigImport: ICommandProvider {
             "room clear" to NO_EQUIVALENT, "splits" to "LayBaltQOL Run Splits is NoammAddons' splits; Odin split times are not converted",
             "positional messages" to NO_EQUIVALENT, "inactive waypoints" to NO_EQUIVALENT, "secrets counter" to NO_EQUIVALENT,
             "waypoints" to NO_EQUIVALENT, "puzzle hud" to NO_EQUIVALENT, "player size" to NO_EQUIVALENT,
-            "render optimizer" to "no LayBaltQOL equivalent (No Render has different options)",
             "map info" to "no LayBaltQOL equivalent (score/secret HUDs)", "extra stats" to NO_EQUIVALENT, "dungeon queue" to NO_EQUIVALENT,
-            "click gui" to "Odin's own GUI settings", "etherwarp" to NO_EQUIVALENT, "mage beam" to NO_EQUIVALENT,
+            "click gui" to "Odin's own GUI settings",
             "no cursor reset" to NO_EQUIVALENT, "hide players" to NO_EQUIVALENT,
             "dungeon waypoints" to "LayBaltQOL Dungeon Waypoints is NoammAddons' system; Odin waypoint packs are not converted",
         ),
@@ -410,6 +409,27 @@ object ForeignConfigImport: ICommandProvider {
         }
         odin("Blessing Display", "Blessing Display") { alias("Life Color", "Red Color") }
         odin("Auto Sprint", "Auto Sprint")
+        odin("Etherwarp", "Etherwarp") {
+            alias("Show Guess", "Etherwarp Overlay")
+            custom("Color") { c, v -> set(c, "Color", "Outline Color", v); set(c, "Color", "Fill Color", v) }
+            alias("Show when failed", "Show Fail")
+            custom("Fail Color") { c, v -> set(c, "Fail Color", "Invalid Outline Color ", v); set(c, "Fail Color", "Invalid Fill Color ", v) }
+            alias("Render Style", "Mode")
+            alias("Depth", "Phase")
+            alias("Custom Sounds", "Etherwarp Sound")
+            skip(SOUND, "Etherwarp Sound", "Etherwarp Sound Pitch", "Etherwarp Sound Volume")
+            skip("Odin menu header, no value", "Sounds")
+        }
+        odin("Mage Beam", "Mage Beam") { alias("Color", "Primary Color") }
+        odin("Render Optimizer", "Render Optimizer") {
+            alias("Hide Lightning", "Hide Lightning Bolts")
+            alias("Hide Experience Orbs", "Hide XP Orbs")
+            alias("Hide Death Animation", "Hide Dead Mobs")
+            alias("Hide Armor Stands", "Hide Dying Armor Stands")
+            alias("Hide Tentacle Head", "Hide P5 Tentacles")
+            skip("in No Render > Explosions", "Hide Explosion Particles")
+            skip("in Camera Helper > Hide Fire Overlay", "Hide Fire Overlay")
+        }
         odin("Puzzle Solvers", "Puzzle Solvers") {
             alias("Blaze Solver", "@section:Blaze Solver")
             alias("Boulder Solver", "@section:Boulder Solver")

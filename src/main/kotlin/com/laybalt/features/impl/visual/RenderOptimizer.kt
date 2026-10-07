@@ -1,0 +1,187 @@
+package com.laybalt.features.impl.visual
+
+// Hide Dying Armor Stands and Hide Archer Passive are ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
+
+import net.minecraft.world.entity.EntityTypes
+import com.laybalt.config.types.ToggleSetting
+import com.laybalt.event.impl.CheckEntityRenderEvent
+import com.laybalt.event.impl.MainThreadPacketReceivedEvent
+import com.laybalt.features.Feature
+import com.laybalt.features.impl.dungeon.StarMobESP
+import com.laybalt.utils.*
+import com.laybalt.utils.ChatUtils.formattedText
+import com.laybalt.utils.ChatUtils.removeFormatting
+import com.laybalt.utils.items.ItemUtils
+import com.laybalt.utils.location.LocationUtils
+import net.minecraft.core.particles.ParticleTypes
+import net.minecraft.network.chat.Component
+import net.minecraft.network.protocol.game.*
+import net.minecraft.world.entity.*
+import net.minecraft.world.entity.decoration.ArmorStand
+import net.minecraft.world.item.ItemStack
+import net.minecraft.world.item.Items
+import java.util.*
+
+object RenderOptimizer: Feature("Optimize Rendering by hiding useless stuff.") {
+    private val hideStar by ToggleSetting("Hide Star Mobs's Nametag").withDescription("Should probably be used with &b${StarMobESP.name}")
+    private val hideNonStar by ToggleSetting("Hide Non Star Mob's Nametag").withDescription("Hides the health name tags of dungeon mobs that are not starred")
+    private val hideFallingBlocks by ToggleSetting("Hide Falling Blocks").withDescription("Hides falling sand, gravel and other falling block entities")
+    private val hideLightning by ToggleSetting("Hide Lightning Bolts").withDescription("Hides lightning bolts")
+    private val hideSoulWeaver by ToggleSetting("Hide Soul Weaver").withDescription("Hides the flying Heads from the Soul Weaver gloves")
+    private val hideHealerFairy by ToggleSetting("Hide Healer Fairy").withDescription("Hides healer fairy")
+    private val hideHealerOrbs by ToggleSetting("Hide Healer Orbs").withDescription("Hides healer support orbs in dungeons. excludes the Damage orb")
+    private val hide0HealthNames by ToggleSetting("Hide 0 Health").withDescription("Hide 0 Health nametags")
+    private val hideDeadMobs by ToggleSetting("Hide Dead Mobs").withDescription("Hides the mobs death animation.")
+    private val hideDyingArmorStands by ToggleSetting("Hide Dying Armor Stands").withDescription("Also hides the name tag armor stand of a mob while it plays its death animation").showIf { hideDeadMobs.value }
+    private val hideXpOrbs by ToggleSetting("Hide XP Orbs").withDescription("Hides experience orbs")
+    private val hideTalismanCoins by ToggleSetting("Hide Talisman Coins").withDescription("Hides coins dropped by the Talisman of Coins and its upgrades.")
+    private val removeTentacles by ToggleSetting("Hide P5 Tentacles").withDescription("Hides the Wither King Tentacles")
+    private val hideP5p by ToggleSetting("Hide P5 Particles").withDescription("Hide all Particles in M7 P5 except the relevant ones")
+    private val hideArcherPassive by ToggleSetting("Hide Archer Passive").withDescription("Hides the floating bone meal of the Archer class passive in dungeons")
+    @JvmStatic val hideFireOnEntities by ToggleSetting("Hide Fire On Entities").withDescription("Hides the fire texture on burning mobs. Same effect as No Render > Entity Fire; either one hides the flames")
+
+    private val health0Regex = Regex("""\[Lv\d+] .+ 0/.+❤""")
+    private val hiddenEntities = Collections.newSetFromMap<Entity>(WeakHashMap())
+    private val entityNameCache = WeakHashMap<Entity, EntityNameInfo>()
+    private val componentNameStringCache = WeakHashMap<Entity, String>()
+
+    override fun init() {
+        register<MainThreadPacketReceivedEvent.Pre> {
+            if (! LocationUtils.inSkyblock) return@register
+            when (val packet = event.packet) {
+                is ClientboundSetEntityDataPacket -> {
+                    if (packet.id == player.id) return@register
+                    val entity = level.getEntity(packet.id)
+                    if (entity != null && entity in hiddenEntities) return@register
+
+                    entity?.let(componentNameStringCache::remove)
+
+                    if (hideArcherPassive.value && LocationUtils.inDungeon) {
+                        val itemStack = packet.packedItems.firstOrNull { it.id() == ITEM_DATA_ID }?.value() as? ItemStack
+                        if (itemStack != null && ! itemStack.isEmpty && itemStack.item == Items.BONE_MEAL) {
+                            hiddenEntities.add(entity)
+                            entity?.remove(Entity.RemovalReason.DISCARDED)
+                            event.isCanceled = true
+                            return@register
+                        }
+                    }
+
+                    if (hideTalismanCoins.value) {
+                        val itemStack = packet.packedItems.firstNotNullOfOrNull { entry -> entry.value() as? ItemStack }
+                        if (itemStack != null && ItemUtils.getSkullTexture(itemStack) in COIN_TEXTURES) {
+                            hiddenEntities.add(entity)
+                            entity?.remove(Entity.RemovalReason.DISCARDED)
+                            event.isCanceled = true
+                            return@register
+                        }
+                    }
+
+                    val name = packet.packedItems.firstNotNullOfOrNull { entry ->
+                        (entry.value() as? Optional<*>)?.orElse(null) as? Component
+                    }?.formattedText ?: return@register
+
+                    val shouldDiscard = hideHealerOrbs.value && name.removeFormatting().startsWithOneOf("DEFENSE", "ABILITY DAMAGE")
+
+                    if (shouldDiscard) {
+                        hiddenEntities.add(entity)
+                        entity?.remove(Entity.RemovalReason.DISCARDED)
+                        event.isCanceled = true
+                    }
+                }
+
+                is ClientboundAddEntityPacket -> {
+                    val isBlock = packet.type == EntityTypes.FALLING_BLOCK && hideFallingBlocks.value
+                    val isLightning = packet.type == EntityTypes.LIGHTNING_BOLT && hideLightning.value
+                    val isXp = packet.type == EntityTypes.EXPERIENCE_ORB && hideXpOrbs.value
+
+                    if (isBlock || isLightning || isXp) event.isCanceled = true
+                }
+
+                is ClientboundLevelParticlesPacket -> {
+                    if (! hideP5p.value) return@register
+                    if (LocationUtils.F7Phase != 5) return@register
+                    if (! packet.particle.type.equalsOneOf(ParticleTypes.ENCHANT, ParticleTypes.FLAME, ParticleTypes.FIREWORK))
+                        event.isCanceled = true
+                }
+
+                is ClientboundSetEquipmentPacket -> {
+                    if (! LocationUtils.inDungeon) return@register
+
+                    packet.slots.forEach { slot ->
+                        val texture = ItemUtils.getSkullTexture(slot.second) ?: return@forEach
+
+                        val shouldDiscard = run {
+                            val a = slot.first == EquipmentSlot.HEAD && removeTentacles.value && LocationUtils.F7Phase == 5 && texture == TENTACLE_TEXTURE
+                            val b = slot.first == EquipmentSlot.HEAD && hideSoulWeaver.value && texture == SOUL_WEAVER_TEXTURE
+                            val c = slot.first == EquipmentSlot.HEAD && hideHealerOrbs.value && texture.equalsOneOf(ABILITY_ORB_TEXTURE, DEFENSE_ORB_TEXTURE)
+                            val d = slot.first == EquipmentSlot.MAINHAND && hideHealerFairy.value && texture == HEALER_FAIRY_TEXTURE
+                            return@run a || b || c || d
+                        }
+
+                        if (shouldDiscard) {
+                            level.getEntity(packet.entity)?.remove(Entity.RemovalReason.DISCARDED)
+                            return@register
+                        }
+                    }
+                }
+            }
+        }
+
+        register<CheckEntityRenderEvent> {
+            if (hideDeadMobs.value && (! event.entity.isAlive || ((event.entity as? LivingEntity)?.health ?: 1f) <= 0)) {
+                event.isCanceled = true
+                return@register
+            }
+
+            if (hideDeadMobs.value && hideDyingArmorStands.value && event.entity is ArmorStand) {
+                // SkyBlock spawns a mob's name tag stand right after the mob, so the mob has the id just below it
+                val owner = event.entity.level().getEntity(event.entity.id - 1) as? LivingEntity
+                if (owner != null && owner.isDeadOrDying) {
+                    event.isCanceled = true
+                    return@register
+                }
+            }
+
+            val customName = event.entity.customName ?: return@register
+            if (hide0HealthNames.value && LocationUtils.inSkyblock && event.entity is ArmorStand) {
+                val nameStr = componentNameStringCache.getOrPut(event.entity) { customName.string }
+                if (event.entity in hiddenEntities || nameStr == "0" || health0Regex.matches(nameStr)) {
+                    hiddenEntities.add(event.entity)
+                    event.isCanceled = true
+                    return@register
+                }
+            }
+
+            if (! LocationUtils.inDungeon) return@register
+
+            val info = entityNameCache.getOrPut(event.entity) {
+                val formatted = customName.formattedText
+                EntityNameInfo(formatted.contains("✯"), formatted.endsWith("§c❤"))
+            }
+
+            if (! info.isHealthTag) return@register
+
+            if ((info.isStarred && hideStar.value) || (! info.isStarred && hideNonStar.value)) {
+                event.isCanceled = true
+            }
+        }
+    }
+
+    /** Synched data id of the item an item entity holds (ItemEntity.DATA_ITEM). */
+    private const val ITEM_DATA_ID = 8
+
+    private data class EntityNameInfo(val isStarred: Boolean, val isHealthTag: Boolean)
+
+    private val COIN_TEXTURES = setOf(
+        "ewogICJ0aW1lc3RhbXAiIDogMTcxOTYwMDMwOTQ4MywKICAicHJvZmlsZUlkIiA6ICI1OTgyOWY1ZGY3MmM0ZmFlOTBmOGVhYmM0MjFjMzJkYiIsCiAgInByb2ZpbGVOYW1lIiA6ICJQZXBwZXJEcmlua2VyIiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzE2YjkwZjRmYTNlYzEwNmJmZWYyMWYzYjc1ZjU0MWExOGU0NzU3Njc0ZjdkNTgyNTBmYTdlNzQ5NTJmMDg3ZGMiLAogICAgICAibWV0YWRhdGEiIDogewogICAgICAgICJtb2RlbCIgOiAic2xpbSIKICAgICAgfQogICAgfQogIH0KfQ==",
+        "eyJ0aW1lc3RhbXAiOjE1NjAwMzYyODI5MTcsInByb2ZpbGVJZCI6ImU3NmYwZDlhZjc4MjQyYzM5NDY2ZDY3MjE3MzBmNDUzIiwicHJvZmlsZU5hbWUiOiJLbGxscmFoIiwic2lnbmF0dXJlUmVxdWlyZWQiOnRydWUsInRleHR1cmVzIjp7IlNLSU4iOnsidXJsIjoiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS9jZGVlNjIxZWI4MmIwZGFiNDE2NjMzMGQxZGEwMjdiYTJhYzEzMjQ2YTRjMWU3ZDUxNzRmNjA1ZmRkZjEwYTEwIn19fQ==",
+        "ewogICJ0aW1lc3RhbXAiIDogMTcxOTg2ODk5MTUyNCwKICAicHJvZmlsZUlkIiA6ICIxMTM1Njg1ZTk3ZGE0ZjYyYTliNDQ3MzA0NGFiZjQ0MSIsCiAgInByb2ZpbGVOYW1lIiA6ICJNYXJpb1dsZXMiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2NiY2NlMjJhZjU1OWVkNmJhNjAzODg0NWRiMzhjY2JjYTJlNjJiNzdiODdhMjZhMDY2NTcxMDljZTBlZmJhNiIsCiAgICAgICJtZXRhZGF0YSIgOiB7CiAgICAgICAgIm1vZGVsIiA6ICJzbGltIgogICAgICB9CiAgICB9CiAgfQp9",
+        "ewogICJ0aW1lc3RhbXAiIDogMTU5ODg0NzA4MjYxMywKICAicHJvZmlsZUlkIiA6ICI0MWQzYWJjMmQ3NDk0MDBjOTA5MGQ1NDM0ZDAzODMxYiIsCiAgInByb2ZpbGVOYW1lIiA6ICJNZWdha2xvb24iLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNzQwZDZlMzYyYmM3ZWVlNGY5MTFkYmQwNDQ2MzA3ZTc0NThkMTA1MGQwOWFlZTUzOGViY2IwMjczY2Y3NTc0MiIKICAgIH0KICB9Cn0=",
+    )
+
+    private const val TENTACLE_TEXTURE = "ewogICJ0aW1lc3RhbXAiIDogMTcxOTg1NzI3NzI0OSwKICAicHJvZmlsZUlkIiA6ICIxODA1Y2E2MmM0ZDI0M2NiOWQxYmY4YmM5N2E1YjgyNCIsCiAgInByb2ZpbGVOYW1lIiA6ICJSdWxsZWQiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzdkODM2NzQ5MjZiODk3MTRlNmI1YTU1NDcwNTAxYzA0YjA2NmRkODdiZjZjMzM1Y2RkYzZlNjBhMWExYTVmNSIKICAgIH0KICB9Cn0="
+    private const val HEALER_FAIRY_TEXTURE = "ewogICJ0aW1lc3RhbXAiIDogMTcxOTQ2MzA5MTA0NywKICAicHJvZmlsZUlkIiA6ICIyNjRkYzBlYjVlZGI0ZmI3OTgxNWIyZGY1NGY0OTgyNCIsCiAgInByb2ZpbGVOYW1lIiA6ICJxdWludHVwbGV0IiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzJlZWRjZmZjNmExMWEzODM0YTI4ODQ5Y2MzMTZhZjdhMjc1MmEzNzZkNTM2Y2Y4NDAzOWNmNzkxMDhiMTY3YWUiCiAgICB9CiAgfQp9"
+    private const val SOUL_WEAVER_TEXTURE = "eyJ0aW1lc3RhbXAiOjE1NTk1ODAzNjI1NTMsInByb2ZpbGVJZCI6ImU3NmYwZDlhZjc4MjQyYzM5NDY2ZDY3MjE3MzBmNDUzIiwicHJvZmlsZU5hbWUiOiJLbGxscmFoIiwic2lnbmF0dXJlUmVxdWlyZWQiOnRydWUsInRleHR1cmVzIjp7IlNLSU4iOnsidXJsIjoiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS8yZjI0ZWQ2ODc1MzA0ZmE0YTFmMGM3ODViMmNiNmE2YTcyNTYzZTlmM2UyNGVhNTVlMTgxNzg0NTIxMTlhYTY2In19fQ=="
+    private const val ABILITY_ORB_TEXTURE = "ewogICJ0aW1lc3RhbXAiIDogMTYzODUyNDAzODE5OCwKICAicHJvZmlsZUlkIiA6ICIzOWEzOTMzZWE4MjU0OGU3ODQwNzQ1YzBjNGY3MjU2ZCIsCiAgInByb2ZpbGVOYW1lIiA6ICJkZW1pbmVjcmFmdGVybG9sIiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzVlZTRiYjQ4MjFkMGY1ZWQ4NjVjMjEwOTBhODBiNWVlN2Q1MjI2ODQ3NmVlMjVkMzg5NzEwZjdjYzlmMTEwZDYiCiAgICB9CiAgfQp9"
+    private const val DEFENSE_ORB_TEXTURE = "ewogICJ0aW1lc3RhbXAiIDogMTYwNTM1NjUyNzQzOSwKICAicHJvZmlsZUlkIiA6ICJhYTZhNDA5NjU4YTk0MDIwYmU3OGQwN2JkMzVlNTg5MyIsCiAgInByb2ZpbGVOYW1lIiA6ICJiejE0IiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzE1NzhiNGFmM2ZkZDkxNTFiODUwYjEzYzY3YzQ1ODAyMjRjN2Y2MDA1MjcxM2YyZDE1MWY3YzE1ZGMwZDdiMzQiCiAgICB9CiAgfQp9"
+}
