@@ -87,11 +87,11 @@ internal object NoammAddonsFileImport {
 
     private val sameName = setOf(
         "config.json", "currentConfig.json", "personal_bests.json", "commandShortcuts.json", "customHiders.json",
-        "dungeonWaypoints.json", "party_command_blacklist.json", "petCache.json", "mojang_cache.json"
+        "dungeonWaypoints.json", "party_command_blacklist.json", "petCache.json", "mojang_cache.json",
+        "item_protection.json"
     )
     private val renamed = mapOf("noammaddons_sounds.json" to "lbqmod_sounds.json")
     private val dropped = mapOf(
-        "item_protection.json" to "Protect Item is not part of LayBaltQOL",
         "data" to "NoammAddons' downloaded data; LayBaltQOL bundles its own"
     )
 

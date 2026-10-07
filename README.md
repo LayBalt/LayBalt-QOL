@@ -26,17 +26,24 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 
 #### General (15)
 
+- **Auction Price Input** - Replaces the auction price sign with a proper text box (5k, 1.5m...) and an undercut mode based on the lowest BIN.
 - **Auto Clicker** - Auto clicker for left click, right click or both, while a hold key is held.
 - **Auto Enchanting** - Solves Chronomatron and Ultrasequencer (and, experimentally, Superpairs) at the Experimentation Table.
 - **Auto Harp** - Plays the Melody's Harp minigame for you.
 - **Chat Features** - Useful tweaks for the chat such as Ctrl + Click to copy messages.
 - **Command Keybinds** - Keybinds that run common SkyBlock commands, such as /pets, /storage or /warp dungeon_hub.
 - **Command Shortcuts** - Create your own command shortcuts.
+- **Enchant Colors** - Colours enchantments in item lore by level (bad / normal / high / max), with optional rainbow max levels and numeric levels.
 - **Escrow Fix** - Automatically reopens the Auction House or Bazaar when Hypixel's escrow closes it (expired/invalid bids, BIN claims, Bazaar instant-buy refunds).
 - **Farm Keys** - Temporarily rebinds Attack (block breaking) and Jump while enabled, for farming, and can lock the camera. Your original binds are restored when the feature is turned off.
 - **Gyro Helper** - Renders a circle where your gyro will be located.
+- **Inventory Search** - Search bar in every inventory (Ctrl+F) that highlights matching items and evaluates math like 64*3.5k.
+- **Item Overlays** - Draws New Year Cake years and enchanted book abbreviations/levels on item slots.
+- **Item Rarity** - Draws the rarity of item behind the slot (inventories, hotbar and storage overlay).
+- **Item Tooltip** - Adds Bazaar / Lowest BIN / NPC prices and dungeon item quality to tooltips, and lets you scroll and scale long tooltips.
 - **Loadout Keybinds** - Allows you to bind SkyBlock loadout slots to your keyboard.
 - **Party Helper** - Chat commands for party, guild, private and co-op chat, plus party list reformatting.
+- **Protect Item** - Prevents dropping or selling important items; mark them with /protectitem or a keybind.
 - **Slot Binding** - Allows you to bind slots to hotbar slots for quick item swaps.
 - **Storage Overlay** - Shows all storage pages in an overlay when opening storage.
 - **Term AC** - Automatically uses Salvation ability when holding right click.
@@ -93,6 +100,7 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 
 #### Visual (13)
 
+- **Arrow Poison** - Shows how many Twilight and Toxic arrow poisons you carry.
 - **Animations** - Allows you to modify your hand view-model.
 - **Blessing Display** - Displays the current active blessings in the dungeon.
 - **Dark Mode** - Darkens the screen.
@@ -102,6 +110,7 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **Lava To Water** - Replaces lava with the water texture.
 - **Mask Timers** - Mask Cooldown Timers, Invulnerability Timers, and more.
 - **Pet Menu** - Replaces the Pets inventory with a custom pet wheel and adds pet keybinds (also usable in the vanilla menu).
+- **Pet Display** - Active pet HUD, autopet swap titles and active pet highlight in the Pets menu.
 - **Player HUD** - Displays your stats as moveable HUD elements.
 - **Quiver Display** - Displays the arrow type and the number of arrows left in your quiver.
 - **Run Splits** - A Splits HUD for Dungeons.
