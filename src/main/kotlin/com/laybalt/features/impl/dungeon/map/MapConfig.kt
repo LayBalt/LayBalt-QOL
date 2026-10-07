@@ -1,3 +1,4 @@
+// Cheater Map options ported from OdinClient (https://github.com/skies-starred/OdinClient), BSD-3-Clause, Copyright (c) 2026 Starred
 package com.laybalt.features.impl.dungeon.map
 
 import com.laybalt.config.ConfigHolder
@@ -17,9 +18,25 @@ object MapConfig: SettingProvider {
 
     //#if CHEAT
     val dungeonMapCheater by ToggleSetting("Cheater Map", false)
+        .withDescription("Reveals the whole dungeon layout on the map, scanned from the loaded world, before the rooms are opened.")
+    val cheaterShowRooms by ToggleSetting("Show Hidden Rooms", true)
+        .withDescription("Draws rooms and doors that are not revealed on the vanilla map yet.").showIf { dungeonMapCheater.value }
+    val cheaterDarken by ToggleSetting("Darken Hidden Tiles", true)
+        .withDescription("Darkens hidden rooms and the doors leading into them so you can tell them apart from discovered ones.").showIf { dungeonMapCheater.value && cheaterShowRooms.value }
+    val cheaterDarkenFactor by SliderSetting("Darken Factor", 0.6, 0.0, 1.0, 0.1)
+        .withDescription("Brightness kept by hidden tiles: 1 keeps the normal colour, 0 makes them black.").showIf { dungeonMapCheater.value && cheaterShowRooms.value && cheaterDarken.value }
+    val cheaterShowNames by ToggleSetting("Show Hidden Names", true)
+        .withDescription("Shows the room name / secrets / checkmark text for hidden rooms and rooms you have not entered yet.").showIf { dungeonMapCheater.value && cheaterShowRooms.value }
     //#else
     //$val dungeonMapCheater by ToggleSetting("Legit", false).hideIf { true }.jsonName(UUID.randomUUID().toString())
+    //$val cheaterShowRooms by ToggleSetting("Legit Rooms", false).hideIf { true }.jsonName(UUID.randomUUID().toString())
+    //$val cheaterDarken by ToggleSetting("Legit Darken", false).hideIf { true }.jsonName(UUID.randomUUID().toString())
+    //$val cheaterDarkenFactor by SliderSetting("Legit Darken Factor", 0.6, 0.0, 1.0, 0.1).hideIf { true }.jsonName(UUID.randomUUID().toString())
+    //$val cheaterShowNames by ToggleSetting("Legit Names", false).hideIf { true }.jsonName(UUID.randomUUID().toString())
     //#endif
+
+    /** Cheater map with hidden rooms revealed. */
+    val revealHidden get() = dungeonMapCheater.value && cheaterShowRooms.value
 
     val mapExtraInfo by ToggleSetting("Show Extra Info Under Map", false)
     val mapHideInBoss by ToggleSetting("Hide In Boss", false)

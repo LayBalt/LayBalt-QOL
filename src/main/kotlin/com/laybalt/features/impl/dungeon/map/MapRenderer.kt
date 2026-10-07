@@ -1,3 +1,4 @@
+// Cheater Map options ported from OdinClient (https://github.com/skies-starred/OdinClient), BSD-3-Clause, Copyright (c) 2026 Starred
 package com.laybalt.features.impl.dungeon.map
 
 import com.laybalt.LayBaltQOL.MOD_ID
@@ -84,10 +85,16 @@ object MapRenderer: HudElement() {
     }
 
     private fun applyCheater() {
-        if (! MapConfig.dungeonMapCheater.value) return
+        if (! MapConfig.revealHidden) return
         DungeonScanner.dungeonList.forEach { tile ->
             if (tile.state == RoomState.UNOPENED) tile.state = RoomState.UNDISCOVERED
         }
+    }
+
+    /** Cheater Map tile darkening (OdinClient CheaterMap): scales RGB by [factor], keeps alpha. */
+    private fun darken(color: Color, factor: Float): Color {
+        val f = factor.coerceIn(0f, 1f)
+        return Color((color.red * f).toInt(), (color.green * f).toInt(), (color.blue * f).toInt(), color.alpha)
     }
 
     private fun getDoorState(door: DoorTile): RoomState {
@@ -101,12 +108,12 @@ object MapRenderer: HudElement() {
 
         for (y in 0 .. 10) for (x in 0 .. 10) {
             val tile = DungeonScanner.dungeonList[y * 11 + x].takeUnless { it is Unknown } ?: continue
-            if (tile.state == RoomState.UNDISCOVERED && ! MapConfig.dungeonMapCheater.value) continue
-            if (tile is DoorTile && getDoorState(tile) == RoomState.UNDISCOVERED && ! MapConfig.dungeonMapCheater.value) continue
+            val hidden = tile.state == RoomState.UNDISCOVERED || (tile is DoorTile && getDoorState(tile) == RoomState.UNDISCOVERED)
+            if (hidden && ! MapConfig.revealHidden) continue
 
             var color = tile.getColor()
-            if (MapConfig.dungeonMapCheater.value && tile.state == RoomState.UNDISCOVERED) {
-                color = color.darker().darker()
+            if (hidden && MapConfig.cheaterDarken.value) {
+                color = darken(color, MapConfig.cheaterDarkenFactor.value.toFloat())
             }
 
             //#if CHEAT
@@ -169,7 +176,8 @@ object MapRenderer: HudElement() {
             if (unq.data.isUnknown()) return@forEach
             if (unq.data.type.equalsOneOf(RoomType.ENTRANCE, RoomType.FAIRY)) return@forEach
             if (MapConfig.hideBloodroomOvelay.value && unq.data.type == RoomType.BLOOD) return@forEach
-            if (! MapConfig.dungeonMapCheater.value && roomTile.state.equalsOneOf(RoomState.UNDISCOVERED, RoomState.UNOPENED)) return@forEach
+            val showHiddenNames = MapConfig.revealHidden && MapConfig.cheaterShowNames.value
+            if (! showHiddenNames && roomTile.state.equalsOneOf(RoomState.UNDISCOVERED, RoomState.UNOPENED)) return@forEach
 
             val checkPos = unq.getCheckmarkPosition()
             val cX = (checkPos.first / 2f) * fullCellSize + halfRoom

@@ -1,7 +1,9 @@
+// Scope, dungeon-start refill, timer toggle and threshold ported from OdinClient (https://github.com/skies-starred/OdinClient), BSD-3-Clause, Copyright (c) 2026 Starred
 package com.laybalt.features.impl.dungeon
 
 //#if CHEAT
 
+import com.laybalt.config.types.DropdownSetting
 import com.laybalt.config.types.SliderSetting
 import com.laybalt.config.types.ToggleSetting
 import com.laybalt.event.EventBus
@@ -13,10 +15,16 @@ import com.laybalt.utils.dungeons.DungeonListener
 import com.laybalt.utils.dungeons.enums.DungeonClass
 import com.laybalt.utils.items.ItemUtils.skyblockId
 import com.laybalt.utils.location.LocationUtils
+import com.laybalt.utils.location.WorldType
 import gg.essential.universal.UMinecraft
 
-object AutoGFS: Feature("Automatically refills dungeon items from your sacks using /gfs while in dungeons.") {
-    private val delay by SliderSetting("Check Delay", 20.0, 5.0, 60.0, 1.0, "s").withDescription("How often to check for refills.")
+object AutoGFS: Feature("Automatically refills dungeon items from your sacks using /gfs.") {
+    private val scope by DropdownSetting("Scope", 0, listOf("Dungeons", "Dungeons + Kuudra", "Everywhere in SkyBlock"))
+        .withDescription("Where refills are allowed: only in dungeons, in dungeons and Kuudra, or anywhere in SkyBlock.")
+    private val refillOnTimer by ToggleSetting("Refill On Timer", true).withDescription("Periodically check your inventory and refill missing items.")
+    private val delay by SliderSetting("Check Delay", 20.0, 5.0, 60.0, 1.0, "s").withDescription("How often to check for refills.").showIf { refillOnTimer.value }
+    private val refillOnDungeonStart by ToggleSetting("Refill On Dungeon Start", true).withDescription("Refill every enabled item as soon as Mort starts the dungeon.")
+    private val threshold by SliderSetting("Refill Threshold", 4, 1, 16, 1).withDescription("Only refill an item when at least this many are missing from a full stack.")
 
     private val refillPearl by ToggleSetting("Refill Pearl")
     private val refillTNT by ToggleSetting("Refill TNT")
@@ -33,6 +41,8 @@ object AutoGFS: Feature("Automatically refills dungeon items from your sacks usi
     private val pyMessage1 = Regex("^\\[BOSS] Storm: (ENERGY HEED MY CALL|THUNDER LET ME BE YOUR CATALYST)!$")
     private var pyHappened = false
 
+    private val startRegex = Regex("^\\[NPC] Mort: Here, I found this map when I first entered the dungeon\\.$|^\\[NPC] Mort: Right-click the Orb for spells, and Left-click \\(or Drop\\) to use your Ultimate!$")
+
     private val sackEmptyMessage = Regex("^You have no (.+) in your Sacks!$")
     private val emptySacks = mutableSetOf<String>()
     private var refillCursor = 0
@@ -43,7 +53,14 @@ object AutoGFS: Feature("Automatically refills dungeon items from your sacks usi
             emptySacks.clear()
         }
 
-        ThreadUtils.loop({ delay.value * 1000 }) { refill() }
+        ThreadUtils.loop({ delay.value * 1000 }) { if (refillOnTimer.value) refill(false) }
+
+        register<ChatMessageEvent> {
+            if (! refillOnDungeonStart.value) return@register
+            if (! LocationUtils.inDungeon) return@register
+            if (! startRegex.matches(event.unformattedText)) return@register
+            ThreadUtils.scheduledTask(20) { refill(true) }
+        }
 
         register<ChatMessageEvent> {
             if (! refillTwilight.value) return@register
@@ -70,10 +87,17 @@ object AutoGFS: Feature("Automatically refills dungeon items from your sacks usi
         listener.unregister()
     }
 
-    private fun refill() {
-        if (! enabled || ! LocationUtils.inDungeon) return
+    private fun inScope() = when (scope.value) {
+        0 -> LocationUtils.inDungeon
+        1 -> LocationUtils.inDungeon || LocationUtils.world == WorldType.Kuudra
+        else -> LocationUtils.inSkyblock
+    }
+
+    /** @param all refill every pending item at once (dungeon start) instead of one item per check. */
+    private fun refill(all: Boolean) {
+        if (! enabled || ! inScope()) return
         if (UMinecraft.currentScreenObj != null) return
-        if (DungeonListener.thePlayer?.isDead == true) return
+        if (LocationUtils.inDungeon && DungeonListener.thePlayer?.isDead == true) return
 
         var pearlCount = 0
         var jerryCount = 0
@@ -92,9 +116,13 @@ object AutoGFS: Feature("Automatically refills dungeon items from your sacks usi
             RefillEntry(jerryCount, 64, "inflatable_jerry", refillJerry.value),
             RefillEntry(tntCount, 64, "superboom_tnt", refillTNT.value),
             RefillEntry(leapCount, 16, "spirit_leap", refillLeaps.value),
-        ).filter { it.enabled && it.current > 0 && it.max - it.current >= 4 && it.gfsName !in emptySacks }
+        ).filter { it.enabled && it.current > 0 && it.max - it.current >= threshold.value.coerceAtMost(it.max - 1) && it.gfsName !in emptySacks }
 
         if (pending.isEmpty()) return
+        if (all) {
+            pending.forEach { gfs(it.gfsName, it.max - it.current) }
+            return
+        }
         val target = pending[refillCursor % pending.size]
         refillCursor ++
         gfs(target.gfsName, target.max - target.current)
