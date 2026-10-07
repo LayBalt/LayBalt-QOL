@@ -1,5 +1,7 @@
 package com.laybalt.ui.utils
 
+import com.laybalt.LayBaltQOL.mc
+import com.laybalt.ui.text.UIFont
 import com.laybalt.utils.NumbersUtils.div
 import gg.essential.universal.UResolution
 import gg.essential.universal.UMouse
@@ -31,6 +33,8 @@ object Resolution {
 
     fun push(ctx: GuiGraphicsExtractor) {
         refresh()
+        // Text measured during this canvas's layout and input handling then matches what it draws.
+        UIFont.measureScale = scale * mc.window.guiScale
         ctx.pose().pushMatrix()
         ctx.pose().scale(scale, scale)
     }

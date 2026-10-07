@@ -52,10 +52,17 @@ object NotificationManager: ISelfInit {
         val guiH = ctx.guiHeight().toFloat()
         val physical = mc.window.screenWidth.toFloat() / guiW
         val k = min(guiW / 960f, guiH / 540f).coerceAtLeast(1.5f / physical)
+        val savedMeasure = UIFont.measureScale
+        UIFont.measureScale = k * mc.window.guiScale
         ctx.pose().pushMatrix()
         ctx.pose().scale(k)
-        draw(ctx, guiW / k, guiH / k, k)
-        ctx.pose().popMatrix()
+        try {
+            draw(ctx, guiW / k, guiH / k, k)
+        }
+        finally {
+            ctx.pose().popMatrix()
+            UIFont.measureScale = savedMeasure
+        }
     }
 
     private fun draw(ctx: GuiGraphicsExtractor, screenW: Float, screenH: Float, scale: Float) {

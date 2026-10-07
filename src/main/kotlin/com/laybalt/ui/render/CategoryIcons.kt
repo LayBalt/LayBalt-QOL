@@ -19,7 +19,7 @@ import net.minecraft.world.item.Items
 object CategoryIcons {
     private val items = mapOf<CategoryType, Item>(
         CategoryType.GENERAL to Items.COMPASS,
-        CategoryType.DUNGEON to Items.WITHER_SKELETON_SKULL,
+        CategoryType.DUNGEON to Items.SKELETON_SKULL, // light grey: a wither skull vanishes on the dark sidebar
         CategoryType.FLOOR7 to Items.NETHER_STAR,
         CategoryType.VISUAL to Items.PAINTING,
         CategoryType.RENDER to Items.SPYGLASS,

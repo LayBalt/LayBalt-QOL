@@ -34,6 +34,7 @@ abstract class HudElement {
     /** Set by the HUD editor for the element that was clicked last. */
     var editorSelected = false
     private val editorHover = UI.Smooth()
+    private var editorHot = 0f
 
     abstract fun draw(ctx: GuiGraphicsExtractor, example: Boolean): Pair<Number, Number>
 
@@ -42,7 +43,7 @@ abstract class HudElement {
     val scaledWidth get() = width * scale
     val scaledHeight get() = height * scale
 
-    /** HUD editor frame: translucent rounded box with an outline (accent when selected) and the element's name. */
+    /** HUD editor frame: translucent rounded box with an outline (accent when selected); the name tag is [drawEditorTag]. */
     open fun drawBackground(ctx: GuiGraphicsExtractor, mx: Int, my: Int) = drawEditorFrame(ctx, mx.toFloat(), my.toFloat())
 
     fun drawEditorFrame(ctx: GuiGraphicsExtractor, mx: Float, my: Float) {
@@ -52,11 +53,23 @@ abstract class HudElement {
         val bh = scaledHeight + 4f
         val active = isDragging || editorSelected
         val hot = editorHover.update(active || isHovered(mx.toInt(), my.toInt()))
+        editorHot = hot
 
         UI.rect(ctx, bx, by, bw, bh, 4f, if (active) UI.fade(Palette.accent, 0.14f) else UI.fade(Palette.bgDeep, 0.45f + 0.15f * hot))
         UI.outline(ctx, bx, by, bw, bh, 4f, if (active) Palette.accent else UI.mix(Palette.outlineHover, Palette.accentBorder, hot), if (active) 1.1f else UI.hair(ctx))
+    }
 
-        // name tag above (or below when there is no room)
+    /**
+     * The element's name tag above its frame (or below when there is no room). The HUD editor draws every tag in a
+     * pass after all elements so no other element's content can cover one.
+     */
+    fun drawEditorTag(ctx: GuiGraphicsExtractor) {
+        if (! toggle) return
+        val bx = left - 2f
+        val by = y - 2f
+        val bh = scaledHeight + 4f
+        val active = isDragging || editorSelected
+        val hot = editorHot
         val size = 6.2f
         val label = name
         val tw = UI.width(label, size, UIFont.Weight.MEDIUM) + 8f

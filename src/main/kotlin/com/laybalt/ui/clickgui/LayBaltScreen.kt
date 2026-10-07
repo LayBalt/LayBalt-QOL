@@ -147,14 +147,22 @@ class LayBaltScreen(private val parent: Screen? = null): Screen(Component.litera
         gridRect = Rect(contentRect.x, window.y + TOP_BAR_H, contentRect.w, window.h - TOP_BAR_H - 4f)
     }
 
+    /**
+     * False until the first frame after [added]: the character event of the key that opened this screen (a letter
+     * open keybind) arrives right after the key press and must not start a search.
+     */
+    private var acceptChars = false
+
     override fun added() {
         super.added()
+        acceptChars = false
         openedAt = System.currentTimeMillis()
         closingAt = 0L
         closeScheduled = false
     }
 
     override fun extractRenderState(ctx: GuiGraphicsExtractor, mouseX: Int, mouseY: Int, a: Float) {
+        acceptChars = true
         UI.beginFrame()
         Resolution.push(ctx)
         val mx = mouseX / Resolution.scale
@@ -328,7 +336,7 @@ class LayBaltScreen(private val parent: Screen? = null): Screen(Component.litera
     }
 
     override fun charTyped(event: CharacterEvent): Boolean {
-        if (closingAt != 0L) return true
+        if (closingAt != 0L || !acceptChars) return true
         if (Popovers.charTyped(event)) return true
         if (panel.charTyped(event)) return true
         if (search.charTyped(event)) return true

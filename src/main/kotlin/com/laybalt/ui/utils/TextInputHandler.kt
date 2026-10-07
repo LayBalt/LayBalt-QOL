@@ -7,7 +7,10 @@ import com.laybalt.ui.render.Shapes.pixel
 import com.laybalt.ui.render.Shapes.roundedRect
 import com.laybalt.ui.text.UIFont
 import com.laybalt.utils.ColorUtils.withAlpha
+import com.laybalt.utils.render.Render2D.drawRect
+import com.laybalt.utils.render.Render2D.drawString
 import com.laybalt.utils.render.Render2D.scissor
+import com.laybalt.utils.render.RenderHelper.width
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.*
@@ -43,6 +46,11 @@ class TextInputHandler(
     var padding = 4f
     /** Multiplies the alpha of everything the field draws (screen fade). */
     var opacity = 1f
+    /**
+     * Draw and measure with the vanilla font (9-unit line, shadowed, § colour codes) instead of Inter: for in-game
+     * overlays such as the container search bar, which keep the vanilla look. [fontSize] is ignored.
+     */
+    var useVanillaFont = false
 
     private var caret = text.length
         set(value) {
@@ -82,6 +90,7 @@ class TextInputHandler(
         if (previousMousePos != mouseX to mouseY) mouseDragged(mouseX)
         previousMousePos = mouseX to mouseY
 
+        if (useVanillaFont) return drawVanilla(context, suffix)
         val size = fontSize
 
         val lineH = UIFont.lineHeight(size)
@@ -100,6 +109,19 @@ class TextInputHandler(
             )
             else if (time - caretBlinkTime > 1060) caretBlinkTime = time
         }
+        context.disableScissor()
+    }
+
+    /** The pre-LayBalt-GUI look: vanilla text, a 9-unit caret and a flat selection box. */
+    private fun drawVanilla(context: GuiGraphicsExtractor, suffix: String?) {
+        context.scissor(x, y, width, height)
+        if (selectionWidth != 0f) context.drawRect(x + selectionStartX + padding - textOffset, y + 5f, selectionWidth, height - 10, fade(Style.accentColor.withAlpha(110)))
+        if (listening) {
+            val time = System.currentTimeMillis()
+            if (time - caretBlinkTime < 500) context.drawRect(x + caretX + padding - textOffset, y + height / 3.4, 1, 9, fade(textColor))
+            else if (time - caretBlinkTime > 1000) caretBlinkTime = time
+        }
+        context.drawString(text + suffix.orEmpty(), x + padding - textOffset, y + height / 2f - 5, fade(textColor))
         context.disableScissor()
     }
 
@@ -381,7 +403,7 @@ class TextInputHandler(
         return end
     }
 
-    private fun textWidth(text: String): Float = UIFont.width(text, fontSize)
+    private fun textWidth(text: String): Float = if (useVanillaFont) text.width().toFloat() else UIFont.width(text, fontSize)
 
     fun resetState() {
         listening = false

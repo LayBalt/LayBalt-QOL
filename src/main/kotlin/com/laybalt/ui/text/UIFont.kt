@@ -6,13 +6,18 @@ import com.laybalt.LayBaltQOL.mc
 import com.laybalt.init.types.ISelfInit
 import com.laybalt.mixin.IFontManager
 import com.laybalt.mixin.IMinecraft
+import com.mojang.blaze3d.font.GlyphInfo
 import com.mojang.blaze3d.font.GlyphProvider
 import com.mojang.blaze3d.font.TrueTypeGlyphProvider
+import com.mojang.blaze3d.font.UnbakedGlyph
+import it.unimi.dsi.fastutil.ints.IntSet
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.font.FontOption
 import net.minecraft.client.gui.font.FontSet
 import net.minecraft.client.gui.font.GlyphStitcher
+import net.minecraft.client.gui.font.TextRenderable
+import net.minecraft.client.gui.font.glyphs.BakedGlyph
 import net.minecraft.client.gui.font.providers.FreeTypeUtil
 import net.minecraft.network.chat.Component
 import net.minecraft.network.chat.FontDescription
@@ -40,6 +45,10 @@ import kotlin.math.roundToInt
  * physical pixel size it is drawn at, with the variable font's `wght`/`opsz` axes set for real weights. Those
  * font sets live in the vanilla FontManager map under `lbqmod:inter_dyn/...` ids, are rebuilt after a resource
  * reload and evicted when unused.
+ *
+ * Every glyph advance is rounded to whole physical pixels and the pose is corrected for the 0.01 quantisation of the
+ * rasterisation scale, so with the snapped line origin every glyph bitmap lands exactly on the pixel grid (NEAREST
+ * sampling would otherwise drop or double texel columns, e.g. turning a thin "n" into an "r").
  *
  * Coordinates: [draw] takes the top-left of a line box [lineHeight] tall; the cap height is centred in that box,
  * so text drawn at `rowY + (rowH - lineHeight(size)) / 2` is optically centred in a row.
@@ -69,7 +78,7 @@ object UIFont: ISelfInit {
 
     private data class Key(val sizeQ: Int, val weight: Weight, val scaleQ: Int)
 
-    private class Variant(val id: Identifier, val set: FontSet, val provider: GlyphProvider) {
+    private class Variant(val id: Identifier, val set: FontSet, val provider: GlyphProvider, val oversample: Float) {
         val style: Style = Style.EMPTY.withFont(FontDescription.Resource(id))
         var lastUsed = System.currentTimeMillis()
     }
@@ -79,7 +88,13 @@ object UIFont: ISelfInit {
     private var skipList: String? = null
     private var counter = 0
     private var broken = false
-    private var lastScale = 2f
+
+    /**
+     * Physical pixels per GUI unit used by [width], [trim] and [wrap] when no pose is at hand (layout and input code).
+     * Set by the canvas owner before it lays out and draws (see [com.laybalt.ui.utils.Resolution.push]); toasts swap it
+     * for their own scale and restore it. 0 means "the vanilla GUI scale".
+     */
+    @JvmStatic var measureScale = 0f
 
     /**
      * Transient zoom of the pose (e.g. a window scaling in from 0.96). Glyphs are rasterised for the pose scale divided
@@ -101,31 +116,31 @@ object UIFont: ISelfInit {
     fun draw(ctx: GuiGraphicsExtractor, text: String, x: Number, y: Number, color: Color, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR, shadow: Boolean = false) {
         if (text.isEmpty() || color.alpha <= 3) return
         val pose = ctx.pose()
-        val scale = physicalScale(pose) / transientScale.coerceIn(0.5f, 2f)
-        lastScale = scale
+        val scale = drawScale(ctx)
         val variant = variant(size, weight, scale)
 
-        val fontScale = if (variant == null) size / STATIC_SIZE else 1f
-        val originX = x.toFloat()
-        val originY = y.toFloat() + baseline(size) - MC_BASELINE * fontScale
+        // Static fallback: scale the size-8 font. Dynamic variant: undo the 0.01 quantisation of its raster scale so one
+        // glyph texel covers exactly one physical pixel (advances are whole texels, see PixelGridProvider).
+        val fontScale = if (variant == null) size / STATIC_SIZE else variant.oversample / scale
+        val baselineX = x.toFloat()
+        val baselineY = y.toFloat() + baseline(size)
 
         pose.pushMatrix()
         // Snap the baseline to the physical pixel grid so glyph texels map 1:1 onto screen pixels.
-        val snapped = snap(pose, originX, originY + MC_BASELINE * fontScale)
-        pose.translate(snapped.first, snapped.second - MC_BASELINE * fontScale)
-        if (variant == null) {
-            pose.scale(fontScale, fontScale)
-            ctx.text(mc.font, Component.literal(text).withStyle(Style.EMPTY.withFont(STATIC)), 0, 0, color.rgb, shadow)
-        }
-        else ctx.text(mc.font, Component.literal(text).withStyle(variant.style), 0, 0, color.rgb, shadow)
+        val snapped = snap(pose, baselineX, baselineY)
+        pose.translate(snapped.first, snapped.second)
+        pose.scale(fontScale, fontScale)
+        pose.translate(0f, -MC_BASELINE)
+        val style = variant?.style ?: Style.EMPTY.withFont(STATIC)
+        ctx.text(mc.font, Component.literal(text).withStyle(style), 0, 0, color.rgb, shadow)
         pose.popMatrix()
     }
 
     fun drawCentered(ctx: GuiGraphicsExtractor, text: String, centerX: Number, y: Number, color: Color, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR, shadow: Boolean = false) =
-        draw(ctx, text, centerX.toFloat() - width(text, size, weight) / 2f, y, color, size, weight, shadow)
+        draw(ctx, text, centerX.toFloat() - width(text, size, weight, drawScale(ctx)) / 2f, y, color, size, weight, shadow)
 
     fun drawRight(ctx: GuiGraphicsExtractor, text: String, rightX: Number, y: Number, color: Color, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR, shadow: Boolean = false) =
-        draw(ctx, text, rightX.toFloat() - width(text, size, weight), y, color, size, weight, shadow)
+        draw(ctx, text, rightX.toFloat() - width(text, size, weight, drawScale(ctx)), y, color, size, weight, shadow)
 
     /** Draws [text] with its line box vertically centred on [centerY]. */
     fun drawMiddle(ctx: GuiGraphicsExtractor, text: String, x: Number, centerY: Number, color: Color, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR, shadow: Boolean = false) =
@@ -133,46 +148,52 @@ object UIFont: ISelfInit {
 
     /** Draws [text] cut to [maxWidth] with an ellipsis. */
     fun drawTrimmed(ctx: GuiGraphicsExtractor, text: String, x: Number, y: Number, maxWidth: Float, color: Color, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR) =
-        draw(ctx, trim(text, maxWidth, size, weight), x, y, color, size, weight)
+        draw(ctx, trim(text, maxWidth, size, weight, scale = drawScale(ctx)), x, y, color, size, weight)
 
     /** Draws wrapped lines (at most [maxLines], the last one ellipsised) and returns the height used. */
     fun drawWrapped(ctx: GuiGraphicsExtractor, text: String, x: Number, y: Number, maxWidth: Float, color: Color, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR, maxLines: Int = Int.MAX_VALUE, lineSpacing: Float = 0f): Float {
-        val lines = wrap(text, maxWidth, size, weight, maxLines)
+        val lines = wrap(text, maxWidth, size, weight, maxLines, drawScale(ctx))
         val step = lineHeight(size) + lineSpacing
         lines.forEachIndexed { i, line -> draw(ctx, line, x, y.toFloat() + i * step, color, size, weight) }
         return lines.size * step - if (lines.isEmpty()) 0f else lineSpacing
     }
 
-    /** Text width in GUI units (measured with the font set of the most recently drawn pixel scale). */
-    fun width(text: String, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR): Float {
+    /**
+     * Text width in GUI units as drawn at [scale] physical pixels per unit (default: [measureScale], the scale of the
+     * canvas being laid out). [widthIn] measures for the exact pose of a context.
+     */
+    fun width(text: String, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR, scale: Float = layoutScale()): Float {
         if (text.isEmpty()) return 0f
-        val variant = variant(size, weight, lastScale)
+        val variant = variant(size, weight, scale)
         return if (variant == null) mc.font.splitter.stringWidth(Component.literal(text).withStyle(Style.EMPTY.withFont(STATIC))) * size / STATIC_SIZE
-        else mc.font.splitter.stringWidth(Component.literal(text).withStyle(variant.style))
+        else mc.font.splitter.stringWidth(Component.literal(text).withStyle(variant.style)) * variant.oversample / scale
     }
 
+    /** Text width in GUI units for the pose currently on [ctx]. */
+    fun widthIn(ctx: GuiGraphicsExtractor, text: String, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR) = width(text, size, weight, drawScale(ctx))
+
     /** Cuts [text] so it fits [maxWidth], appending "…" when anything was removed. */
-    fun trim(text: String, maxWidth: Float, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR, ellipsis: String = "…"): String {
-        if (width(text, size, weight) <= maxWidth) return text
-        val budget = maxWidth - width(ellipsis, size, weight)
+    fun trim(text: String, maxWidth: Float, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR, ellipsis: String = "…", scale: Float = layoutScale()): String {
+        if (width(text, size, weight, scale) <= maxWidth) return text
+        val budget = maxWidth - width(ellipsis, size, weight, scale)
         if (budget <= 0f) return ""
         var lo = 0
         var hi = text.length
         while (lo < hi) {
             val mid = (lo + hi + 1) / 2
-            if (width(text.substring(0, mid), size, weight) <= budget) lo = mid else hi = mid - 1
+            if (width(text.substring(0, mid), size, weight, scale) <= budget) lo = mid else hi = mid - 1
         }
         return text.substring(0, lo).trimEnd() + ellipsis
     }
 
     /** Word-wraps [text] (honouring '\n') into lines no wider than [maxWidth]; the last allowed line is ellipsised. */
-    fun wrap(text: String, maxWidth: Float, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR, maxLines: Int = Int.MAX_VALUE): List<String> {
+    fun wrap(text: String, maxWidth: Float, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR, maxLines: Int = Int.MAX_VALUE, scale: Float = layoutScale()): List<String> {
         val out = ArrayList<String>()
         for (paragraph in text.split('\n')) {
             var line = ""
             for (word in paragraph.split(' ')) {
                 val candidate = if (line.isEmpty()) word else "$line $word"
-                if (line.isNotEmpty() && width(candidate, size, weight) > maxWidth) {
+                if (line.isNotEmpty() && width(candidate, size, weight, scale) > maxWidth) {
                     out.add(line)
                     line = word
                 }
@@ -182,7 +203,7 @@ object UIFont: ISelfInit {
         }
         if (out.size <= maxLines) return out
         val kept = out.subList(0, maxLines).toMutableList()
-        kept[maxLines - 1] = trim(kept[maxLines - 1] + " " + out[maxLines], maxWidth, size, weight)
+        kept[maxLines - 1] = trim(kept[maxLines - 1] + " " + out[maxLines], maxWidth, size, weight, scale = scale)
         return kept
     }
 
@@ -190,6 +211,12 @@ object UIFont: ISelfInit {
     fun component(text: String): Component = Component.literal(text).withStyle(Style.EMPTY.withFont(STATIC))
 
     // ------------------------------------------------------------------------------------------------------------
+
+    /** Raster scale for text drawn with [ctx]: the pose's physical pixel scale without the transient zoom. */
+    private fun drawScale(ctx: GuiGraphicsExtractor) = (physicalScale(ctx.pose()) / transientScale.coerceIn(0.5f, 2f)).coerceIn(0.5f, 8f)
+
+    private fun layoutScale(): Float =
+        (if (measureScale > 0.05f) measureScale else mc.window.guiScale.toFloat()).coerceIn(0.5f, 8f)
 
     private fun physicalScale(pose: Matrix3x2f): Float {
         val s = hypot(pose.m00(), pose.m01()) * mc.window.guiScale
@@ -246,7 +273,7 @@ object UIFont: ISelfInit {
                 val f = face!!
                 FreeTypeUtil.assertError(FreeType.FT_Select_Charmap(f, FreeType.FT_ENCODING_UNICODE), "Find unicode charmap")
                 setAxes(f, key.weight.wght, (size * 1.5f).coerceIn(14f, 32f))
-                TrueTypeGlyphProvider(buffer, f, size, oversample, 0f, 0f, skipList ?: buildSkipList(f).also { skipList = it })
+                PixelGridProvider(TrueTypeGlyphProvider(buffer, f, size, oversample, 0f, 0f, skipList ?: buildSkipList(f).also { skipList = it }), oversample)
             }
         }
         catch (e: Throwable) {
@@ -266,7 +293,7 @@ object UIFont: ISelfInit {
             throw e
         }
         sets[id] = set
-        return Variant(id, set, provider)
+        return Variant(id, set, provider, oversample)
     }
 
     /** Sets the variable font's weight and optical size axes (no-op for static fonts). */
@@ -331,5 +358,34 @@ object UIFont: ISelfInit {
                 runCatching { v.provider.close() }
             }
         }
+    }
+
+    /**
+     * Rounds every glyph advance to whole texels (= whole physical pixels once [draw] maps texels 1:1), so each glyph
+     * after the first starts on the pixel grid like the snapped line origin. Bitmaps and bearings are untouched.
+     */
+    private class PixelGridProvider(private val delegate: GlyphProvider, private val oversample: Float): GlyphProvider {
+        override fun getGlyph(codepoint: Int): UnbakedGlyph? = delegate.getGlyph(codepoint)?.let { GridGlyph(it, oversample) }
+        override fun getSupportedGlyphs(): IntSet = delegate.supportedGlyphs
+        override fun close() = delegate.close()
+    }
+
+    private class GridInfo(private val delegate: GlyphInfo, oversample: Float): GlyphInfo {
+        private val advance = delegate.advance.let { a -> if (a <= 0f) a else Math.round(a * oversample).coerceAtLeast(1) / oversample }
+        override fun getAdvance() = advance
+        override fun getBoldOffset() = delegate.boldOffset
+        override fun getShadowOffset() = delegate.shadowOffset
+    }
+
+    private class GridGlyph(private val delegate: UnbakedGlyph, oversample: Float): UnbakedGlyph {
+        private val info = GridInfo(delegate.info(), oversample)
+        override fun info(): GlyphInfo = info
+        override fun bake(stitcher: UnbakedGlyph.Stitcher): BakedGlyph = GridBaked(delegate.bake(stitcher), info)
+    }
+
+    private class GridBaked(private val delegate: BakedGlyph, private val info: GlyphInfo): BakedGlyph {
+        override fun info(): GlyphInfo = info
+        override fun createGlyph(x: Float, y: Float, color: Int, shadowColor: Int, style: Style, boldOffset: Float, shadowOffset: Float): TextRenderable.Styled? =
+            delegate.createGlyph(x, y, color, shadowColor, style, boldOffset, shadowOffset)
     }
 }

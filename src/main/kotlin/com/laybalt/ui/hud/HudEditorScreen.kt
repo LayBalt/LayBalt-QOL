@@ -28,6 +28,7 @@ class HudEditorScreen(private val parent: Screen? = null): Screen(Component.lite
     private companion object {
         const val SNAP = 4f
         const val BAR_H = 26f
+        const val TOOLBAR_Y = 12f
     }
 
     private val huds = FeatureManager.hudElements.filter(HudElement::toggle)
@@ -76,8 +77,14 @@ class HudEditorScreen(private val parent: Screen? = null): Screen(Component.lite
             hud.drawEditor(graphics, mx.toInt(), my.toInt(), effectiveGrid, if (snapping) ::snap else null)
         }
 
-        // snapping guides
-        guideX?.let { UI.rect(graphics, it - 0.5f, 0f, 1f, h, 0f, Palette.accent) }
+        // name tags last, so another element's content never hides one (the selected/dragged tag on top)
+        graphics.nextStratum()
+        huds.filter { !it.isDragging && !it.editorSelected }.forEach { it.drawEditorTag(graphics) }
+        huds.filter { it.isDragging || it.editorSelected }.forEach { it.drawEditorTag(graphics) }
+
+        // snapping guides (the vertical one starts below the floating toolbar)
+        val guideTop = TOOLBAR_Y + BAR_H + 4f
+        guideX?.let { UI.rect(graphics, it - 0.5f, guideTop, 1f, h - guideTop, 0f, Palette.accent) }
         guideY?.let { UI.rect(graphics, 0f, it - 0.5f, w, 1f, 0f, Palette.accent) }
 
         val hovered = huds.firstOrNull { it.isDragging } ?: huds.firstOrNull { it.isHovered(mx.toInt(), my.toInt()) }
@@ -144,7 +151,7 @@ class HudEditorScreen(private val parent: Screen? = null): Screen(Component.lite
         val pad = 4f
         val total = widths.values.sum() + gap * (widths.size - 1) + pad * 2f
         val x0 = (screenW - total) / 2f
-        val y0 = 12f
+        val y0 = TOOLBAR_Y
         UI.shadow(ctx, x0, y0, total, BAR_H, BAR_H / 2f, 14f, Palette.shadowStrong, offsetY = 4f)
         UI.rect(ctx, x0, y0, total, BAR_H, BAR_H / 2f, Palette.popover)
         UI.outline(ctx, x0, y0, total, BAR_H, BAR_H / 2f, Palette.outlineHover)
