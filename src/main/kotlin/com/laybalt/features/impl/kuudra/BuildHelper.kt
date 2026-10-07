@@ -36,7 +36,7 @@ object BuildHelper: Feature("Shows the state of the ballista build in Kuudra: bu
     override fun init() {
         hudElement(name, shouldDraw = { KuudraUtils.inKuudra && KuudraUtils.phase == 2 }) { ctx, _ ->
             val lines = listOf(
-                "§bFreshers: ${colorBuilders(KuudraUtils.freshers.size)}",
+                "§bFreshers: ${colorBuilders(KuudraUtils.freshers.values.count { it != null })}",
                 "§bBuilders: ${colorBuilders(KuudraUtils.playersBuildingAmount)}",
                 "§bBuild: ${colorBuild(KuudraUtils.buildDonePercentage)}%"
             )

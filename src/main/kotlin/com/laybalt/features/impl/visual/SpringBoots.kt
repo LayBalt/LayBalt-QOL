@@ -1,3 +1,4 @@
+// Ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking (parts of this file)
 package com.laybalt.features.impl.visual
 
 import com.laybalt.config.types.*

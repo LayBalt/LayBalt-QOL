@@ -4,6 +4,7 @@ package com.laybalt.features.impl.visual
 import com.laybalt.config.types.ColorSetting
 import com.laybalt.config.types.ToggleSetting
 import com.laybalt.event.impl.TickEvent
+import com.laybalt.event.impl.WorldChangeEvent
 import com.laybalt.features.Feature
 import com.laybalt.utils.ChatUtils.formattedText
 import com.laybalt.utils.ChatUtils.removeFormatting
@@ -39,18 +40,23 @@ object QuiverDisplay: Feature("Displays the arrow type and the number of arrows 
             return@hudElement (x + count.width()) to 9
         }
 
+        register<WorldChangeEvent> { clear() }
+
         register<TickEvent.End> {
-            if (! LocationUtils.inSkyblock) return@register
+            if (! LocationUtils.inSkyblock) return@register clear()
             if (++ ticks % 5 != 0) return@register
             val inventory = mc.player?.inventory ?: return@register
 
-            // The quiver arrow sits in the last hotbar slot, or in the first inventory slot during dungeon clear
-            // (where the last hotbar slot holds the dungeon map). Odin reads menu slot 44 / 9, i.e. inventory index 8 / 9.
-            val order = if (LocationUtils.inDungeon && ! LocationUtils.inBoss) intArrayOf(9, 8) else intArrayOf(8, 9)
-            for (index in order) {
-                if (read(inventory.getItem(index))) return@register
-            }
+            // As in Odin: the quiver arrow sits in the last hotbar slot (inventory index 8), except during dungeon
+            // clear, where that slot holds the dungeon map and the arrow moves to the first inventory slot (index 9).
+            val index = if (LocationUtils.inDungeon && ! LocationUtils.inBoss) 9 else 8
+            if (! read(inventory.getItem(index))) clear()
         }
+    }
+
+    private fun clear() {
+        arrowName = null
+        arrowCount = null
     }
 
     private fun read(stack: ItemStack): Boolean {

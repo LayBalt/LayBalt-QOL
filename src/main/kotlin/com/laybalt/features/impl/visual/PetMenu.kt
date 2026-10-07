@@ -183,6 +183,9 @@ object PetMenu: Feature("Replaces the Pets inventory with a custom pet wheel and
 
         register<ContainerEvent.Close> {
             if (! event.screen.title.unformattedText.matches(petMenuRegex)) return@register
+            // Changing Hypixel page opens a new container: setScreen() then calls removed() on the OLD page's screen,
+            // which posts this event after lastContainerId already points at the new page. Only reset for the tracked one.
+            if (event.screen.menu.containerId != lastContainerId) return@register
             lastContainerId = - 1
             wheelPage = 0
             tempDisabled = false
