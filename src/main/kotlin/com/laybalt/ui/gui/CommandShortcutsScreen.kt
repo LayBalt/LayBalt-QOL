@@ -6,7 +6,7 @@ import com.mojang.blaze3d.platform.InputConstants
 
 import com.laybalt.LayBaltQOL.mc
 import com.laybalt.features.impl.general.CommandShortcuts
-import com.laybalt.ui.clickgui.ClickGuiScreen
+import com.laybalt.ui.clickgui.LayBaltScreen
 import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.ui.utils.Animation
 import com.laybalt.ui.utils.Resolution
@@ -243,7 +243,7 @@ class CommandShortcutsScreen: Screen(Component.literal("Command Shortcuts")) {
             if (command.isNotEmpty() && replacement.isNotEmpty()) shortcuts[command] = replacement
         }
 
-        GuiUtils.setScreen(ClickGuiScreen())
+        GuiUtils.setScreen(LayBaltScreen())
         CommandShortcuts.shortcuts.set(shortcuts)
         @Suppress("UNCHECKED_CAST")
         CommandShortcuts.build(mc.connection?.commands as CommandDispatcher<FabricClientCommandSource>)

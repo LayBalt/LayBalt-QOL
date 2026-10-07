@@ -1,191 +1,161 @@
 package com.laybalt.ui.clickgui.components.settings.impl
 
 import com.laybalt.config.types.SoundSetting
+import com.laybalt.ui.Palette
+import com.laybalt.ui.clickgui.UI
+import com.laybalt.ui.clickgui.components.Popover
+import com.laybalt.ui.clickgui.components.Popovers
+import com.laybalt.ui.clickgui.components.Rect
+import com.laybalt.ui.clickgui.components.ScrollArea
 import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.ui.clickgui.components.settings.Widget
-import com.laybalt.ui.utils.Animation
+import com.laybalt.ui.render.Icon
+import com.laybalt.ui.text.UIFont
 import com.laybalt.ui.utils.TextInputHandler
-import com.laybalt.utils.render.Render2D.drawRect
-import com.laybalt.utils.render.Render2D.drawString
-import com.laybalt.utils.render.Render2D.scissor
-import com.laybalt.utils.render.RenderHelper.width
+import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.input.CharacterEvent
 import net.minecraft.client.input.KeyEvent
 import net.minecraft.client.input.MouseButtonEvent
 import net.minecraft.client.input.MouseButtonInfo
 import net.minecraft.sounds.SoundEvent
-import com.mojang.blaze3d.platform.InputConstants
-import com.laybalt.ui.Palette
-import kotlin.math.max
 
+/** Select with the sound's name; the popover has a search field and a scrollable list of every sound. */
 class SoundWidget(config: SoundSetting): Widget<SoundEvent>(config) {
     private inline val cfg get() = config as SoundSetting
 
-    private var filteredSounds = SoundSetting.allSounds
-    private var searchQuery = ""
+    private var box = Rect(0f, 0f, 0f, 0f)
+    private val list = SoundList()
 
-    private val searchHandler = TextInputHandler(
-        textProvider = { searchQuery },
-        textSetter = {
-            searchQuery = it
-            updateFilter()
-        }
-    )
+    override val typing get() = list.search.listening
 
-    private var expanded = false
-    private val openAnim = Animation(250)
-    private val hoverAnim = Animation(200)
-
-    private val searchHeight = 24
-    private val entryHeight = 14
-    private val listMaxHeight = 14 * 5
-    private var scrollOffset = 0f
-
-    override val height: Int
-        get() = 20 + (openAnim.value * (searchHeight + listMaxHeight)).toInt()
-
-    override fun draw(ctx: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        val isHovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + 20
-        openAnim.update(if (expanded) 1f else 0f)
-        hoverAnim.update(if (isHovered) 1f else 0f)
-
-        ctx.drawRect(x, y, width, 20f, Style.settingBackgroundColor)
-        Style.drawHoverBar(ctx, x, y, 20f, hoverAnim.value)
-        Style.drawNudgedText(ctx, name, x + 8f, y + 6f, hoverAnim.value)
-
-        val valStr = cfg.prettyName(value).orEmpty()
-
-        ctx.drawString(valStr, x + width - valStr.width() - 8f, y + 6f, Palette.textSecondary, scale = 1f)
-
-        if (openAnim.value > 0.01f) {
-            ctx.scissor(x, y + 20, width, height)
-
-            val contentY = y + 20f
-            val totalContentHeight = (searchHeight + listMaxHeight) * openAnim.value
-            ctx.drawRect(x + 4f, contentY, width - 8f, totalContentHeight, Palette.bgInset)
-
-            val searchY = contentY + 2
-            val searchW = width - 16f
-            val searchH = 18f
-
-            ctx.drawRect(x + 8f, searchY, searchW, searchH, Palette.bgSetting)
-            val searchFocus = if (searchHandler.listening) 1f else 0f
-            ctx.drawRect(x + 8f, searchY + searchH - 1f, searchW * searchFocus, 1f, Style.accentColor)
-
-            searchHandler.x = x + 8f
-            searchHandler.y = searchY
-            searchHandler.width = searchW
-            searchHandler.height = searchH
-
-            if (searchQuery.isEmpty()) ctx.drawString("Search sound...", x + 12f, searchY + 5f, Palette.textMuted)
-            else searchHandler.draw(ctx, mouseX.toFloat(), mouseY.toFloat())
-
-            val listY = searchY + searchHeight
-            val viewableHeight = listMaxHeight - 4f
-
-            val contentHeight = filteredSounds.size * entryHeight
-            val maxScroll = max(0f, contentHeight - viewableHeight)
-            scrollOffset = scrollOffset.coerceIn(0f, maxScroll)
-
-            ctx.scissor(x, listY, width, viewableHeight)
-
-            var entryY = listY - scrollOffset
-
-            filteredSounds.forEach { sound ->
-                if (entryY + entryHeight > listY && entryY < listY + viewableHeight) {
-                    val isEntryHovered = mouseX >= x + 4 && mouseX <= x + width - 4 &&
-                        mouseY >= entryY && mouseY < entryY + entryHeight
-
-                    val isSelected = sound == value
-
-                    if (isEntryHovered) ctx.drawRect(x + 4f, entryY, width - 8f, entryHeight.toFloat(), Palette.hover)
-                    val textColor = if (isSelected) Style.accentColor else if (isEntryHovered) Palette.textPrimary else Palette.textSecondary
-
-                    ctx.drawString(cfg.prettyName(sound) !!, x + 12f, entryY + 3f, textColor)
-                }
-                entryY += entryHeight
-            }
-
-            ctx.disableScissor()
-
-            if (maxScroll > 0) {
-                val barHeight = (viewableHeight / contentHeight) * viewableHeight
-                val barY = listY + ((scrollOffset / maxScroll) * (viewableHeight - barHeight))
-                ctx.drawRect(x + width - 6f, barY, 2f, barHeight, Style.accentColor)
-            }
-
-            ctx.disableScissor()
-        }
+    override fun draw(ctx: GuiGraphicsExtractor, mx: Float, my: Float) {
+        val open = Popovers.isOpen(list)
+        drawRow(ctx, mx, my, active = open)
+        val text = cfg.prettyName(value) ?: value.location.path
+        box = selectBox(text, width * 0.55f)
+        drawLabel(ctx, box.x - x - PAD - 6f)
+        drawSelectBox(ctx, box, text, mx, my, open)
     }
 
-    override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + 20) {
-            expanded = ! expanded
-            Style.playClickSound(1f)
+    override fun mouseClicked(mx: Float, my: Float, button: Int): Boolean {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT || !isHovered(mx, my)) return false
+        list.reset()
+        Popovers.open(list)
+        Style.playClickSound(1f)
+        return true
+    }
+
+    override fun clearFocus() = list.search.resetState()
+
+    private inner class SoundList: Popover() {
+        private var query = ""
+        private var filtered = SoundSetting.allSounds
+        val search = TextInputHandler({ query }, {
+            query = it
+            filtered = if (it.isBlank()) SoundSetting.allSounds
+            else SoundSetting.allSounds.filter { s -> (cfg.prettyName(s) ?: s.location.toString()).contains(it, ignoreCase = true) }
+            scroll.set(0f, instant = true)
+        }).apply {
+            fontSize = VALUE_SIZE
+            padding = 20f
+        }
+        val scroll = ScrollArea(ITEM_H * 3f)
+
+        private val pad = 6f
+        override val width get() = 210f
+        override val height get() = 172f
+
+        override fun anchor() = box
+
+        fun reset() {
+            if (query.isNotEmpty()) {
+                query = ""
+                filtered = SoundSetting.allSounds
+            }
+            val index = filtered.indexOf(value).coerceAtLeast(0)
+            scroll.set(((index - 3) * ITEM_H).coerceAtLeast(0f), instant = true)
+            search.focusEnd()
+        }
+
+        private fun searchRect() = Rect(x + pad, y + pad, width - pad * 2f, 20f)
+        private fun listY() = y + pad + 24f
+        private fun listH() = height - pad * 2f - 24f
+
+        override fun drawContent(ctx: GuiGraphicsExtractor, mx: Float, my: Float) {
+            val sr = searchRect()
+            UI.rect(ctx, sr.x, sr.y, sr.w, sr.h, 6f, Palette.input)
+            UI.outline(ctx, sr.x, sr.y, sr.w, sr.h, 6f, if (search.listening) Palette.accentBorder else Palette.outline)
+            UI.icon(ctx, Icon.SEARCH, sr.x + 6f, sr.y + 5f, 10f, Palette.textMuted)
+            search.x = sr.x
+            search.y = sr.y
+            search.width = sr.w
+            search.height = sr.h
+            search.opacity = UI.alpha
+            if (query.isEmpty() && !search.listening) UI.textMid(ctx, "Search sounds…", sr.x + 20f, sr.y + sr.h / 2f, Palette.textMuted, VALUE_SIZE)
+            else search.draw(ctx, mx, my)
+
+            val ly = listY()
+            val lh = listH()
+            scroll.update(x + width - 2f, ly, lh, filtered.size * ITEM_H, my)
+            if (filtered.isEmpty()) {
+                UI.textMidCentered(ctx, "No sounds found", x + width / 2f, ly + lh / 2f, Palette.textMuted, VALUE_SIZE)
+                return
+            }
+            ctx.enableScissor(x.toInt(), ly.toInt(), (x + width).toInt(), (ly + lh).toInt())
+            val first = (scroll.offset / ITEM_H).toInt().coerceAtLeast(0)
+            val last = ((scroll.offset + lh) / ITEM_H).toInt().coerceAtMost(filtered.lastIndex)
+            for (i in first..last) {
+                val sound = filtered[i]
+                val iy = ly + i * ITEM_H - scroll.offset
+                val hot = UI.inside(mx, my, x + 4f, iy, width - 8f, ITEM_H) && my >= ly && my < ly + lh
+                val selected = sound == value
+                if (hot) UI.rect(ctx, x + 4f, iy + 0.5f, width - 12f, ITEM_H - 1f, 4.5f, Palette.accentPill)
+                val color = if (selected) Palette.accentText else if (hot) Palette.textPrimary else Palette.textSecondary
+                val label = cfg.prettyName(sound) ?: sound.location.path
+                UI.textMid(ctx, UIFont.trim(label, width - 34f, VALUE_SIZE), x + 10f, iy + ITEM_H / 2f, color, VALUE_SIZE, if (selected) UIFont.Weight.SEMIBOLD else UIFont.Weight.REGULAR)
+                if (selected) UI.icon(ctx, Icon.CHECK, x + width - 22f, iy + (ITEM_H - 8f) / 2f, 8f, Palette.accentText)
+            }
+            ctx.disableScissor()
+            scroll.draw(ctx, mx, my)
+        }
+
+        override fun mouseClicked(mx: Float, my: Float, button: Int): Boolean {
+            if (search.mouseClicked(mx, my, MouseButtonEvent(mx.toDouble(), my.toDouble(), MouseButtonInfo(button, 0)))) return true
+            if (button != InputConstants.MOUSE_BUTTON_LEFT) return true
+            if (scroll.mouseClicked(mx, my)) return true
+            val ly = listY()
+            if (my < ly || my >= ly + listH()) return true
+            val index = ((my - ly + scroll.offset) / ITEM_H).toInt()
+            if (index in filtered.indices) {
+                value = SoundSetting.getSound(filtered[index].location())?.value() ?: filtered[index]
+                Style.playClickSound(1f)
+                Popovers.close()
+            }
             return true
         }
 
-        if (expanded) {
-            val event = MouseButtonEvent(mouseX, mouseY, MouseButtonInfo(button, 0))
-            if (searchHandler.mouseClicked(mouseX.toFloat(), mouseY.toFloat(), event)) return true
-
-            val listY = y + 20 + searchHeight
-            if (mouseX >= x && mouseX <= x + width && mouseY >= listY && mouseY <= listY + listMaxHeight) {
-                val relativeY = (mouseY - listY) + scrollOffset
-                val index = (relativeY / entryHeight).toInt()
-
-                if (index in filteredSounds.indices) {
-                    val sound = filteredSounds[index]
-                    if (button == InputConstants.MOUSE_BUTTON_LEFT) {
-                        value = SoundSetting.getSound(sound.location()) !!.value()
-                        Style.playClickSound(1f)
-                        expanded = false
-                    }
-                    return true
-                }
-            }
+        override fun mouseReleased(button: Int) {
+            search.mouseReleased()
+            scroll.mouseReleased()
         }
 
-        if (expanded && ! isMouseOver(mouseX, mouseY)) {
-            expanded = false
-        }
-
-        return false
-    }
-
-    override fun mouseScrolled(mouseX: Int, mouseY: Int, delta: Double): Boolean {
-        if (! expanded) return false
-        if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
-            scrollOffset -= (delta * 15).toFloat()
+        override fun mouseScrolled(mx: Float, my: Float, delta: Double): Boolean {
+            scroll.scroll(delta)
             return true
         }
-        return false
+
+        override fun keyPressed(event: KeyEvent): Boolean {
+            if (event.key == InputConstants.KEY_ESCAPE) return false
+            return search.keyPressed(event)
+        }
+
+        override fun charTyped(event: CharacterEvent) = search.keyTyped(event)
+
+        override fun onClose() = search.resetState()
     }
 
-    override fun charTyped(codePoint: Char): Boolean {
-        if (! expanded) return false
-        val event = CharacterEvent(codePoint.code)
-        return searchHandler.keyTyped(event)
-    }
-
-    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
-        if (! expanded) return false
-        val event = KeyEvent(keyCode, scanCode, modifiers)
-        return searchHandler.keyPressed(event)
-    }
-
-    override fun mouseReleased(button: Int) {
-        searchHandler.mouseReleased()
-    }
-
-    private fun updateFilter() {
-        filteredSounds = if (searchQuery.isBlank()) SoundSetting.allSounds
-        else SoundSetting.allSounds.filter { cfg.prettyName(it) !!.contains(searchQuery, ignoreCase = true) }
-        scrollOffset = 0f
-    }
-
-    private fun isMouseOver(mx: Double, my: Double): Boolean {
-        return mx >= x && mx <= x + width && my >= y && my <= y + height
+    private companion object {
+        const val ITEM_H = 16f
     }
 }

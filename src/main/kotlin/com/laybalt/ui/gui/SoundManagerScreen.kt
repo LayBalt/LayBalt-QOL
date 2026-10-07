@@ -2,7 +2,7 @@ package com.laybalt.ui.gui
 
 import com.laybalt.LayBaltQOL.mc
 import com.laybalt.features.impl.misc.sound.SoundManager
-import com.laybalt.ui.clickgui.ClickGuiScreen
+import com.laybalt.ui.clickgui.LayBaltScreen
 import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.ui.utils.Animation
 import com.laybalt.ui.utils.Resolution
@@ -342,7 +342,7 @@ class SoundManagerScreen: Screen(Component.literal("SoundManager")) {
         return super.charTyped(e)
     }
 
-    override fun onClose() = GuiUtils.setScreen(ClickGuiScreen())
+    override fun onClose() = GuiUtils.setScreen(LayBaltScreen())
 
     private enum class SoundCategory {
         All, Recent, Blocks, HostileMobs, NeutralMobs, Music, Ambient, Items, UI, Misc;

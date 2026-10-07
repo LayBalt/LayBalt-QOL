@@ -1,80 +1,87 @@
 package com.laybalt.ui.clickgui.components.settings.impl
 
-import com.mojang.blaze3d.platform.InputConstants
-
 import com.laybalt.config.types.MultiCheckboxSetting
+import com.laybalt.ui.Palette
+import com.laybalt.ui.clickgui.UI
+import com.laybalt.ui.clickgui.components.Rect
 import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.ui.clickgui.components.settings.Widget
-import com.laybalt.ui.utils.Animation
-import com.laybalt.utils.render.Render2D.drawRect
-import com.laybalt.utils.render.Render2D.drawString
-import com.laybalt.utils.render.Render2D.scissor
+import com.laybalt.ui.render.Icon
+import com.laybalt.ui.text.UIFont
+import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import com.laybalt.ui.Palette
 
+/** Every option is a chip under the label; a click toggles it. */
 class MultiCheckboxWidget(config: MultiCheckboxSetting): Widget<MutableMap<String, Boolean>>(config) {
-    private var expanded = false
-    private val openAnim = Animation(250)
-    private val hoverAnim = Animation(200)
-
-    override val height get() = 20 + (openAnim.value * (value.size * 16)).toInt()
-
-    override fun draw(ctx: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        val isHovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + 20
-        openAnim.update(if (expanded) 1f else 0f)
-        hoverAnim.update(if (isHovered) 1f else 0f)
-
-        Style.drawBackground(ctx, x.toFloat(), y.toFloat(), width.toFloat(), 20f)
-        Style.drawHoverBar(ctx, x.toFloat(), y.toFloat(), 20f, hoverAnim.value)
-        Style.drawNudgedText(ctx, name, x + 8f, y + 6f, hoverAnim.value)
-
-        val icon = if (expanded) "-" else "+"
-        ctx.drawString(icon, x + width - 15f, y + 6f, Palette.textSecondary)
-
-        ctx.scissor(x, y, width, height)
-
-        if (expanded) {
-            var oy = y + 20f
-            ctx.drawRect(x + 4f, oy, width - 8f, (value.size * 16) * openAnim.value, Palette.bgInset)
-            value.forEach { (optionName, isEnabled) ->
-                val hov = mouseX >= x + 4 && mouseX <= x + width - 4 && mouseY >= oy && mouseY <= oy + 16
-
-                if (hov) ctx.drawRect(x + 4f, oy, width - 8f, 16f, Palette.hover)
-                if (isEnabled) ctx.drawRect(x + 4f, oy + 2f, 1.5f, 12f, Style.accentColor)
-
-                val color = if (isEnabled) Style.accentColor else if (hov) Palette.textPrimary else Palette.textSecondary
-                ctx.drawString(optionName, x + 12f, oy + 4f, color)
-
-                oy += 16
-            }
-        }
-
-        ctx.disableScissor()
+    private companion object {
+        const val CHIP_H = 16f
+        const val GAP = 4f
+        const val TEXT = 7f
     }
 
-    override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        if (mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + 20) {
-            if (button == InputConstants.MOUSE_BUTTON_LEFT) {
-                expanded = ! expanded
-                Style.playClickSound(1f)
-                return true
-            }
-        }
+    private val chipHover = HashMap<String, UI.Smooth>()
+    private var layoutWidth = -1f
+    private var layout = emptyList<Pair<String, Rect>>()
+    private var rows = 1
 
-        if (expanded) {
-            var currentOy = y + 20
-            value.keys.toList().forEach { optionKey ->
-                if (mouseX >= x && mouseX <= x + width && mouseY >= currentOy && mouseY <= currentOy + 16) {
-                    if (button == InputConstants.MOUSE_BUTTON_LEFT) {
-                        value[optionKey] = ! (value[optionKey] ?: false)
-                        Style.playClickSound(if (value[optionKey] == true) 1.1f else 0.9f)
-                        return true
-                    }
-                }
-                currentOy += 16
-            }
-        }
+    override val height get() = ROW_H + rows * (CHIP_H + GAP) + 4f
 
-        return false
+    private fun chipWidth(option: String) = UI.width(option, TEXT, UIFont.Weight.MEDIUM) + 22f
+
+    /** Chip rectangles relative to the widget's top-left, wrapped to the current width. */
+    private fun relayout() {
+        if (layoutWidth == width && layout.size == value.size) return
+        layoutWidth = width
+        val maxX = width - PAD
+        var cx = PAD
+        var cy = ROW_H - 2f
+        var count = 1
+        layout = value.keys.map { option ->
+            val w = chipWidth(option).coerceAtMost(maxX - PAD)
+            if (cx + w > maxX && cx > PAD) {
+                cx = PAD
+                cy += CHIP_H + GAP
+                count++
+            }
+            val r = Rect(cx, cy, w, CHIP_H)
+            cx += w + GAP
+            option to r
+        }
+        rows = if (layout.isEmpty()) 0 else count
+    }
+
+    override fun draw(ctx: GuiGraphicsExtractor, mx: Float, my: Float) {
+        relayout()
+        drawRow(ctx, mx, my)
+        drawLabel(ctx, width - PAD * 2f - 40f)
+        val enabledCount = value.count { it.value }
+        UI.textMidRight(ctx, "$enabledCount/${value.size}", x + width - PAD, y + ROW_H / 2f, Palette.textMuted, VALUE_SIZE)
+
+        for ((option, rel) in layout) {
+            val r = Rect(x + rel.x, y + rel.y, rel.w, rel.h)
+            val on = value[option] == true
+            val hot = chipHover.getOrPut(option) { UI.Smooth() }.update(r.contains(mx, my))
+            val bg = if (on) UI.mix(Palette.accentPill, Palette.accentHover.brighterAccent(), hot) else UI.mix(Palette.chip, Palette.outline, hot)
+            UI.rect(ctx, r.x, r.y, r.w, r.h, r.h / 2f, bg)
+            UI.outline(ctx, r.x, r.y, r.w, r.h, r.h / 2f, if (on) Palette.accentBorder else UI.mix(Palette.outline, Palette.outlineHover, hot))
+            val fg = if (on) Palette.accentText else UI.mix(Palette.textSecondary, Palette.textPrimary, hot)
+            if (on) UI.icon(ctx, Icon.CHECK, r.x + 5f, r.y + (r.h - 8f) / 2f, 8f, fg)
+            else UI.circle(ctx, r.x + 9f, r.y + r.h / 2f, 2f, Palette.textMuted)
+            UI.textMid(ctx, UIFont.trim(option, r.w - 22f, TEXT, UIFont.Weight.MEDIUM), r.x + 15f, r.y + r.h / 2f, fg, TEXT, UIFont.Weight.MEDIUM)
+        }
+    }
+
+    private fun java.awt.Color.brighterAccent() = UI.mix(this, Palette.accent, 0.35f)
+
+    override fun mouseClicked(mx: Float, my: Float, button: Int): Boolean {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT || !isHovered(mx, my)) return false
+        for ((option, rel) in layout) {
+            if (!UI.inside(mx, my, x + rel.x, y + rel.y, rel.w, rel.h)) continue
+            val now = !(value[option] ?: false)
+            value[option] = now
+            Style.playClickSound(if (now) 1.1f else 0.9f)
+            return true
+        }
+        return true
     }
 }

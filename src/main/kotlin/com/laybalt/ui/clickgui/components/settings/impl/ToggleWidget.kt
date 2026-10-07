@@ -1,44 +1,27 @@
 package com.laybalt.ui.clickgui.components.settings.impl
 
-import com.mojang.blaze3d.platform.InputConstants
-
 import com.laybalt.config.types.ToggleSetting
+import com.laybalt.ui.clickgui.UI
 import com.laybalt.ui.clickgui.components.settings.Style
 import com.laybalt.ui.clickgui.components.settings.Widget
-import com.laybalt.ui.utils.Animation
-import com.laybalt.utils.ColorUtils.lerp
-import com.laybalt.utils.render.Render2D.drawRect
+import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import com.laybalt.ui.Palette
 
+/** On/off row with a switch on the right; the whole row toggles. */
 class ToggleWidget(config: ToggleSetting): Widget<Boolean>(config) {
-    private val toggleAnim = Animation(200, if (config.value) 1f else 0f)
-    private val hoverAnim = Animation(200, 0f)
+    private val knob = UI.Smooth(if (config.value) 1f else 0f, 18f)
 
-    override fun draw(ctx: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        val isHovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height
-        toggleAnim.update(if (value) 1f else 0f)
-        hoverAnim.update(if (isHovered) 1f else 0f)
-
-        Style.drawBackground(ctx, x, y, width, height)
-        Style.drawHoverBar(ctx, x, y, height, hoverAnim.value)
-        Style.drawNudgedText(ctx, name, x + 8f, y + 6f, hoverAnim.value)
-
-        val sw = 18f
-        val sh = 6f
-        val sx = x + width - sw - 10f
-        val sy = y + (height / 2f) - (sh / 2f)
-        ctx.drawRect(sx, sy, sw, sh, Palette.toggleOff.lerp(Palette.accentSoft, toggleAnim.value))
-        val tx = sx + (toggleAnim.value * (sw - 8f))
-        ctx.drawRect(tx, sy - 1f, 8f, 8f, Palette.knobOff.lerp(Style.accentColor, toggleAnim.value))
+    override fun draw(ctx: GuiGraphicsExtractor, mx: Float, my: Float) {
+        drawRow(ctx, mx, my)
+        drawLabel(ctx, width - PAD * 2f - UI.SWITCH_W - 8f)
+        knob.update(value)
+        UI.switch(ctx, x + width - PAD - UI.SWITCH_W, y + (ROW_H - UI.SWITCH_H) / 2f, knob.value, hover.value)
     }
 
-    override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        if (button == InputConstants.MOUSE_BUTTON_LEFT && mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
-            value = ! value
-            Style.playClickSound(1f)
-            return true
-        }
-        return false
+    override fun mouseClicked(mx: Float, my: Float, button: Int): Boolean {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT || !isHovered(mx, my)) return false
+        value = !value
+        Style.playClickSound(if (value) 1.1f else 0.9f)
+        return true
     }
 }

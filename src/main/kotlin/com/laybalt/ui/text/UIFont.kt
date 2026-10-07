@@ -81,6 +81,12 @@ object UIFont: ISelfInit {
     private var broken = false
     private var lastScale = 2f
 
+    /**
+     * Transient zoom of the pose (e.g. a window scaling in from 0.96). Glyphs are rasterised for the pose scale divided
+     * by this factor, so an open/close animation reuses the final font instead of building one per animation frame.
+     */
+    @JvmStatic var transientScale = 1f
+
     override fun init() {
         ClientTickEvents.END_CLIENT_TICK.register { evictIdle() }
     }
@@ -95,7 +101,7 @@ object UIFont: ISelfInit {
     fun draw(ctx: GuiGraphicsExtractor, text: String, x: Number, y: Number, color: Color, size: Float = DEFAULT_SIZE, weight: Weight = Weight.REGULAR, shadow: Boolean = false) {
         if (text.isEmpty() || color.alpha <= 3) return
         val pose = ctx.pose()
-        val scale = physicalScale(pose)
+        val scale = physicalScale(pose) / transientScale.coerceIn(0.5f, 2f)
         lastScale = scale
         val variant = variant(size, weight, scale)
 

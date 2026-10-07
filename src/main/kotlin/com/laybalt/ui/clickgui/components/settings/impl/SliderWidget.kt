@@ -2,114 +2,148 @@ package com.laybalt.ui.clickgui.components.settings.impl
 
 import com.laybalt.LayBaltQOL.mc
 import com.laybalt.config.types.SliderSetting
-import com.laybalt.ui.clickgui.components.settings.Style
+import com.laybalt.ui.Palette
+import com.laybalt.ui.clickgui.UI
+import com.laybalt.ui.clickgui.components.Rect
 import com.laybalt.ui.clickgui.components.settings.Widget
-import com.laybalt.ui.utils.Animation
-import com.laybalt.utils.render.Render2D.drawString
-import com.laybalt.utils.render.RenderHelper.width
+import com.laybalt.ui.text.UIFont
 import com.mojang.blaze3d.platform.InputConstants
 import net.minecraft.client.gui.GuiGraphicsExtractor
-import com.laybalt.ui.Palette
-import kotlin.math.abs
+import net.minecraft.client.input.CharacterEvent
+import net.minecraft.client.input.KeyEvent
 
+/** Rounded track with a round knob; the value chip on the right can be clicked to type an exact value. */
 class SliderWidget<T: Number>(config: SliderSetting<T>): Widget<T>(config) {
     private inline val cfg get() = config as SliderSetting<T>
 
+    override val height get() = 38f
+
     private var dragging = false
-    private var isTyping = false
+    private var typingValue = false
         set(value) {
             if (field == value) return
             field = value
             mc.textInputManager().onTextInputFocusChange(value)
         }
-    private var inputBuffer = ""
+    private var buffer = ""
+    /** The current value is shown selected until the first keystroke replaces it. */
+    private var replaceOnType = false
 
-    private val hoverAnim = Animation(200)
-    private val sliderAnim = Animation(250, cfg.getPercent(config.value))
+    private val fill = UI.Smooth(cfg.getPercent(config.value), 20f)
+    private val knobHover = UI.Smooth()
 
-    override fun draw(ctx: GuiGraphicsExtractor, mouseX: Int, mouseY: Int) {
-        val isHovered = mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height
-        val target = cfg.getPercent(value)
+    override val typing get() = typingValue
 
-        if (dragging && ! isTyping) {
-            val pct = ((mouseX - (x + 8.0)) / (width - 16.0)).coerceIn(0.0, 1.0)
-            val range = cfg.max.toDouble() - cfg.min.toDouble()
-            val rawValue = cfg.min.toDouble() + (range * pct)
-            value = cfg.snapToStep(rawValue)
+    private fun trackX() = x + PAD + 2f
+    private fun trackW() = width - PAD * 2f - 4f
+    private fun trackY() = y + 28f
 
-            if (abs(sliderAnim.value - target) < 0.05f) sliderAnim.set(target)
+    private fun chip(): Rect {
+        val text = if (typingValue) buffer else cfg.stringfy(value) + cfg.suffix
+        val w = (UI.width(text, VALUE_SIZE, UIFont.Weight.MEDIUM) + 12f).coerceAtLeast(if (typingValue) 40f else 24f)
+        return Rect(x + width - PAD - w, y + 6f, w, 15f)
+    }
+
+    override fun draw(ctx: GuiGraphicsExtractor, mx: Float, my: Float) {
+        if (dragging && !typingValue) {
+            val pct = ((mx - trackX()) / trackW()).coerceIn(0f, 1f)
+            value = cfg.snapToStep(cfg.min.toDouble() + (cfg.max.toDouble() - cfg.min.toDouble()) * pct)
+        }
+        val target = cfg.getPercent(value).coerceIn(0f, 1f)
+        if (dragging) fill.snap(target) else fill.update(target)
+
+        drawRow(ctx, mx, my, active = dragging || typingValue)
+        val chip = chip()
+        UI.textMid(ctx, UIFont.trim(name, chip.x - x - PAD - 6f, LABEL_SIZE, UIFont.Weight.MEDIUM), x + PAD, y + 13.5f, Palette.textPrimary, LABEL_SIZE, UIFont.Weight.MEDIUM)
+
+        // value chip
+        val chipHot = typingValue || chip.contains(mx, my)
+        UI.rect(ctx, chip.x, chip.y, chip.w, chip.h, 4.5f, if (typingValue) Palette.input else if (chipHot) Palette.chip else UI.fade(Palette.chip, 0.6f))
+        if (typingValue) UI.outline(ctx, chip.x, chip.y, chip.w, chip.h, 4.5f, Palette.accentBorder)
+        val text = if (typingValue) buffer else cfg.stringfy(value) + cfg.suffix
+        val textW = UI.width(text, VALUE_SIZE, UIFont.Weight.MEDIUM)
+        val tx = chip.x + (chip.w - textW) / 2f
+        UI.textMid(ctx, text, tx, chip.y + chip.h / 2f, if (typingValue) Palette.textPrimary else Palette.accentText, VALUE_SIZE, UIFont.Weight.MEDIUM)
+        if (typingValue && replaceOnType && buffer.isNotEmpty()) {
+            val capH = UIFont.capHeight(VALUE_SIZE)
+            UI.rect(ctx, tx - 1f, chip.y + (chip.h - capH * 1.9f) / 2f, textW + 2f, capH * 1.9f, 1.5f, UI.fade(Palette.accent, 0.45f))
+        }
+        else if (typingValue && (System.currentTimeMillis() / 530) % 2 == 0L) {
+            val capH = UIFont.capHeight(VALUE_SIZE)
+            UI.rect(ctx, tx + textW + 0.5f, chip.y + (chip.h - capH * 1.6f) / 2f, 0.9f, capH * 1.6f, 0f, Palette.accent)
         }
 
-        hoverAnim.update(if (isHovered || dragging || isTyping) 1f else 0f)
-        sliderAnim.update(target)
-
-        Style.drawBackground(ctx, x, y, width, 20f)
-        Style.drawHoverBar(ctx, x, y, 20f, hoverAnim.value)
-        Style.drawNudgedText(ctx, name, x + 8f, y + 2f, hoverAnim.value)
-
-        val valStr = if (isTyping) inputBuffer else cfg.stringfy(value) + cfg.suffix
-        val textColor = if (isTyping) Style.accentColor else Palette.textSecondary
-        ctx.drawString(valStr, x + width - valStr.width() - 8f, y + 2f, textColor)
-
-        Style.drawSlider(ctx, x + 8f, y + 14f, width - 16f, sliderAnim.value, Style.accentColor)
+        // track
+        val tX = trackX()
+        val tW = trackW()
+        val tY = trackY()
+        UI.rect(ctx, tX, tY - 2f, tW, 4f, 2f, Palette.input)
+        val fx = tW * fill.value
+        if (fx > 0.5f) UI.rect(ctx, tX, tY - 2f, fx.coerceAtLeast(4f), 4f, 2f, Palette.accent)
+        val kx = tX + fx
+        val kHot = knobHover.update(dragging || UI.inside(mx, my, kx - 7f, tY - 7f, 14f, 14f))
+        val r = 4.5f + kHot * 1f
+        if (kHot > 0.01f) UI.circle(ctx, kx, tY, r + 3f, UI.fade(Palette.accent, 0.22f * kHot))
+        UI.shadow(ctx, kx - r, tY - r, r * 2f, r * 2f, r, 2f, Palette.shadowSoft, offsetY = 0.6f)
+        UI.circle(ctx, kx, tY, r, Palette.switchKnob)
+        UI.circle(ctx, kx, tY, r * 0.42f, Palette.accent)
     }
 
     override fun clearFocus() {
-        isTyping = false
+        typingValue = false
     }
 
-    override fun mouseClicked(mouseX: Double, mouseY: Double, button: Int): Boolean {
-        if (button == InputConstants.MOUSE_BUTTON_LEFT && mouseX >= x && mouseX <= x + width && mouseY >= y && mouseY <= y + height) {
-            val valStrWidth = cfg.stringfy(value).width()
-            val textX = x + width - valStrWidth - 8f
-
-            if (mouseX >= textX && mouseY <= y + 12f) {
-                isTyping = true
-                inputBuffer = cfg.stringfy(value)
-                dragging = false
+    override fun mouseClicked(mx: Float, my: Float, button: Int): Boolean {
+        if (button != InputConstants.MOUSE_BUTTON_LEFT || !isHovered(mx, my)) {
+            if (typingValue) commit()
+            return false
+        }
+        if (chip().contains(mx, my)) {
+            if (!typingValue) {
+                typingValue = true
+                buffer = cfg.stringfy(value)
+                replaceOnType = true
             }
-            else {
-                isTyping = false
-                dragging = true
-            }
+            dragging = false
             return true
         }
-        isTyping = false
-        return false
+        if (typingValue) commit()
+        if (my >= y + 18f) dragging = true
+        return true
+    }
+
+    private fun commit() {
+        buffer.toDoubleOrNull()?.let { value = cfg.snapToStep(it) }
+        typingValue = false
     }
 
     override fun mouseReleased(button: Int) {
         dragging = false
     }
 
-    override fun keyPressed(keyCode: Int, scanCode: Int, modifiers: Int): Boolean {
-        if (isTyping) {
-            when (keyCode) {
-                InputConstants.KEY_RETURN -> {
-                    val parsed = inputBuffer.toDoubleOrNull()
-                    if (parsed != null) {
-                        value = cfg.snapToStep(parsed)
-                    }
-                    isTyping = false
-                }
-
-                InputConstants.KEY_ESCAPE -> isTyping = false
-                InputConstants.KEY_BACKSPACE -> {
-                    if (inputBuffer.isNotEmpty()) inputBuffer = inputBuffer.dropLast(1)
-                }
+    override fun keyPressed(event: KeyEvent): Boolean {
+        if (!typingValue) return false
+        when (event.key) {
+            InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER -> commit()
+            InputConstants.KEY_ESCAPE -> typingValue = false
+            InputConstants.KEY_BACKSPACE -> {
+                buffer = if (replaceOnType) "" else buffer.dropLast(1)
+                replaceOnType = false
             }
-            return true
+            InputConstants.KEY_LEFT, InputConstants.KEY_RIGHT, InputConstants.KEY_HOME, InputConstants.KEY_END -> replaceOnType = false
         }
-        return false
+        return true
     }
 
-    override fun charTyped(codePoint: Char): Boolean {
-        if (isTyping) {
-            if (codePoint.isDigit() || codePoint == '.' || codePoint == '-') {
-                inputBuffer += codePoint
-            }
-            return true
+    override fun charTyped(event: CharacterEvent): Boolean {
+        if (!typingValue) return false
+        val c = event.codepoint.toChar()
+        val replacing = replaceOnType
+        replaceOnType = false
+        if ((c.isDigit() || c == '.' || c == '-') && (replacing || buffer.length < 16)) {
+            if (replacing) buffer = ""
+            buffer += c
         }
-        return false
+        return true
     }
 }
