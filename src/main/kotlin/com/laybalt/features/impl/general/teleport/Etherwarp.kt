@@ -130,7 +130,7 @@ object Etherwarp: Feature("Etherwarp overlay and sound.") {
             val heldItem = player.mainHandItem.takeUnless { it.isEmpty } ?: return@register
             if (! mc.options.keyShift.isDown && heldItem.skyblockId != "ETHERWARP_CONDUIT") return@register
             val distance = EtherwarpHelper.getEtherwarpDistance(heldItem) ?: return@register
-            val (succeeded, pos) = EtherwarpHelper.getEtherPos(player.position(), player.lookAngle, distance)
+            val (succeeded, pos) = EtherwarpHelper.getEtherPos(startPosition(), player.lookAngle, distance)
             if (! succeeded || pos == null) return@register
 
             val x = pos.x + 0.5

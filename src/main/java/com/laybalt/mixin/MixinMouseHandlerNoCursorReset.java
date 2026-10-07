@@ -1,3 +1,4 @@
+// Adapted from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.mixin;
 
 import com.laybalt.features.impl.misc.NoCursorReset;

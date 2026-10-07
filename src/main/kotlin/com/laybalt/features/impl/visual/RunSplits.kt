@@ -44,6 +44,9 @@ object RunSplits: Feature("A Splits HUD for Dungeons (and Kuudra), with personal
 
     private var score300Timer: DualTime? = null
     private var runEndHandled = false
+    // The "☠ Defeated" line is only printed for cleared runs; failed runs get the summary header only.
+    private var defeatedSeen = false
+    private var endedTicks = 0
     private val recorded = mutableSetOf<String>()
     private val finished = mutableListOf<Pair<String, Double>>()
     private var currentSplit: Pair<String, DualTime>? = null
@@ -100,6 +103,8 @@ object RunSplits: Feature("A Splits HUD for Dungeons (and Kuudra), with personal
             currentFloorSplits.clear()
             score300Timer = null
             runEndHandled = false
+            defeatedSeen = false
+            endedTicks = 0
             recorded.clear()
             finished.clear()
             currentSplit = null
@@ -112,7 +117,8 @@ object RunSplits: Feature("A Splits HUD for Dungeons (and Kuudra), with personal
         register<TickEvent.Start> {
             if (! LocationUtils.inDungeon) return@register
             if (DungeonListener.dungeonEnded) {
-                if (! runEndHandled && DungeonListener.dungeonStarted) onRunEnd()
+                // Wait for the "☠ Defeated" line (or 3 s for failed runs) so Total is only saved for cleared runs.
+                if (! runEndHandled && DungeonListener.dungeonStarted && (defeatedSeen || ++ endedTicks >= 60)) onRunEnd()
                 return@register
             }
 
@@ -204,6 +210,7 @@ object RunSplits: Feature("A Splits HUD for Dungeons (and Kuudra), with personal
             if (! LocationUtils.inDungeon) return@register
 
             val msg = event.unformattedText.trim()
+            if (DungeonListener.dungeonStarted && runEndRegex.matches(msg)) defeatedSeen = true
             val floor = LocationUtils.dungeonFloor ?: return@register
             val currentSplits = floorSplits[floor] ?: floorSplits[floor.replace("M", "F")] ?: return@register
 
@@ -264,7 +271,7 @@ object RunSplits: Feature("A Splits HUD for Dungeons (and Kuudra), with personal
         runEndHandled = true
         val start = DungeonListener.dungeonStartTime ?: return
         val end = DualTime(DungeonListener.dungeonEndTime ?: DungeonListener.currentTime)
-        record("Total", end - start)
+        if (defeatedSeen) record("Total", end - start)
         if (splitMessages.value && finished.isNotEmpty()) {
             ChatUtils.modMessage("§6Run splits §7(§e${dungeonGroup()}§7):")
             finished.forEach { (name, seconds) -> ChatUtils.chat("  §6$name §7took §6${seconds.toFixed(2)}s") }

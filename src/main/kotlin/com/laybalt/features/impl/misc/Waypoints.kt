@@ -88,7 +88,10 @@ object Waypoints: Feature("Renders temporary waypoints from coordinates posted i
         val color: Color,
         val duration: Long,
         val timeAdded: Long = System.currentTimeMillis()
-    )
+    ) {
+        /** Set once the player has been out of reach, so a waypoint made where you stand is not removed at once. */
+        @Volatile var armed: Boolean = false
+    }
 
     private val temporaryWaypoints = CopyOnWriteArrayList<Waypoint>()
 
@@ -110,8 +113,11 @@ object Waypoints: Feature("Renders temporary waypoints from coordinates posted i
             val now = System.currentTimeMillis()
             val player = mc.player
             temporaryWaypoints.removeAll {
-                now > it.timeAdded + it.duration
-                    || (removeWhenReached.value && player != null && player.blockPosition().closerThan(it.blockPos, reachDistance.value.toDouble()))
+                if (now > it.timeAdded + it.duration) return@removeAll true
+                if (! removeWhenReached.value || player == null) return@removeAll false
+                val inReach = player.blockPosition().closerThan(it.blockPos, reachDistance.value.toDouble())
+                if (! inReach) it.armed = true
+                inReach && it.armed
             }
             for (waypoint in temporaryWaypoints) event.ctx.drawWaypoint(waypoint, now)
         }

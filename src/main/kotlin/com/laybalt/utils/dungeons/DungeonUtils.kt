@@ -1,6 +1,7 @@
 package com.laybalt.utils.dungeons
 
 import com.laybalt.LayBaltQOL.mc
+import com.laybalt.features.impl.dungeon.ScoreCalculator
 import com.laybalt.init.NetworkLoop.electionData
 import com.laybalt.utils.equalsOneOf
 import com.laybalt.utils.network.data.ElectionData
@@ -27,6 +28,7 @@ object DungeonUtils {
     }
 
     fun isPaul(): Boolean {
+        if (ScoreCalculator.forcePaul.value) return true
         val mayorPerks = mutableListOf<ElectionData.Perk>()
         electionData.mayor.perks.let(mayorPerks::addAll)
         electionData.minister?.perk?.let(mayorPerks::add)

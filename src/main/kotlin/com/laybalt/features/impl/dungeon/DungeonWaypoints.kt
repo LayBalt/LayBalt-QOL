@@ -1,3 +1,4 @@
+// Odin waypoint pack import (importOdin, odinWaypoint, odinSelectedPacks, decodeOdinString) ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.dungeon
 
 import com.laybalt.commands.CommandBuilder
@@ -30,16 +31,26 @@ import java.util.zip.GZIPInputStream
 
 object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while looking at a block"), ICommandProvider {
     private val secretWaypoints by ToggleSetting("Secret Waypoints").section("Secret Waypoints")
+        .withDescription("Highlights every secret (chest, item, bat, essence, redstone key) of the room you are in until it is collected")
     private val mode by DropdownSetting("Mode", 0, listOf("Fill", "Outline", "Filled Outline"))
+        .withDescription("How secret highlights are drawn: a filled box, an outline, or both")
     private val phase by ToggleSetting("See Through Walls", true)
+        .withDescription("Draws secret highlights through blocks")
     private val opacity by SliderSetting("Opacity", 40, 0, 100, 1).hideIf { mode.value == 1 }
+        .withDescription("Opacity of the filled box, in percent")
     private val lineWidth by SliderSetting("Line Width", 1.5f, 1f, 10f, 0.1f).hideIf { mode.value == 0 }
+        .withDescription("Thickness of the outline")
 
     private val chestColor by ColorSetting("Chest Color", Color.MAGENTA, false).section("Colors")
+        .withDescription("Highlight colour for secret chests")
     private val itemColor by ColorSetting("Item Color", Utils.favoriteColor, false)
+        .withDescription("Highlight colour for secret items lying on the ground")
     private val batColor by ColorSetting("Bat Color", Color.GREEN, false)
+        .withDescription("Highlight colour for secret bat spawn spots")
     private val essenceColor by ColorSetting("Essence Color", Color.BLACK, false)
+        .withDescription("Highlight colour for wither essence skulls")
     private val keyColor by ColorSetting("Redstone Key Color", Color.RED, false)
+        .withDescription("Highlight colour for the redstone key")
 
     private val importOdinButton by ButtonSetting("Import Odin Waypoints") { importOdin(null) }.section("Odin Import")
         .withDescription("Adds the waypoints of the packs selected in Odin (config/odin/dungeon-waypoints) to these waypoints, keeping existing ones. Same as /lbq dwp importodin")
@@ -254,11 +265,22 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
         val packsDir = File(odinDir, "dungeon-waypoints")
         val packs = packsDir.listFiles { file -> file.extension == "json" }?.associateBy { it.nameWithoutExtension }.orEmpty()
         val fromClipboard = source.equals("clipboard", true)
+        val clipboard = if (fromClipboard) mc.keyboardHandler.clipboard.trim() else ""
+        // Reading and parsing packs can take a while for large packs, so do it off the client thread.
+        ThreadUtils.async {
+            val parsed = readOdinPacks(source, fromClipboard, clipboard, odinDir, packsDir, packs)
+            mc.execute { parsed?.let(::applyOdinImport) }
+        }
+    }
 
+    /** Reads and parses the chosen Odin packs (any thread). Returns null after printing an error. */
+    private fun readOdinPacks(
+        source: String?, fromClipboard: Boolean, clipboard: String, odinDir: File, packsDir: File, packs: Map<String, File>
+    ): Pair<List<String>, List<Pair<String, DungeonWaypoint>>>? {
         val inputs: List<Pair<String, String>> = when {
-            fromClipboard -> listOf("clipboard" to decodeOdinString(mc.keyboardHandler.clipboard.trim()).orEmpty())
+            fromClipboard -> listOf("clipboard" to decodeOdinString(clipboard).orEmpty())
             source != null && ! source.equals("all", true) -> {
-                val file = packs[source] ?: return ChatUtils.modMessage("§cNo Odin waypoint pack \"$source\" in ${packsDir.path}")
+                val file = packs[source] ?: return null.also { ChatUtils.modMessage("§cNo Odin waypoint pack \"$source\" in ${packsDir.path}") }
                 listOf(source to file.readText())
             }
 
@@ -272,13 +294,10 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
             }
         }
         if (inputs.isEmpty() || inputs.all { it.second.isBlank() }) {
-            return ChatUtils.modMessage("§cNo Odin dungeon waypoints found (looked in ${if (fromClipboard) "the clipboard" else packsDir.path}).")
+            return null.also { ChatUtils.modMessage("§cNo Odin dungeon waypoints found (looked in ${if (fromClipboard) "the clipboard" else packsDir.path}).") }
         }
 
-        var added = 0
-        var skipped = 0
-        val rooms = mutableSetOf<String>()
-        val data = storage.get()
+        val waypoints = mutableListOf<Pair<String, DungeonWaypoint>>()
         for ((name, text) in inputs) {
             val parsed = runCatching { JsonParser.parseString(text).asJsonObject }.getOrNull()
             if (parsed == null) {
@@ -289,21 +308,34 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
                 if (! list.isJsonArray) continue
                 for (element in list.asJsonArray) {
                     val waypoint = runCatching { odinWaypoint(element.asJsonObject) }.getOrNull() ?: continue
-                    val set = data.getOrPut(room) { mutableSetOf() }
-                    if (set.any { it.pos == waypoint.pos }) {
-                        skipped ++
-                        continue
-                    }
-                    set.add(waypoint)
-                    rooms.add(room)
-                    added ++
+                    waypoints.add(room to waypoint)
                 }
             }
+        }
+        return inputs.map { it.first } to waypoints
+    }
+
+    /** Merges parsed Odin waypoints into the stored ones (client thread). */
+    private fun applyOdinImport(result: Pair<List<String>, List<Pair<String, DungeonWaypoint>>>) {
+        val (sources, waypoints) = result
+        var added = 0
+        var skipped = 0
+        val rooms = mutableSetOf<String>()
+        val data = storage.get()
+        for ((room, waypoint) in waypoints) {
+            val set = data.getOrPut(room) { mutableSetOf() }
+            if (set.any { it.pos == waypoint.pos }) {
+                skipped ++
+                continue
+            }
+            set.add(waypoint)
+            rooms.add(room)
+            added ++
         }
         storage.save()
         refreshLoadedRooms(rooms)
         val existed = if (skipped > 0) " §7($skipped already existed)" else ""
-        ChatUtils.modMessage("§aImported §b$added§a Odin waypoints in §b${rooms.size}§a rooms from ${inputs.joinToString { it.first }}$existed.")
+        ChatUtils.modMessage("§aImported §b$added§a Odin waypoints in §b${rooms.size}§a rooms from ${sources.joinToString()}$existed.")
     }
 
     private fun odinWaypoint(obj: JsonObject): DungeonWaypoint {
