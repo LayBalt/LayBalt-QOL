@@ -1,6 +1,9 @@
+// Ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.floor7.dragons
 
 import com.laybalt.LayBaltQOL.mc
+import com.laybalt.config.PersonalBest
+import com.laybalt.utils.NumbersUtils.toFixed
 import com.laybalt.utils.ChatUtils.modMessage
 import com.laybalt.utils.MathUtils.aabb
 import com.laybalt.utils.MathUtils.vec
@@ -51,11 +54,15 @@ enum class WitherDragonEnum(
         sprayedTime = null
         arrowsHit = 0
         offScoreboardTicks = 0
+
+        if (WitherDragons.enabled && WitherDragons.sendSpawned.value)
+            modMessage("&${colorCode}${name} &fdragon spawned &8(&7${timesSpawned}&8)")
     }
 
-    fun setDead(silent: Boolean = false) {
+    fun setDead(silent: Boolean = false, accurate: Boolean = true) {
         if (state == WitherDragonState.DEAD) return
 
+        if (state == WitherDragonState.ALIVE) WitherDragons.lastDragonDeath = this
         state = WitherDragonState.DEAD
         timeToSpawn = 100
         entityId = null
@@ -63,7 +70,19 @@ enum class WitherDragonEnum(
 
         if (WitherDragons.enabled && ! silent) {
             val stats = mutableListOf<String>()
-            if (WitherDragons.sendTime.value) stats.add("&7Time: &6${(DungeonListener.currentTime - spawnedTime) / 20.0}s")
+            if (WitherDragons.sendTime.value) {
+                val aliveSeconds = (DungeonListener.currentTime - spawnedTime) / 20.0
+                val pbText = if (! accurate) "" else {
+                    val key = "M7_dragon_$name"
+                    val oldPB = PersonalBest.getPB(key)?.toDouble()
+                    when {
+                        PersonalBest.checkAndSetPB(key, aliveSeconds) -> " &d&l(PB)"
+                        oldPB != null -> " &8(&7${oldPB.toFixed(2)}s&8)"
+                        else -> ""
+                    }
+                }
+                stats.add("&7Time: &6${aliveSeconds}s$pbText")
+            }
             if (WitherDragons.sendArrowHit.value && this == WitherDragons.priorityDragon) stats.add("&fArrows: &6$arrowsHit")
             if (WitherDragons.sendSpray.value && sprayedTime != null) stats.add("&bSprayed: &c${sprayedTime}t")
             if (stats.isNotEmpty()) modMessage("&${colorCode}${name}: &f${stats.joinToString(" &7| ")}")
