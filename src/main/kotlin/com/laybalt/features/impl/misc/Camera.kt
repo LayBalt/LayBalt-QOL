@@ -1,5 +1,6 @@
 // Restored from NoammAddons (com.github.noamm9.features.impl.misc.Camera); camera-distance range widened to match
-// OdinClient's CameraHelper (https://github.com/skies-starred/OdinClient), BSD-3-Clause, Copyright (c) 2026 Starred
+// OdinClient's CameraHelper (https://github.com/skies-starred/OdinClient), BSD-3-Clause, Copyright (c) 2026 Starred.
+// Smooth Zoom re-implemented after ThunderHack-Recode's NoCameraClip.
 package com.laybalt.features.impl.misc
 
 import com.laybalt.LayBaltQOL
@@ -9,22 +10,24 @@ import com.laybalt.event.impl.GameStartEvent
 import com.laybalt.event.impl.MainThreadPacketReceivedEvent
 import com.laybalt.features.Feature
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket
+import kotlin.math.exp
 
 //#if LEGIT
 //$import java.util.*
 //#endif
 
+/**
+ * Camera distance / clip / smooth zoom / front camera, screen overlays and effects.
+ * Brightness and field of view are owned by Render > Fullbright and Render > FOV.
+ *
+ * @see com.laybalt.mixin.MixinCamera (camera distance + camera clip)
+ * @see com.laybalt.mixin.MixinOptions (front camera)
+ */
 object Camera: Feature(
-    description = "Tweaks to the vanilla camera: full bright, custom FOV and distance, camera clip and hiding screen overlays and effects.",
+    description = "Tweaks to the vanilla camera: camera distance, smooth zoom, camera clip, no front camera and hiding screen overlays and effects. Brightness and FOV are in Render > Fullbright / FOV.",
     name = "Camera Helper",
     jsonName = "Camera"
 ) {
-    @JvmField var flashFullFright = false
-
-    @JvmStatic val fullBright by ToggleSetting("Full Bright").withDescription("Renders the world at full brightness regardless of the light level.").onChange {
-        flashFullFright = true
-    }
-
     @JvmStatic val noFrontCamera by ToggleSetting("Disable Front Camera").withDescription("Removes the front camera perspective.").section("Camera")
     //#if CHEAT
     @JvmStatic val noCameraClip by ToggleSetting("Camera Clip").withDescription("Allows your camera to clip in walls.").showIf { LayBaltQOL.isCheat }
@@ -35,6 +38,7 @@ object Camera: Feature(
     //$@JvmStatic val customCameraDistance by ToggleSetting("Custom Camera Distance", false).hideIf { true }.jsonName(UUID.randomUUID().toString())
     //$@JvmStatic val cameraDistance by SliderSetting("Camera Distance", 4, 1, 12, 0.1).hideIf { true }.jsonName(UUID.randomUUID().toString())
     //#endif
+    private val smoothZoom by ToggleSetting("Smooth Zoom").withDescription("Slides the camera out from your head to its distance when you enter third person.")
     private val doubleSneakFix by ToggleSetting("Double Sneak Fix").withDescription("Prevents the server from setting your sneak state")
     @JvmStatic val inputFix by ToggleSetting("Riding Input Delay Fix").withDescription("Fixes high mouse input delay when riding an entity. (MC-206540)")
 
@@ -46,8 +50,12 @@ object Camera: Feature(
     @JvmStatic val disableBlindness by ToggleSetting("Disable Blindness").withDescription("Disables the Blindness effect.").section("Hide Effects")
     @JvmStatic val disableNausea by ToggleSetting("Disable Nausea").withDescription("Disables the Nausea effect")
 
-    @JvmStatic val customFOV by ToggleSetting("Custom FOV").withDescription("Overrides the field of view with the value below (works together with zoom mods).").section("Custom FOV")
-    @JvmStatic val customFOVSlider by SliderSetting("FOV", 110, 30, 179, 1).withDescription("The field of view used when Custom FOV is enabled.").hideIf { ! customFOV.value }
+    private const val ZOOM_SPEED = 10f
+    /** A gap longer than this between two camera updates means the camera was in first person in between. */
+    private const val RESET_GAP_SECONDS = 0.3f
+
+    private var animatedDistance = 1f
+    private var lastUpdateNanos = 0L
 
     override fun init() {
         //#if LEGIT
@@ -63,5 +71,31 @@ object Camera: Feature(
             if (player.id != packet.id) return@register
             packet.packedItems.removeIf { it.id == 6 }
         }
+    }
+
+    /**
+     * Third-person camera distance for this frame (the argument of Camera.getMaxZoom). Only called while the
+     * camera is detached; [vanilla] is the scaled CAMERA_DISTANCE attribute.
+     */
+    @JvmStatic
+    fun thirdPersonDistance(vanilla: Float): Float {
+        if (! enabled) return vanilla
+        //#if CHEAT
+        val target = if (customCameraDistance.value) cameraDistance.value.toFloat() else vanilla
+        //#else
+        //$val target = vanilla
+        //#endif
+        if (! smoothZoom.value) return target
+
+        val now = System.nanoTime()
+        var delta = (now - lastUpdateNanos) / 1_000_000_000f
+        if (lastUpdateNanos == 0L || delta > RESET_GAP_SECONDS) {
+            animatedDistance = 1f
+            delta = 0f
+        }
+        lastUpdateNanos = now
+
+        animatedDistance += (target - animatedDistance) * (1f - exp(- ZOOM_SPEED * delta))
+        return animatedDistance
     }
 }

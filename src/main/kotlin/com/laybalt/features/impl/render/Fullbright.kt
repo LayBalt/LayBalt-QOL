@@ -10,7 +10,7 @@ import com.laybalt.features.Feature
  *
  * @see com.laybalt.mixin.MixinLightmapFullbright
  */
-object Fullbright: Feature("Brightens dark areas by raising the minimum light level of the world. At 1.0 everything is fully lit. Do not combine with the Full Bright option of Camera Helper.") {
+object Fullbright: Feature("Brightens dark areas by raising the minimum light level of the world. At 1.0 everything is fully lit.") {
     @JvmStatic val minBrightness by SliderSetting("Min Brightness", 0.5f, 0f, 1f, 0.05f)
         .withDescription("The lowest brightness any block can have. 0 keeps vanilla darkness, 1 makes every block fully lit")
 

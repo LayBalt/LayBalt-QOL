@@ -100,22 +100,21 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **Run Splits** - A Splits HUD for Dungeons.
 - **Spring Boots** - Shows the spring boots charge progress on screen.
 
-#### Render (23)
+#### Render (22)
 
 - **Aspect Ratio** - Stretches or squeezes the world view by forcing a custom aspect ratio. The HUD is not affected.
 - **Block ESP** - Highlights the block types you choose (ores, spawners, ...) around you. Pick blocks with /blockesp add <id>.
 - **Bread Crumbs** - Draws the path you have walked as a line that follows your feet.
 - **Custom ESP** - Outlines entities. Press the add key while looking at a mob to add or remove it.
 - **Damage Tint** - Tints the screen red when your health is low; the lower your health, the stronger the tint.
-- **FOV** - Sets your field of view beyond the vanilla limits and lets the held item use its own field of view. Do not combine with the Custom FOV option of Camera Helper.
-- **Fullbright** - Brightens dark areas by raising the minimum light level of the world. At 1.0 everything is fully lit. Do not combine with the Full Bright option of Camera Helper.
+- **FOV** - Sets your field of view beyond the vanilla limits and lets the held item use its own field of view.
+- **Fullbright** - Brightens dark areas by raising the minimum light level of the world. At 1.0 everything is fully lit.
 - **Hit Bubbles** - Draws an expanding, spinning and fading bubble at the spot where you hit an entity.
 - **Hit Particles** - Spawns decorative particles around players while they are hurt, or floating damage and heal numbers above entities whose health changes.
 - **Item ESP** - Shows the name of every dropped item and marks it with a box on screen or a ring on the ground.
 - **Jump Circle** - Draws a spinning, expanding circle on the ground where a player jumps.
 - **Kill Effect** - Plays an effect when a nearby player (or mob) dies: a floating cross with a sound, falling lava drops or a lightning bolt.
 - **No Bob** - Removes the side-to-side sway and tilt of the view while walking, keeping an optional small vertical bounce.
-- **No Camera Clip** - Lets the third-person camera pass through blocks and sets how far it sits from you. Do not combine with the camera clip, distance and front-camera options of Camera Helper.
 - **No Glow** - Disables the vanilla Minecraft glow effect (Spectral arrows, Glowing effect, server-side glowing). Glow added by LayBalt features such as ESP keeps working.
 - **No Render** - Hides visual clutter: chosen entities, particles, HUD elements, the hurt camera shake, fog (including lava fog), weather and more.
 - **Skeleton** - Draws the skeleton (head, spine, arms and legs) of players as lines that follow their animation.
@@ -133,7 +132,7 @@ Grouped by click GUI category (<code>/lbq</code>). Features marked <i>WIP</i> ar
 - **Auto Blaze Dagger** - Automatically swaps to the correct dagger for blaze!.
 - **Auto Sprint** - Automatically sprint for you.
 - **Blaze Dagger HUD** - Blaze Slayer Dagger Attunement Helper.
-- **Camera Helper** - Tweaks to the vanilla camera: full bright, custom FOV and distance, camera clip and hiding screen overlays and effects.
+- **Camera Helper** - Tweaks to the vanilla camera: camera distance, Smooth Zoom, camera clip, no front camera and hiding screen overlays and effects. Brightness and FOV are in Render > Fullbright / FOV.
 - **Ghosts** - Rendering tweaks for the invisible ghost creepers in the Dwarven Mines (The Mist).
 - **Nametag Tweaks** - Nametag tweaks: show your own nametag, hide the background, add a text shadow and more.
 - **No Item Place** - Stops you from placing skull blocks/items.

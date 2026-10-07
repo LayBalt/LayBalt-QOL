@@ -28,7 +28,7 @@ LayBaltQOL contains code and ideas from the projects listed below. This file lis
 - Projects: [Skyblocker](https://github.com/SkyblockerMod/Skyblocker) and [ThunderHack-Recode](https://github.com/Pan4ur/ThunderHack-Recode)
 - No code, assets or data from these projects is included. The features below were re-implemented for LayBaltQOL from descriptions of how the original features behave, without copying code.
   - After Skyblocker: Salvage Overlay and Chest Profit (Croesus) helpers, Sellable Items Highlighter, Star Mob ESP highlight options, Secret Waypoints.
-  - After ThunderHack-Recode: the Render category (Aspect Ratio, Block ESP, Bread Crumbs, Damage Tint, FOV, Fullbright, Hit Bubbles, Hit Particles, Item ESP, Jump Circle, Kill Effect, No Bob, No Camera Clip, No Render, Skeleton, Sound ESP, Storage ESP, Tracers, Trails, World Tweaks) and extra options in Animations and Nametag Tweaks.
+  - After ThunderHack-Recode: the Render category (Aspect Ratio, Block ESP, Bread Crumbs, Damage Tint, FOV, Fullbright, Hit Bubbles, Hit Particles, Item ESP, Jump Circle, Kill Effect, No Bob, No Render, Skeleton, Sound ESP, Storage ESP, Tracers, Trails, World Tweaks), Smooth Zoom (in Camera Helper) and extra options in Animations and Nametag Tweaks.
 
 ---
 
