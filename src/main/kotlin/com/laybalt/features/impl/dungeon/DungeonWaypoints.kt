@@ -15,10 +15,17 @@ import com.laybalt.utils.dungeons.map.core.UniqueRoom
 import com.laybalt.utils.dungeons.map.utils.ScanUtils
 import com.laybalt.utils.location.LocationUtils
 import com.laybalt.utils.render.world.Render3D.renderBlock
+import com.mojang.brigadier.arguments.StringArgumentType
 import net.minecraft.core.BlockPos
 import net.minecraft.world.level.block.Blocks
 import java.awt.Color
 import java.util.concurrent.*
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import net.fabricmc.loader.api.FabricLoader
+import java.io.File
+import java.util.Base64
+import java.util.zip.GZIPInputStream
 
 
 object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while looking at a block"), ICommandProvider {
@@ -33,6 +40,9 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
     private val batColor by ColorSetting("Bat Color", Color.GREEN, false)
     private val essenceColor by ColorSetting("Essence Color", Color.BLACK, false)
     private val keyColor by ColorSetting("Redstone Key Color", Color.RED, false)
+
+    private val importOdinButton by ButtonSetting("Import Odin Waypoints") { importOdin(null) }.section("Odin Import")
+        .withDescription("Adds the waypoints of the packs selected in Odin (config/odin/dungeon-waypoints) to these waypoints, keeping existing ones. Same as /lbq dwp importodin")
 
     private val storage = PogObject("dungeonWaypoints", mutableMapOf<String, MutableSet<DungeonWaypoint>>())
     private val roomWaypoints = ConcurrentHashMap<UniqueRoom, MutableSet<DungeonWaypoint>>()
@@ -232,6 +242,111 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
         }
     }
 
+    // region Odin waypoint import
+
+    /**
+     * Odin room waypoints use the same clay-corner relative coordinates as these ones (checked for all four rotations),
+     * so positions are copied as they are. Odin's size, title and type are not used (the block's own shape is drawn).
+     * [source]: null = Odin's selected packs (all packs if none are selected), "all", "clipboard" or a pack name.
+     */
+    fun importOdin(source: String?) {
+        val odinDir = File(FabricLoader.getInstance().configDir.toFile(), "odin")
+        val packsDir = File(odinDir, "dungeon-waypoints")
+        val packs = packsDir.listFiles { file -> file.extension == "json" }?.associateBy { it.nameWithoutExtension }.orEmpty()
+        val fromClipboard = source.equals("clipboard", true)
+
+        val inputs: List<Pair<String, String>> = when {
+            fromClipboard -> listOf("clipboard" to decodeOdinString(mc.keyboardHandler.clipboard.trim()).orEmpty())
+            source != null && ! source.equals("all", true) -> {
+                val file = packs[source] ?: return ChatUtils.modMessage("§cNo Odin waypoint pack \"$source\" in ${packsDir.path}")
+                listOf(source to file.readText())
+            }
+
+            else -> {
+                val selected = if (source == null) odinSelectedPacks(odinDir).filter { it in packs } else emptyList()
+                val chosen = selected.ifEmpty { packs.keys.sorted() }.mapNotNull { name -> packs[name]?.let { name to it.readText() } }
+                chosen.ifEmpty {
+                    val legacy = File(odinDir, "dungeon-waypoint-config.json")
+                    if (legacy.isFile) listOf("dungeon-waypoint-config" to legacy.readText()) else emptyList()
+                }
+            }
+        }
+        if (inputs.isEmpty() || inputs.all { it.second.isBlank() }) {
+            return ChatUtils.modMessage("§cNo Odin dungeon waypoints found (looked in ${if (fromClipboard) "the clipboard" else packsDir.path}).")
+        }
+
+        var added = 0
+        var skipped = 0
+        val rooms = mutableSetOf<String>()
+        val data = storage.get()
+        for ((name, text) in inputs) {
+            val parsed = runCatching { JsonParser.parseString(text).asJsonObject }.getOrNull()
+            if (parsed == null) {
+                ChatUtils.modMessage("§cCould not read Odin pack \"$name\".")
+                continue
+            }
+            for ((room, list) in parsed.entrySet()) {
+                if (! list.isJsonArray) continue
+                for (element in list.asJsonArray) {
+                    val waypoint = runCatching { odinWaypoint(element.asJsonObject) }.getOrNull() ?: continue
+                    val set = data.getOrPut(room) { mutableSetOf() }
+                    if (set.any { it.pos == waypoint.pos }) {
+                        skipped ++
+                        continue
+                    }
+                    set.add(waypoint)
+                    rooms.add(room)
+                    added ++
+                }
+            }
+        }
+        storage.save()
+        refreshLoadedRooms(rooms)
+        val existed = if (skipped > 0) " §7($skipped already existed)" else ""
+        ChatUtils.modMessage("§aImported §b$added§a Odin waypoints in §b${rooms.size}§a rooms from ${inputs.joinToString { it.first }}$existed.")
+    }
+
+    private fun odinWaypoint(obj: JsonObject): DungeonWaypoint {
+        val pos = obj.getAsJsonObject("blockPos")?.let { BlockPos(it.get("x").asInt, it.get("y").asInt, it.get("z").asInt) }
+            ?: BlockPos(obj.get("x").asInt, obj.get("y").asInt, obj.get("z").asInt)
+        val color = obj.get("color")?.asString?.removePrefix("#")?.let { hex ->
+            Color(
+                hex.substring(0, 2).toInt(16), hex.substring(2, 4).toInt(16), hex.substring(4, 6).toInt(16),
+                if (hex.length >= 8) hex.substring(6, 8).toInt(16) else 255
+            )
+        } ?: Color.GREEN
+        val filled = obj.get("filled")?.asBoolean ?: false
+        val depth = obj.get("depth")?.asBoolean ?: false
+        return DungeonWaypoint(pos, color, filled, ! filled, ! depth)
+    }
+
+    /** Odin's "Selected Waypoint Packs" from config/odin/odin-config.json. */
+    private fun odinSelectedPacks(odinDir: File): List<String> = runCatching {
+        JsonParser.parseString(File(odinDir, "odin-config.json").readText()).asJsonArray
+            .map { it.asJsonObject }.first { it.get("name").asString == "Dungeon Waypoints" }
+            .getAsJsonObject("settings").getAsJsonArray("Selected Waypoint Packs").map { it.asString }
+    }.getOrDefault(emptyList())
+
+    /** Odin exports packs as plain JSON or as base64 of gzip-compressed JSON. */
+    private fun decodeOdinString(input: String): String? = runCatching {
+        if (input.startsWith("{")) input
+        else GZIPInputStream(Base64.getDecoder().decode(input).inputStream()).bufferedReader().use { it.readText() }
+    }.getOrNull()
+
+    /** Re-applies the stored waypoints to rooms that are already loaded (rotation found). */
+    private fun refreshLoadedRooms(names: Set<String>) {
+        for (room in roomWaypoints.keys.toList()) {
+            if (room.name !in names) continue
+            val corner = room.clayPos ?: continue
+            val rotation = room.rotation ?: continue
+            roomWaypoints[room] = storage.get()[room.name].orEmpty()
+                .map { it.copy(pos = ScanUtils.getRealCoord(it.pos, corner, 360 - rotation)) }
+                .toCollection(ConcurrentHashMap.newKeySet())
+        }
+    }
+
+    // endregion
+
     private fun SecretType.color() = when (this) {
         SecretType.REDSTONE_KEY -> keyColor
         SecretType.WITHER_ESSENCE -> essenceColor
@@ -244,4 +359,23 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
     private fun RoomInfo.waypoints() = run { roomWaypoints[room ?: return@run bossWaypoints] }
     data class DungeonWaypoint(val pos: BlockPos, val color: Color, val filled: Boolean, val outline: Boolean, val phase: Boolean)
     private data class RoomInfo(val name: String, val corner: BlockPos, val rotation: Int, val room: UniqueRoom?)
+}
+/** `/lbq dwp importodin [all|clipboard|<pack>]`: imports Odin dungeon waypoint packs into Dungeon Waypoints. */
+object DungeonWaypointsOdinImport: ICommandProvider {
+    override fun CommandBuilder.command() {
+        setName("lbq", "laybalt")
+        literal("dwp") {
+            literal("importodin") {
+                description("Imports Odin dungeon waypoint packs: /lbq dwp importodin [all|clipboard|<pack>] (default: the packs selected in Odin)")
+                runs { DungeonWaypoints.importOdin(null) }
+                argument("source", StringArgumentType.greedyString()) {
+                    suggests {
+                        val dir = File(FabricLoader.getInstance().configDir.toFile(), "odin/dungeon-waypoints")
+                        listOf("all", "clipboard") + dir.listFiles { f -> f.extension == "json" }?.map { it.nameWithoutExtension }.orEmpty()
+                    }
+                    runs { DungeonWaypoints.importOdin(StringArgumentType.getString(it, "source").trim()) }
+                }
+            }
+        }
+    }
 }

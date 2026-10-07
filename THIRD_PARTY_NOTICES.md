@@ -17,6 +17,7 @@ LayBaltQOL contains code and ideas from the projects listed below. This file lis
   - SkyBlock: Command Keybinds, Quiver Display, loadout/pet/slot binds, Player HUD, chat commands and chat features, Gyro Helper, Spring Boots.
   - Kuudra: Kuudra utilities, supply and pearl lineups, Kuudra Tracker, Kuudra Info, Vesuvius, Supply Helper, Pearl Waypoints, No Pre, Remove Perks, Fresh Tools, Build Helper, Kuudra Misc.
   - Teleport and render options: Etherwarp (Singleplayer Etherwarp, Use Server Position, swimming eye height), Mage Beam (Depth Check, Hide Particles, Min Points), Render Optimizer (Hide Dying Armor Stands, Hide Archer Passive).
+  - Dungeon run tools: Map Info HUDs and portal highlight (in Score Calculator), Secrets Counter, Positional Messages (with /lbq posmsg), Puzzle HUD, Room Clear, Dungeon Queue, Inactive Waypoints, Extra Stats, Run Splits personal bests, Kuudra splits and current split HUD, and the Odin dungeon waypoint pack import.
 
 ## OdinClient
 

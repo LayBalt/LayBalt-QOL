@@ -2,6 +2,7 @@ package com.laybalt.utils.dungeons.map.handlers
 
 import com.laybalt.LayBaltQOL.mc
 import com.laybalt.event.EventBus
+import com.laybalt.event.impl.DungeonBonusEvent
 import com.laybalt.event.impl.DungeonEvent
 import com.laybalt.event.impl.MainThreadPacketReceivedEvent
 import com.laybalt.event.impl.WorldChangeEvent
@@ -38,10 +39,14 @@ object ScoreCalculation: ISelfInit {
     private val partyChatRegex = Regex("^party > (?:\\[[^]]+] )?(?<name>\\w+): (?<message>.+)$")
     private const val maxBats = 5
 
-    private var bloodDone = false
-    private var secretPercentage = 0.0
-    private var clearedPercentage = 0
-    private var completedRooms = 0
+    var bloodDone = false
+        private set
+    var secretPercentage = 0.0
+        private set
+    var clearedPercentage = 0
+        private set
+    var completedRooms = 0
+        private set
     private var highestScore = 0
     private val batKillers = mutableSetOf<String>()
     private var secretsScore = 0
@@ -76,6 +81,22 @@ object ScoreCalculation: ISelfInit {
     var score = 0
         private set
 
+    /** Bonus score of the last recalculation (crypts, mimic, prince, bats, Paul). */
+    var bonusScore = 0
+        private set
+
+    /** Total secrets of the run: from the tab list ("Secrets Found" count and percentage) once known, else from the room scan. */
+    val totalSecrets: Int
+        get() = if (foundSecrets == 0 || secretPercentage <= 0.0) DungeonScanner.secretCount
+        else floor(100.0 / secretPercentage * foundSecrets + 0.5).toInt()
+
+    /** Secrets needed for 300 score with full completion and speed, after bonus score and death penalty (Odin's formula). */
+    val neededSecretsAmount: Int
+        get() {
+            val required = requiredSecretPercentage[LocationUtils.dungeonFloor ?: return 0] ?: 1.0
+            return ceil(totalSecrets * required * (40 - bonusScore + (deathCount * 2 - 1).coerceAtLeast(0)) / 40.0).toInt().coerceAtLeast(0)
+        }
+
     override fun init() {
         EventBus.register<WorldChangeEvent> {
             bloodDone = false
@@ -92,6 +113,7 @@ object ScoreCalculation: ISelfInit {
             secondsElapsed = 0
             score = 0
             highestScore = 0
+            bonusScore = 0
         }
 
         EventBus.register<DungeonEvent.PlayerDeathEvent> { deathCount ++ }
@@ -153,6 +175,7 @@ object ScoreCalculation: ISelfInit {
                     if ((LocationUtils.dungeonFloorNumber ?: 0) < 6 || LocationUtils.inBoss) return@register
                     if ((packet.getEntity(mc.level !!) as? Zombie)?.isBaby != true) return@register
                     mimicKilled = true
+                    EventBus.post(DungeonBonusEvent(DungeonBonusEvent.Type.MIMIC))
                 }
 
                 is ClientboundSystemChatPacket -> {
@@ -162,6 +185,7 @@ object ScoreCalculation: ISelfInit {
                     if (! princeKilled) {
                         if (msg == "a prince falls. +1 bonus score") {
                             princeKilled = true
+                            EventBus.post(DungeonBonusEvent(DungeonBonusEvent.Type.PRINCE))
                         }
                         else if (princeMessages.any { msg.contains(it) }) {
                             princeKilled = true
@@ -171,6 +195,7 @@ object ScoreCalculation: ISelfInit {
                     if (! mimicKilled && (LocationUtils.dungeonFloorNumber ?: 0) > 5 && ! LocationUtils.inBoss) {
                         if (mimicCharmRegex.matches(msg) || msg == "charm you charmed a mimic and captured its shard.") {
                             mimicKilled = true
+                            EventBus.post(DungeonBonusEvent(DungeonBonusEvent.Type.MIMIC))
                         }
                         else if (mimicMessages.any { msg.contains(it) }) {
                             mimicKilled = true
@@ -180,6 +205,7 @@ object ScoreCalculation: ISelfInit {
                     if (msg == "a bat has been slain. +1 bonus score" && batKillers.size < maxBats) {
                         if (batKillers.add(mc.user.name.lowercase())) {
                             batKilled = true
+                            EventBus.post(DungeonBonusEvent(DungeonBonusEvent.Type.BAT))
                         }
                     }
                     else partyChatRegex.matchEntire(msg)?.let { match ->
@@ -207,6 +233,7 @@ object ScoreCalculation: ISelfInit {
         bScore += batKillers.size
         if (DungeonUtils.isPaul()) bScore += 10
         val bonusScore = bScore
+        this.bonusScore = bScore
 
         val limit = timeLimit[currentFloor] ?: 100
         val speedScore = if (secondsElapsed <= limit) 100
