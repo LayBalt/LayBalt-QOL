@@ -50,12 +50,15 @@ object ClearInfoUpdater: ISelfInit {
         coroutineScope {
             val jobs = DungeonListener.dungeonTeammates.map { teammate ->
                 async {
+                    // Only your own count can be read (/secretcount); other players' lookups have no backend.
+                    // An unknown count stays 0 and the run summary leaves the secrets part out for that player.
                     ProfileUtils.getSecrets(teammate.name).onSuccess {
                         teammate.secretsBeforeRun = it
                     }.onFailure {
                         teammate.secretsBeforeRun = 0
-                        ChatUtils.modMessage("Failed to get secrets for &b${teammate.name}&r. &cError: ${it.message}")
-                        it.printStackTrace()
+                        if (it !is ProfileUtils.StatsUnavailableException) {
+                            LayBaltQOL.logger.debug("Could not read secrets of {}: {}", teammate.name, it.message)
+                        }
                     }
                 }
             }
@@ -70,9 +73,8 @@ object ClearInfoUpdater: ISelfInit {
         val msgList = DungeonListener.dungeonTeammates.map { teammate ->
             async {
                 val before = teammate.secretsBeforeRun
-                val secretsAfterRun = if (before != 0L) ProfileUtils.getSecrets(teammate.name).getOrDefault(before) else 0L
+                val foundSecrets = if (before > 0L) ProfileUtils.getSecrets(teammate.name).getOrNull()?.let { it - before } else null
                 val playerFormatted = "${teammate.clazz.code}${teammate.name}"
-                val foundSecrets = secretsAfterRun - before
 
                 val baseComp = LayBaltQOL.PREFIX.copy().append(Component.literal(" $playerFormatted&f:&r ".addColor()))
                 val (solo, stacked) = teammate.clearedRooms
@@ -80,7 +82,7 @@ object ClearInfoUpdater: ISelfInit {
 
                 val comps = listOfNotNull(
                     getRoomsClearedComponent(solo, stacked),
-                    createComponent("&b$foundSecrets Secrets&r"),
+                    foundSecrets?.let { createComponent("&b$it Secrets&r") },
                     if (deaths.isEmpty()) null else createComponent("&c${deaths.size} ${if (deaths.size > 1) "Deaths" else "Death"}", deaths.joinToString("\n")),
                 )
 

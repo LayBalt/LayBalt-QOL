@@ -1,6 +1,6 @@
 <!-- markdownlint-disable-file MD001 MD033 -->
 <h2 align="center">LayBalt Repository</h2>
-<h2 align="center">Version 3.1.0</h2>
+<h2 align="center">Version 3.1.1</h2>
 <h4 align="center">LayBaltQOL (LBQ) is a feature-rich Fabric mod for Hypixel Skyblock on Minecraft 26.2.</h4>
 
 ---
