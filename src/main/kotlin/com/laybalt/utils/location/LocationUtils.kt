@@ -2,11 +2,8 @@ package com.laybalt.utils.location
 
 import com.laybalt.LayBaltQOL
 import com.laybalt.event.EventBus
+import com.laybalt.event.impl.*
 import com.laybalt.event.priority.EventPriority
-import com.laybalt.event.impl.DungeonEvent
-import com.laybalt.event.impl.MainThreadPacketReceivedEvent
-import com.laybalt.event.impl.PacketEvent
-import com.laybalt.event.impl.WorldChangeEvent
 import com.laybalt.features.Shortcuts
 import com.laybalt.init.types.ISelfInit
 import com.laybalt.mixin.IServerboundMovePlayerPacket
@@ -15,10 +12,7 @@ import com.laybalt.utils.MathUtils.aabb
 import com.laybalt.utils.dungeons.DungeonListener
 import com.laybalt.utils.remove
 import com.laybalt.utils.startsWithOneOf
-import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket
-import net.minecraft.network.protocol.game.ClientboundSetObjectivePacket
-import net.minecraft.network.protocol.game.ClientboundSetPlayerTeamPacket
-import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket
+import net.minecraft.network.protocol.game.*
 import kotlin.jvm.optionals.getOrNull
 
 object LocationUtils: ISelfInit, Shortcuts {
@@ -99,7 +93,7 @@ object LocationUtils: ISelfInit, Shortcuts {
         if (mc.level == null || mc.player == null) return
         inSkyblock = true
         inDungeon = true
-        dungeonFloor = "F7"
+        dungeonFloor = "M7"
         dungeonFloorNumber = 7
         F7Phase = getPhase(player.y)
         P3Section = findP3Section(player.x, player.y, player.z)

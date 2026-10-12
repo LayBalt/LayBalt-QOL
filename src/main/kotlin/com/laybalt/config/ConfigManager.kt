@@ -3,6 +3,7 @@ package com.laybalt.config
 import com.laybalt.LayBaltQOL
 import com.laybalt.features.FeatureManager
 import com.laybalt.features.impl.dev.ClickGui
+import com.laybalt.init.types.ISelfInit
 import com.laybalt.ui.Palette
 import com.laybalt.utils.*
 import com.laybalt.utils.GsonUtils.gsonArray
@@ -11,8 +12,9 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import net.fabricmc.loader.api.FabricLoader
 import java.io.File
+import java.util.concurrent.*
 
-object ConfigManager {
+object ConfigManager: ISelfInit {
     private val configRegex = Regex("^[A-Za-z0-9_-]{1,32}$")
     private val configPath = FabricLoader.getInstance().configDir.resolve(LayBaltQOL.CONFIG_DIR)
     private val configsDir = configPath.resolve("configs").toFile()
@@ -20,6 +22,17 @@ object ConfigManager {
     private val selectedConfig = PogObject<String>("currentConfig", "default")
     private var configFile = FileHandler(getConfigs()[selectedConfig.get()] ?: defaultConfigFile)
     private const val VERSION = 1
+
+    /** Set once the config was read (or there was none yet), so a failed load is never overwritten by the autosave. */
+    @Volatile private var loaded = false
+
+    /** NoammAddons 0616ab4f: settings changed outside the GUI (map/list settings) are saved every 5 minutes and on exit. */
+    override fun init() {
+        ThreadUtils.addShutdownHook { if (loaded) save() }
+        ThreadUtils.setTimeout(TimeUnit.MINUTES.toMillis(5)) {
+            ThreadUtils.loop(TimeUnit.MINUTES.toMillis(5)) { if (loaded) save() }
+        }
+    }
 
     fun getConfigs(): Map<String, File> {
         val named = configsDir.listFiles()
@@ -85,7 +98,7 @@ object ConfigManager {
     }
 
     fun load() {
-        val fileContent = configFile.read().takeUnless(String::isEmpty) ?: return
+        val fileContent = configFile.read().takeUnless(String::isEmpty) ?: return run { loaded = true }
         val root = JsonParser.parseString(fileContent).asJsonObject
         val originalVersion = root.get("version")?.asInt ?: 0
 
@@ -98,6 +111,7 @@ object ConfigManager {
         }
 
         read(migrated)
+        loaded = true
     }
 
     fun save() = configFile.write(GsonUtils.gson.toJson(gsonObject {

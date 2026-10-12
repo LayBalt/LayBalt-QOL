@@ -118,7 +118,8 @@ class SettingsPanel {
         for (widget in created) {
             val section = widget.config.section
             if (section != null && section != lastSection) {
-                val members = created.dropWhile { it !== widget }.takeWhile { it.config.section == section }
+                // only the first setting of a section carries its name (NoammAddons 78a35771): members run until the next named section
+                val members = created.dropWhile { it !== widget }.takeWhile { it === widget || it.config.section == null }
                 val sectionVisible = { members.any { it.config.visibility() } }
                 if (isNotEmpty()) add(SeparatorWidget().also { it.config.visibility = sectionVisible })
                 add(CategoryWidget(section).also { it.config.visibility = sectionVisible })
