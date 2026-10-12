@@ -1,6 +1,5 @@
 package com.laybalt.ui.gui
 
-import com.laybalt.LayBaltQOL.mc
 import com.laybalt.features.impl.general.CommandShortcuts
 import com.laybalt.ui.Palette
 import com.laybalt.ui.clickgui.LayBaltScreen
@@ -14,8 +13,6 @@ import com.laybalt.ui.text.UIFont
 import com.laybalt.ui.utils.TextInputHandler
 import com.mojang.blaze3d.platform.InputConstants
 import com.mojang.blaze3d.platform.cursor.CursorTypes
-import com.mojang.brigadier.CommandDispatcher
-import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.client.gui.GuiGraphicsExtractor
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.input.CharacterEvent
@@ -316,7 +313,6 @@ class CommandShortcutsScreen(private val parent: Screen? = null): LayBaltSubScre
             if (command.isNotEmpty() && replacement.isNotEmpty()) shortcuts[command] = replacement
         }
         CommandShortcuts.shortcuts.set(shortcuts)
-        @Suppress("UNCHECKED_CAST")
-        (mc.connection?.commands as? CommandDispatcher<FabricClientCommandSource>)?.let(CommandShortcuts::build)
+        CommandShortcuts.rebuild()
     }
 }

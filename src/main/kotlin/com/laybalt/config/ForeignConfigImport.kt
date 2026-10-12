@@ -141,7 +141,7 @@ internal object NoammAddonsFileImport {
 
     private val sameName = setOf(
         "config.json", "currentConfig.json", "personal_bests.json", "commandShortcuts.json", "customHiders.json",
-        "dungeonWaypoints.json", "party_command_blacklist.json", "petCache.json", "mojang_cache.json",
+        "dungeonWaypoints.json", "party_command_blacklist.json", "petsCache.json", "mojang_cache.json",
         "item_protection.json"
     )
     private val renamed = mapOf("noammaddons_sounds.json" to "lbqmod_sounds.json")
@@ -672,10 +672,12 @@ object ForeignConfigImport: ICommandProvider {
         odin("Waypoints", "Waypoints") {
             skip(NO_EQUIVALENT, "Ping Waypoint", "Ping Keybind", "Send Pinged Location", "Ping Waypoint Time", "Ping Distance")
         }
+        // Odin 0.3.6 renamed the chat-coordinate module to "Temporary Waypoints" and reused "Waypoints" for saved waypoints.
+        odin("Temporary Waypoints", "Waypoints")
         odin("No Cursor Reset", "No Cursor Reset")
         odin("Hide Players", "Hide Players")
         odin("Player Size", "Player Size") {
-            skip("Odin dev-size data lives on Odin's server and is not used", "Dev Size", "Show Hidden", "Passcode", "Send Dev Data")
+            skip("Odin dev-size data lives on Odin's server and is not used", "Dev Size", "Use Client Size", "Show Hidden", "Passcode", "Send Dev Data")
         }
         odin("Splits", "Run Splits") {
             alias("Current Split HUD", "Current Split HUD")
@@ -955,7 +957,8 @@ object ForeignConfigImport: ICommandProvider {
             if (feature == null) report.line("  - $name: skipped (not part of LayBaltQOL; ignored by the loader)")
             else {
                 kept ++
-                val unknown = obj.getAsJsonObject("configSettings")?.keySet()?.filter { feature.getSettingByName(it) == null }.orEmpty()
+                if (feature === SlotBinding) importNaSlotBindings(obj.getAsJsonObject("configSettings"), report)
+                val unknown = obj.getAsJsonObject("configSettings")?.keySet()?.filter { feature.getSettingByName(it) == null && ! isNaSlotBindingsKey(feature, it) }.orEmpty()
                 report.line("  + $name (${if (on) "on" else "off"}${if (feature.wip) ", WIP: stays off" else ""})" +
                     if (unknown.isEmpty()) "" else "; settings not in LayBaltQOL, ignored: ${unknown.joinToString()}")
             }
@@ -1022,7 +1025,8 @@ object ForeignConfigImport: ICommandProvider {
             else -> report.line("    = ${feature.name} already ${if (on) "on" else "off"}")
         }
         val ctx = Ctx(Module(Source.NA, feature.jsonName, on, settings), feature, null, report, emptySet(), exact = true)
-        for ((key, value) in settings.entrySet()) set(ctx, key, key, value)
+        if (feature === SlotBinding) importNaSlotBindings(settings, report)
+        for ((key, value) in settings.entrySet()) if (! isNaSlotBindingsKey(feature, key)) set(ctx, key, key, value)
         for (hud in feature.hudElements) {
             val saved = huds[hud.name] ?: continue
             runCatching {
@@ -1046,7 +1050,8 @@ object ForeignConfigImport: ICommandProvider {
             report.line("  [NoammAddons] $name (${if (module.enabled) "on" else "off"})")
             val ctx = Ctx(module, feature, null, report, emptySet())
             applyEnabled(ctx, true)
-            for ((key, value) in module.settings.entrySet()) set(ctx, key, key, value)
+            if (feature === SlotBinding) importNaSlotBindings(module.settings, report)
+            for ((key, value) in module.settings.entrySet()) if (! isNaSlotBindingsKey(feature, key)) set(ctx, key, key, value)
             count ++
         }
 
@@ -1062,6 +1067,21 @@ object ForeignConfigImport: ICommandProvider {
         }
         return count
     }
+
+    /**
+     * NoammAddons 26.2 (commit 0616ab4f / 68d7d7ee) moved its slot binds from `slotbindings.json` into the Slot Binding
+     * feature's config as a map setting named "bindings" (inventory slot -> hotbar slot). LayBaltQOL keeps its own
+     * per-profile files, so that map is merged into Profile 1 instead of being loaded as a setting.
+     */
+    private fun isNaSlotBindingsKey(feature: Feature, key: String) = feature === SlotBinding && key == NA_SLOT_BINDINGS_KEY
+
+    private fun importNaSlotBindings(settings: JsonObject?, report: Report) {
+        val binds = settings?.get(NA_SLOT_BINDINGS_KEY)?.takeIf { it.isJsonObject }?.asJsonObject ?: return
+        val pairs = binds.entrySet().mapNotNull { (k, v) -> k.toIntOrNull()?.let { slot -> runCatching { slot to v.asInt }.getOrNull() } }.toMap()
+        report.line("    + slot binds from NoammAddons' config (Profile 1): ${SlotBinding.importBinds(0, pairs)} added (existing binds kept)")
+    }
+
+    private const val NA_SLOT_BINDINGS_KEY = "bindings"
 
     // endregion
 
@@ -1120,8 +1140,17 @@ object ForeignConfigImport: ICommandProvider {
             readModules(file, source, report)?.let(modules::addAll)
         }
 
+        // Odin 0.3.6+: "Waypoints" is the new saved-waypoints module (no LayBaltQOL equivalent); the chat-coordinate
+        // module LayBaltQOL's Waypoints comes from is "Temporary Waypoints" there.
+        val newOdinWaypoints = modules.any { it.source == Source.ODIN && it.name.equals("Temporary Waypoints", true) }
+
         // Modules that were off go first, so an enabled module's values win when two modules feed the same setting.
         for (module in modules.sortedBy { it.enabled }) {
+            if (newOdinWaypoints && module.source == Source.ODIN && module.name.equals("Waypoints", true)) {
+                if (imported?.get(module.source) == null)
+                    report.line("[${module.source.label}] ${module.name} (${if (module.enabled) "on" else "off"}): skipped (Odin 0.3.6 saved waypoints, no LayBaltQOL equivalent; Temporary Waypoints is imported instead)")
+                continue
+            }
             val spec = specs.firstOrNull { it.source == module.source && it.name.equals(module.name, true) }
             val before = imported?.get(module.source)
             if (spec == null) {

@@ -26,6 +26,8 @@ object InfoDisplay: Feature("Displays the system time, clicks per second, FPS, T
     private val tpsColor by ColorSetting("TPS Color", Color(0, 114, 255), false).showIf { tpsDisplay.value }
 
     private val pingDisplay by ToggleSetting("Ping Display").section("Ping")
+    private val pingSuffix by ToggleSetting("Show ms suffix", true).withDescription("Adds \"ms\" after the ping value.").showIf { pingDisplay.value }
+    private val colorizePing by ToggleSetting("Colorize Ping").withDescription("Colours the ping value from green (low) to red (high).").showIf { pingDisplay.value }
     private val pingColor by ColorSetting("Ping Color", Color(85, 255, 85), false).showIf { pingDisplay.value }
 
     private val leftClicks = mutableListOf<Long>()
@@ -59,7 +61,16 @@ object InfoDisplay: Feature("Displays the system time, clicks per second, FPS, T
         }
 
         hudElement("PingDisplay", { pingDisplay.value }) { ctx, example ->
-            val text = "Ping: &f${if (example) 50 else ServerUtils.averagePing}ms"
+            val ping = if (example) 50 else ServerUtils.averagePing
+            val color = when {
+                ! colorizePing.value -> "&f"
+                ping < 50 -> "&a"
+                ping < 100 -> "&2"
+                ping < 150 -> "&e"
+                ping < 250 -> "&6"
+                else -> "&c"
+            }
+            val text = "Ping: $color$ping${if (pingSuffix.value) "ms" else ""}"
             ctx.drawString(text, 0, 0, pingColor.value)
             return@hudElement text.width() to 12
         }

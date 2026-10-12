@@ -2,10 +2,8 @@ package com.laybalt.utils
 
 import com.laybalt.LayBaltQOL.mc
 import com.laybalt.event.EventBus
+import com.laybalt.event.impl.*
 import com.laybalt.event.priority.EventPriority
-import com.laybalt.event.impl.PacketEvent
-import com.laybalt.event.impl.TickEvent
-import com.laybalt.event.impl.WorldChangeEvent
 import com.laybalt.init.types.ISelfInit
 import net.minecraft.network.protocol.game.ClientboundSetTimePacket
 import net.minecraft.network.protocol.ping.ClientboundPongResponsePacket
@@ -25,9 +23,6 @@ object ServerUtils: ISelfInit {
 
     override fun init() {
         EventBus.register<WorldChangeEvent>(EventPriority.HIGHEST) {
-            tps = 20f
-            currentPing = 0
-            averagePing = 0
             lastTimePacket = 0L
             isPinging = false
         }
