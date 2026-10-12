@@ -24,6 +24,9 @@ abstract class DungeonEvent: Event(false) {
     class PlayerDeathEvent(val name: String, val reason: String): DungeonEvent()
 
     class Score(val oldScore: Int, val score: Int): DungeonEvent()
+
+    /** Posted once per run, on The Watcher's first chat line (the blood room has opened). */
+    object BloodOpenEvent: DungeonEvent()
     object BossEnterEvent: DungeonEvent()
     object RunStatedEvent: DungeonEvent()
     object RunEndedEvent: DungeonEvent()
