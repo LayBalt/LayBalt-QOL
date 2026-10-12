@@ -13,7 +13,6 @@ import com.laybalt.utils.MathUtils.add
 import com.laybalt.utils.MathUtils.vec
 import com.laybalt.utils.NumbersUtils.toFixed
 import com.laybalt.utils.location.LocationUtils
-import com.laybalt.utils.ChatUtils.unformattedText
 import com.laybalt.utils.render.Render2D.drawCenteredString
 import com.laybalt.utils.render.Render2D.drawString
 import com.laybalt.utils.render.RenderHelper.width
@@ -64,27 +63,27 @@ object WitherDragons: Feature("M7 dragons timers, boxes, priority, health, and a
         .withDescription("Adds how many of your arrows hit your priority dragon during its skip window to the death message.")
     val sendSpawned by ToggleSetting("Send Dragon Spawned", true)
         .withDescription("Prints a message when a dragon spawns, with how many times that dragon has spawned.")
-    private val sendNotification by ToggleSetting("Send Dragon Confirmation", true)
-        .withDescription("When the Wither King confirms a dragon kill, prints which dragon counted.")
     val dragonTitle by ToggleSetting("Dragon Title", true)
         .withDescription("Shows a title with your priority dragon when it starts spawning.")
 
-    val dragonPriorityToggle by ToggleSetting("Dragon Priority", false).section("Dragon Priority")
-        .withDescription("Picks your priority dragon from your power, class and split settings instead of the fixed R-O-B-P-G order.")
-    val normalPower by SliderSetting("Normal Power", 0f, 0f, 32f, 0.5f).showIf { dragonPriorityToggle.value }
-        .withDescription("Power (plus 2.5 with a Time blessing) needed to split.")
-    val easyPower by SliderSetting("Easy Power", 0f, 0f, 32f, 0.5f).showIf { dragonPriorityToggle.value }
-        .withDescription("Power needed to split when Purple spawns together with another dragon.")
-    val soloDebuff by DropdownSetting("Purple Solo Debuff", 0, listOf("Tank", "Healer")).showIf { dragonPriorityToggle.value }
-        .withDescription("The class that solo debuffs Purple; the other class helps Berserk/Mage.")
-    val soloDebuffOnAll by ToggleSetting("Solo Debuff on All Splits", true).showIf { dragonPriorityToggle.value }
-        .withDescription("Uses the solo debuff rule for every split, not only splits with Purple.")
-    val paulBuff by ToggleSetting("Paul Buff", false).showIf { dragonPriorityToggle.value }
-        .withDescription("Multiplies the run's power by 1.25 (Paul's Benediction perk) before comparing it with the thresholds.")
-    val priorityMessage by ToggleSetting("Priority Message", true).showIf { dragonPriorityToggle.value }
+    // Since the dungeon update the priority dragon is the one that starts spawning first (NoammAddons a5fd05a7,
+    // Odin 1cf5805); the old power/class based priority settings were removed upstream. New json name so the old
+    // "Dragon Priority" toggle (a different rule) is not carried over (NoammAddons 4244f12e uses the same key).
+    val dragPrio by ToggleSetting("Dragon Priority", false).jsonName("drag prio").section("Dragon Priority")
+        .withDescription("Lets the Solo Priority class go for the dragon that starts spawning last, while everyone else takes the one that spawns first.")
+    val soloPriority by DropdownSetting("Solo Priority", 0, listOf("Healer", "Tank")).showIf { dragPrio.value }
+        .withDescription("The class that takes the later dragon of a split.")
+    val firstDragonOnly by ToggleSetting("First Dragon Only", true).showIf { dragPrio.value }
+        .withDescription("Only use the solo rule on the first split; afterwards everyone takes the dragon that spawns first.")
+    val priorityMessage by ToggleSetting("Priority Message", true).showIf { dragPrio.value }
         .withDescription("On a split, prints the spawning dragons and which one is your priority.")
 
-    var priorityDragon = WitherDragonEnum.None
+    /** Dragons that are spawning or alive, in the order they started spawning. */
+    val spawnOrder = mutableListOf<WitherDragonEnum>()
+    var priorityDragon: WitherDragonEnum? = null
+
+    /** Set once the "failed to get class" warning was shown; cleared on world change. */
+    var warnedClass = false
 
     private const val scoreboardGraceTicks = 40 // how long the dragon needs to be off scoreboard for it to count as dead
 
@@ -95,44 +94,27 @@ object WitherDragons: Feature("M7 dragons timers, boxes, priority, health, and a
         WitherDragonEnum.Blue to vec(84f, WitherDragonEnum.Blue.spawnPos.y, 97f)
     )
 
-    private val witherKingRegex = Regex("^\\[BOSS] Wither King: (Oh, this one hurts!|I have more of those\\.|My soul is disposable\\.)$")
-
-    /** Dragon whose death was seen last; consumed by the Wither King confirmation line. */
-    var lastDragonDeath: WitherDragonEnum? = null
-
-    /** (dragon, timesSpawned) of the last title/priority announcement, so each spawn is announced once. */
-    var lastAnnounced: Pair<WitherDragonEnum, Int>? = null
-
     override fun init() {
         hudElement(
             "Dragon Timer",
             enabled = { dragonTimer.value && timerHud.value },
-            shouldDraw = { LocationUtils.F7Phase == 5 && priorityDragon != WitherDragonEnum.None && priorityDragon.state == WitherDragonState.SPAWNING && priorityDragon.timeToSpawn > 0 }
+            shouldDraw = { LocationUtils.F7Phase == 5 && priorityDragon?.let { it.state == WitherDragonState.SPAWNING && it.timeToSpawn > 0 } == true }
         ) { ctx, example ->
-            val text = if (example) "&5P: ${getDragonTimer(90)}"
-            else "&${priorityDragon.colorCode}${priorityDragon.name.first()}: ${getDragonTimer(priorityDragon.timeToSpawn)}"
+            val dragon = priorityDragon
+            val text = if (example || dragon == null) "&5P: ${getDragonTimer(90)}"
+            else "&${dragon.colorCode}${dragon.name.first()}: ${getDragonTimer(dragon.timeToSpawn)}"
             ctx.drawString(text, 0, 0)
             return@hudElement text.width() to 9f
         }
 
         register<WorldChangeEvent> {
-            priorityDragon = WitherDragonEnum.None
             WitherDragonEnum.reset()
             smoothedVelocities.clear()
-            lastDragonDeath = null
-            lastAnnounced = null
-            DragonPriority.warnedClass = false
+            warnedClass = false
         }
 
-        register<ChatMessageEvent> {
-            if (LocationUtils.F7Phase != 5 || ! witherKingRegex.matches(event.unformattedText)) return@register
-            val dragon = lastDragonDeath ?: WitherDragonEnum.entries.find { it != WitherDragonEnum.None && it.state != WitherDragonState.DEAD }
-            dragon?.let {
-                if (sendNotification.value) ChatUtils.modMessage("&${it.colorCode}${it.name} &fdragon counts.")
-                if (it.state != WitherDragonState.DEAD) it.setDead(silent = true)
-            }
-            lastDragonDeath = null
-        }
+        // Odin 73d9134: the Wither King "dragon counts" lines were removed. Their fallback marked a still spawning
+        // dragon as dead, which reset its timer midway through now that the lines come at other times.
 
         register<MainThreadPacketReceivedEvent.Pre> {
             if (LocationUtils.F7Phase != 5) return@register
@@ -208,14 +190,15 @@ object WitherDragons: Feature("M7 dragons timers, boxes, priority, health, and a
                 }
             }
 
-            if (dragonTracers.value && priorityDragon != WitherDragonEnum.None && priorityDragon.state == WitherDragonState.SPAWNING) {
-                event.ctx.renderTracer(priorityDragon.spawnPos.add(0.5, 3.5, 0.5), priorityDragon.color, tracerThickness.value)
+            val priority = priorityDragon
+            if (dragonTracers.value && priority != null && priority.state == WitherDragonState.SPAWNING) {
+                event.ctx.renderTracer(priority.spawnPos.add(0.5, 3.5, 0.5), priority.color, tracerThickness.value)
             }
         }
 
         register<RenderOverlayEvent> {
             if (! dragonTimer.value || ! centeredTimer.value) return@register
-            priorityDragon.takeIf { it != WitherDragonEnum.None }?.let { dragon ->
+            priorityDragon?.let { dragon ->
                 if (dragon.state != WitherDragonState.SPAWNING || dragon.timeToSpawn <= 0) return@register
                 event.context.drawCenteredString(
                     "&${dragon.colorCode}${getDragonTimer(dragon.timeToSpawn)}",

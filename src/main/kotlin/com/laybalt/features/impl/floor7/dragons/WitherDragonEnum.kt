@@ -40,8 +40,7 @@ enum class WitherDragonEnum(
     Orange(vec(85, 14, 56), aabb(72, 8, 47, 102, 28, 77), '6', ChatColor.GOLD.color !!, "Flame Dragon", 82.0 .. 88.0, 53.0 .. 59.0, 62, BlockPos(80, 19, 56)),
     Green(vec(27, 14, 94), aabb(7, 8, 80, 37, 28, 110), 'a', ChatColor.GREEN.color !!, "Apex Dragon", 23.0 .. 29.0, 91.0 .. 97.0, 52, BlockPos(32, 18, 94)),
     Blue(vec(84, 14, 94), aabb(71.5, 16, 82.5, 96.5, 26, 107.5), 'b', ChatColor.AQUA.color !!, "Ice Dragon", 82.0 .. 88.0, 91.0 .. 97.0, 47, BlockPos(79, 19, 94)),
-    Purple(vec(56, 14, 125), aabb(45.5, 13, 113.5, 68.5, 23, 136.5), '5', ChatColor.DARK_PURPLE.color !!, "Soul Dragon", 53.0 .. 59.0, 122.0 .. 128.0, 38, BlockPos(56, 18, 128)),
-    None(vec(0, 0, 0), aabb(0.0, 0.0, 0.0, 0.0, 0.0, 0.0), 'f', Color.WHITE, "None", 0.0 .. 0.0, 0.0 .. 0.0, 0, BlockPos(- 1, - 1, - 1));
+    Purple(vec(56, 14, 125), aabb(45.5, 13, 113.5, 68.5, 23, 136.5), '5', ChatColor.DARK_PURPLE.color !!, "Soul Dragon", 53.0 .. 59.0, 122.0 .. 128.0, 38, BlockPos(56, 18, 128));
 
     fun setAlive(id: Int) {
         state = WitherDragonState.ALIVE
@@ -62,7 +61,6 @@ enum class WitherDragonEnum(
     fun setDead(silent: Boolean = false, accurate: Boolean = true) {
         if (state == WitherDragonState.DEAD) return
 
-        if (state == WitherDragonState.ALIVE) WitherDragons.lastDragonDeath = this
         state = WitherDragonState.DEAD
         timeToSpawn = 100
         entityId = null
@@ -88,7 +86,8 @@ enum class WitherDragonEnum(
             if (stats.isNotEmpty()) modMessage("&${colorCode}${name}: &f${stats.joinToString(" &7| ")}")
         }
 
-        if (WitherDragons.priorityDragon == this) WitherDragons.priorityDragon = None
+        WitherDragons.spawnOrder.remove(this)
+        if (WitherDragons.priorityDragon == this) WitherDragons.priorityDragon = DragonCheck.findPriority()
     }
 
     fun updateEntity(id: Int, hard: Boolean = false) {
@@ -118,6 +117,8 @@ enum class WitherDragonEnum(
                 it.offScoreboardTicks = 0
             }
             dragonSpawnCount = 0
+            WitherDragons.spawnOrder.clear()
+            WitherDragons.priorityDragon = null
         }
     }
 }

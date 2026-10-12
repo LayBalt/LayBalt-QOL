@@ -347,6 +347,7 @@ object ForeignConfigImport: ICommandProvider {
         }
         odin("King Relic", "M7 Relics") {
             alias("Relic Time", "Place Timer")
+            skip("removed upstream after the dungeon update", "Relic Spawn Ticks")
             custom("Relics") { c, v -> importPBs(c, v) { "M7_relic_${it.uppercase()}" } }
         }
         odin("Command Keybinds", "Command Keybinds")
@@ -432,11 +433,11 @@ object ForeignConfigImport: ICommandProvider {
             alias("Display Symbol", "Suffix")
             alias("Show Prefix", "Prefix")
             alias("Start timer", "Maxor Start")
-            alias("Necron Hud", "Necron Start")
+            skip("removed upstream after the dungeon update", "Necron Hud")
             alias("Goldor Hud", "Goldor Start")
             alias("Storm Pad Hud", "Storm Pad Timer")
             alias("Storm PY Hud", "Storm PY Timer")
-            alias("Secrets Hud", "Secret Tick")
+            skip("removed upstream after the dungeon update", "Secrets Hud")
             skip(NO_EQUIVALENT, "Storm Lightning Hud", "Storm Tick Hud", "Fire Freeze Hud")
         }
         odin("Chat Commands", "Party Helper") {
@@ -465,6 +466,11 @@ object ForeignConfigImport: ICommandProvider {
         odin("Wither Dragons", "Wither Dragons") {
             alias("Dragon Boxes", "Dragon Skip Box")
             alias("Target Tracer", "Dragon Tracer")
+            skip(
+                "Odin's power-based dragon priority was replaced by spawn-order priority after the dungeon update",
+                "Dragon Priority", "Normal Power", "Easy Power", "Purple Solo Debuff", "Solo Debuff on All Splits", "Paul Buff"
+            )
+            skip("removed after the dungeon update (it could reset a spawning dragon's timer)", "Send Dragon Confirmation")
             custom("DragonPBs") { c, v -> importPBs(c, v) { "M7_dragon_${it.lowercase().replaceFirstChar(Char::uppercase)}" } }
         }
         odin("Invincibility Timer", "Mask Timers") {
