@@ -133,6 +133,8 @@ fun Project.registerPreprocessTask(variantName: String): TaskProvider<Task> {
         inputs.dir("src/main/java")
         inputs.file("src/main/resources/fabric.mod.json5")
         inputs.file("src/main/resources/${findProperty("mod_id")}.mixins.json5")
+        inputs.file("gradle.properties")
+        inputs.property("version", project.version.toString())
         outputs.dir(outRoot)
         outputs.dir(resourcesOut)
 
@@ -150,6 +152,8 @@ fun Project.registerPreprocessMainTask(): TaskProvider<Task> {
 
         inputs.dir("src/main/kotlin")
         inputs.dir("src/main/java")
+        inputs.file("gradle.properties")
+        inputs.property("version", project.version.toString())
         outputs.dir(outRoot)
 
         doFirst { delete(outRoot.get().asFile) }

@@ -32,6 +32,9 @@ import net.fabricmc.loader.api.FabricLoader
 import java.io.File
 import java.util.Base64
 import java.util.zip.GZIPInputStream
+import com.laybalt.utils.network.WebUtils
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.isSuccess
 
 
 object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while looking at a block"), ICommandProvider {
@@ -60,8 +63,8 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
     private val importOdinButton by ButtonSetting("Import Odin Waypoints") { importOdin(null) }.section("Odin Import")
         .withDescription("Adds the waypoints of the packs selected in Odin (config/odin/dungeon-waypoints) to these waypoints, keeping existing ones. Same as /lbq dwp importodin")
 
-    private val defaultColor by ColorSetting("Default Color", Color.GREEN, false).section("New Waypoints")
-        .withDescription("Colour pre-selected in the editor when you add a waypoint with /ndw add. Also /lbq dwp color <RRGGBB>")
+    private val defaultColor by ColorSetting("Default Color", Color.GREEN, true).section("New Waypoints")
+        .withDescription("Colour pre-selected in the editor when you add a waypoint with /ndw add. Also /lbq dwp color <RRGGBB[AA]>")
     private val defaultFilled by ToggleSetting("Default Filled", true)
         .withDescription("New waypoints start filled. Also /lbq dwp fill")
     private val defaultSeeThrough by ToggleSetting("Default See Through Walls", true)
@@ -278,7 +281,10 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
      */
     fun importOdin(source: String?, notify: (String) -> Unit = ChatUtils::modMessage) = importOdin(source, null, notify)
 
-    /** [data]: an Odin export string (base64 gzip or plain JSON) given in the command; read like the clipboard. */
+    /**
+     * [data]: an Odin export string (base64 gzip or plain JSON) given in the command; read like the clipboard.
+     * Like Odin, an https:// link (in [data] or the clipboard) is downloaded and its text imported.
+     */
     fun importOdin(source: String?, data: String?, notify: (String) -> Unit = ChatUtils::modMessage) {
         val odinDir = File(FabricLoader.getInstance().configDir.toFile(), "odin")
         val packsDir = File(odinDir, "dungeon-waypoints")
@@ -287,18 +293,33 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
         val clipboard = data?.trim() ?: if (fromClipboard) mc.keyboardHandler.clipboard.trim() else ""
         // Reading and parsing packs can take a while for large packs, so do it off the client thread.
         ThreadUtils.async {
-            val parsed = readOdinPacks(source, fromClipboard, clipboard, odinDir, packsDir, packs, notify)
+            val link = clipboard.takeIf { fromClipboard && it.startsWith("https://") }
+            val text = if (link != null) fetchOdinString(link, notify) ?: return@async else clipboard
+            val parsed = readOdinPacks(source, fromClipboard, text, odinDir, packsDir, packs, notify, link ?: "the clipboard")
             mc.execute { parsed?.let { applyOdinImport(it, notify) } }
+        }
+    }
+
+    /** Downloads an Odin export from [url] (Odin's /dwp import <https://...>). Returns null after printing an error. */
+    private suspend fun fetchOdinString(url: String, notify: (String) -> Unit): String? {
+        val response = WebUtils.get(url).getOrElse {
+            notify("§cCould not download the waypoints from $url: ${it.message}")
+            return null
+        }
+        if (! response.status.isSuccess()) return null.also { notify("§cCould not download the waypoints from $url (HTTP ${response.status.value}).") }
+        return runCatching { response.bodyAsText().trim() }.getOrElse {
+            notify("§cCould not read the waypoints from $url: ${it.message}")
+            null
         }
     }
 
     /** Reads and parses the chosen Odin packs (any thread). Returns null after printing an error. */
     private fun readOdinPacks(
         source: String?, fromClipboard: Boolean, clipboard: String, odinDir: File, packsDir: File, packs: Map<String, File>,
-        notify: (String) -> Unit,
+        notify: (String) -> Unit, clipboardLabel: String = "the clipboard",
     ): Pair<List<String>, List<Pair<String, DungeonWaypoint>>>? {
         val inputs: List<Pair<String, String>> = when {
-            fromClipboard -> listOf("clipboard" to decodeOdinString(clipboard).orEmpty())
+            fromClipboard -> listOf(clipboardLabel to decodeOdinString(clipboard).orEmpty())
             source != null && ! source.equals("all", true) -> {
                 val file = packs[source] ?: return null.also { notify("§cNo Odin waypoint pack \"$source\" in ${packsDir.path}") }
                 listOf(source to file.readText())
@@ -314,7 +335,7 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
             }
         }
         if (inputs.isEmpty() || inputs.all { it.second.isBlank() }) {
-            return null.also { notify("§cNo Odin dungeon waypoints found (looked in ${if (fromClipboard) "the clipboard" else packsDir.path}).") }
+            return null.also { notify("§cNo Odin dungeon waypoints found (looked in ${if (fromClipboard) clipboardLabel else packsDir.path}).") }
         }
 
         val waypoints = mutableListOf<Pair<String, DungeonWaypoint>>()
@@ -421,7 +442,8 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
     fun setDefaultColor(color: Color) {
         defaultColor.value = color
         ConfigManager.save()
-        ChatUtils.modMessage("§aNew waypoints now start with colour §f#%06X§a.".format(color.rgb and 0xFFFFFF))
+        val alpha = if (color.alpha < 255) "%02X".format(color.alpha) else ""
+        ChatUtils.modMessage("§aNew waypoints now start with colour §f#%06X%s§a.".format(color.rgb and 0xFFFFFF, alpha))
     }
 
     fun toggleDefaultFilled() {
@@ -504,7 +526,7 @@ object DungeonWaypointsLbqCommands: ICommandProvider {
             }
 
             literal("import") {
-                description("Imports an Odin waypoint export string, or the clipboard when none is given")
+                description("Imports an Odin waypoint export string or https:// link, or the clipboard when none is given")
                 helpUsage("import [data]")
                 runs { DungeonWaypoints.importOdin("clipboard") }
                 argument("data", StringArgumentType.greedyString()) {
@@ -518,13 +540,14 @@ object DungeonWaypointsLbqCommands: ICommandProvider {
             }
 
             literal("color") {
-                description("Colour of the next waypoint you add with /ndw add (RRGGBB, Odin's RRGGBBAA also works)")
+                description("Colour of the next waypoint you add with /ndw add (RRGGBB or RRGGBBAA)")
                 helpUsage("color <hex>")
                 argument("hex", StringArgumentType.word()) {
                     runs { ctx ->
                         val match = hexRegex.find(StringArgumentType.getString(ctx, "hex"))
                             ?: return@runs ChatUtils.modMessage("§cColor hex not properly formatted! Use RRGGBB or RRGGBBAA.")
-                        DungeonWaypoints.setDefaultColor(Color(match.groupValues[1].toInt(16)))
+                        val alpha = match.groupValues[2].ifEmpty { "FF" }.toInt(16)
+                        DungeonWaypoints.setDefaultColor(Color((alpha shl 24) or match.groupValues[1].toInt(16), true))
                     }
                 }
             }

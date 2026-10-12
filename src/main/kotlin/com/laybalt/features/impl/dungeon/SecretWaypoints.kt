@@ -938,6 +938,7 @@ object SecretWaypointsLbqImport: ICommandProvider {
                 description("Loads a secret waypoint dataset from your disk (folder, .json, .zip or .jar), same as /lsw import")
                 helpUsage("secrets <path>")
                 requires("Enable the Secret Waypoints feature to use this command.") { SecretWaypoints.enabled }
+                runs { ChatUtils.modMessage("§cUsage: /lbq import secrets <path> §7(a folder, .json, .zip or .jar on your disk)") }
                 argument("path", StringArgumentType.greedyString()) {
                     runs { SecretWaypoints.importDataset(StringArgumentType.getString(it, "path")) }
                 }

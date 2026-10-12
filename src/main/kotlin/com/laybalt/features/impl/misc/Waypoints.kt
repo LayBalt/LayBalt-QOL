@@ -194,7 +194,21 @@ object Waypoints: Feature("Renders temporary waypoints from coordinates posted i
             }
         }
 
-    private fun CommandBuilder.waypointCommand(literalName: String) = literal(literalName) {
+    /** Odin's `/odw addtemp` arguments: `<name>`, `<x> <y> <z>` or `<name> <x> <y> <z>`. */
+    private fun addTempFromArgs(args: String) {
+        val parts = args.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val coords = parts.takeLast(3).mapNotNull { it.toIntOrNull() }.takeIf { parts.size >= 3 && it.size == 3 }
+        val pos = mc.player?.blockPosition()
+        when {
+            coords != null && parts.size == 3 -> addTempWaypoint("Waypoint", coords[0], coords[1], coords[2])
+            coords != null && parts.size == 4 -> addTempWaypoint(parts[0], coords[0], coords[1], coords[2])
+            parts.size == 1 && pos != null -> addTempWaypoint(parts[0], pos.x, pos.y, pos.z)
+            else -> ChatUtils.modMessage("§cUsage: /lbq wp addtemp [name] [<x> <y> <z>]")
+        }
+    }
+
+    private fun CommandBuilder.waypointCommand(literalName: String, primary: Boolean) = literal(literalName) {
+        if (primary) helpAliases("waypoint") else hideFromHelp()
         category(com.laybalt.commands.LbqHelp.Category.WAYPOINTS)
         description("Temporary waypoints: /lbq $literalName <add|addtemp|here|share|list|clear>")
         runs { ChatUtils.modMessage("§bUsage: /lbq $literalName add [<x> <y> <z> [name]] | addtemp [name] [<x> <y> <z>] | here <name> | share [<x> <y> <z>] | list | clear") }
@@ -206,24 +220,14 @@ object Waypoints: Feature("Renders temporary waypoints from coordinates posted i
                 val pos = mc.player?.blockPosition() ?: return@runs
                 addTempWaypoint("", pos.x, pos.y, pos.z)
             }
-            xyz {
-                runs { ctx ->
-                    addTempWaypoint("Waypoint", IntegerArgumentType.getInteger(ctx, "x"), IntegerArgumentType.getInteger(ctx, "y"), IntegerArgumentType.getInteger(ctx, "z"))
+            // One greedy argument instead of separate <name> and <x> nodes: brigadier would read "5" or "1 2 3" as the
+            // start of the other branch and reject it as incomplete, so an all-digit name or bare coordinates broke.
+            argument("args", StringArgumentType.greedyString()) {
+                suggests {
+                    val pos = mc.player?.blockPosition() ?: return@suggests emptyList()
+                    listOf("${pos.x} ${pos.y} ${pos.z}")
                 }
-            }
-            argument("name", StringArgumentType.word()) {
-                runs { ctx ->
-                    val pos = mc.player?.blockPosition() ?: return@runs
-                    addTempWaypoint(StringArgumentType.getString(ctx, "name"), pos.x, pos.y, pos.z)
-                }
-                xyz {
-                    runs { ctx ->
-                        addTempWaypoint(
-                            StringArgumentType.getString(ctx, "name"),
-                            IntegerArgumentType.getInteger(ctx, "x"), IntegerArgumentType.getInteger(ctx, "y"), IntegerArgumentType.getInteger(ctx, "z")
-                        )
-                    }
-                }
+                runs { ctx -> addTempFromArgs(StringArgumentType.getString(ctx, "args")) }
             }
         }
 
@@ -282,8 +286,8 @@ object Waypoints: Feature("Renders temporary waypoints from coordinates posted i
 
     override fun CommandBuilder.command() {
         setName("lbq", "laybalt")
-        waypointCommand("waypoint")
-        waypointCommand("wp")
+        waypointCommand("wp", primary = true)
+        waypointCommand("waypoint", primary = false)
     }
 
     // endregion

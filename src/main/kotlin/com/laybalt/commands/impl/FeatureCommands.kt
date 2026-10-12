@@ -15,14 +15,14 @@ import com.mojang.brigadier.arguments.StringArgumentType
 
 /** `/lbq toggle <feature>` and `/lbq reset <feature|hud|gui>` (Odin's `/od toggle module` and `/od reset ...`). */
 object FeatureCommands: ICommandProvider {
-    /** Feature names with spaces replaced by underscores, so they fit in one command word. */
+    /** Feature names with spaces replaced by underscores for Tab completion; "Info Display" and "Info_Display" both work. */
     private fun Feature.commandName() = name.replace(' ', '_')
 
     private fun featureNames() = FeatureManager.features.map { it.commandName() }.sorted()
 
     private fun findFeature(input: String): Feature? {
-        val spaced = input.replace('_', ' ')
-        return FeatureManager.features.firstOrNull { it.commandName().equals(input, true) || it.name.equals(spaced, true) || it.jsonName.equals(spaced, true) }
+        val spaced = input.trim().replace('_', ' ')
+        return FeatureManager.features.firstOrNull { it.commandName().equals(input.trim(), true) || it.name.equals(spaced, true) || it.jsonName.equals(spaced, true) }
             ?: run {
                 ChatUtils.modMessage("§cNo feature named \"$input\". §7Press Tab after /lbq toggle for the list.")
                 null
@@ -34,9 +34,9 @@ object FeatureCommands: ICommandProvider {
 
         literal("toggle") {
             category(Category.CONFIG)
-            description("Turns a feature on or off: /lbq toggle <feature>")
+            description("Turns a feature on or off: /lbq toggle <feature> (spaces or underscores)")
             runs { ChatUtils.modMessage("§cUsage: /lbq toggle <feature>") }
-            argument("feature", StringArgumentType.word()) {
+            argument("feature", StringArgumentType.greedyString()) {
                 suggests { featureNames() }
                 runs { toggle(StringArgumentType.getString(it, "feature")) }
             }
@@ -63,7 +63,7 @@ object FeatureCommands: ICommandProvider {
 
             literal("clickgui") { runs { resetGui() } }
 
-            argument("feature", StringArgumentType.word()) {
+            argument("feature", StringArgumentType.greedyString()) {
                 suggests { featureNames() }
                 runs { resetFeature(StringArgumentType.getString(it, "feature")) }
             }

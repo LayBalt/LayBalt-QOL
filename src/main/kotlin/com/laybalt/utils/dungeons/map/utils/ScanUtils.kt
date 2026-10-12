@@ -63,12 +63,15 @@ object ScanUtils: ISelfInit, ICommandProvider, Shortcuts {
 
     override fun CommandBuilder.command() {
         setName("relative")
+        alsoUnderLbq("relative")
+        category(com.laybalt.commands.LbqHelp.Category.DUNGEONS)
+        description("Prints the room-relative coordinates of the block you are looking at")
         runs {
-            val look = PlayerUtils.getSelectionBlock() !!
-            val room = currentRoom !!
-            getRelativeCoord(look, room.clayPos !!, 360 - room.rotation !!).let {
-                ChatUtils.modMessage("relative: $it")
-            }
+            val look = PlayerUtils.getSelectionBlock() ?: return@runs ChatUtils.modMessage("§cLook at a block first.")
+            val room = currentRoom ?: return@runs ChatUtils.modMessage("§cYou are not in a scanned dungeon room.")
+            val clay = room.clayPos ?: return@runs ChatUtils.modMessage("§cThis room's rotation is not known yet.")
+            val rotation = room.rotation ?: return@runs ChatUtils.modMessage("§cThis room's rotation is not known yet.")
+            ChatUtils.modMessage("relative: ${getRelativeCoord(look, clay, 360 - rotation)}")
         }
     }
 

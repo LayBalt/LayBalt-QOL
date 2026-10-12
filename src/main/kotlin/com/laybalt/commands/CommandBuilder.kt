@@ -21,6 +21,8 @@ class CommandBuilder {
     private var helpCategory: LbqHelp.Category? = null
     private var usageText: String? = null
     private val lbqAliases = mutableListOf<String>()
+    private val helpAliasNames = mutableListOf<String>()
+    private var hiddenFromHelp = false
 
     private var argumentType: ArgumentType<*>? = null
     private var argumentName: String? = null
@@ -43,6 +45,12 @@ class CommandBuilder {
 
     /** Text shown in `/lbq help` instead of this node's own name, e.g. "f1..f7 | m1..m7". */
     fun helpUsage(text: String) = ::usageText.set(text)
+
+    /** Other names of this subcommand (e.g. "waypoint" for "wp"): shown next to it and accepted by `/lbq help <name>`. */
+    fun helpAliases(vararg names: String) = helpAliasNames.addAll(names)
+
+    /** Leaves this node and everything below it out of `/lbq help`, e.g. the second literal of an alias pair. */
+    fun hideFromHelp() = ::hiddenFromHelp.set(true)
 
     /**
      * Mounts this whole root command (children and [requires] checks included) under `/lbq <alias>` and
@@ -83,28 +91,59 @@ class CommandBuilder {
         if (! ::names.isInitialized) return emptyList()
         return buildList {
             if (names.any { it in LbqHelp.ROOTS }) children.forEach { it.collect(LbqHelp.ROOTS.first(), this, 1, helpCategory) }
-            for (alias in lbqAliases) {
+            // Several mounts of the same root (e.g. "autoclicker" and "ac") are listed once, under the first one.
+            lbqAliases.firstOrNull()?.let { alias ->
                 val path = "${LbqHelp.ROOTS.first()} $alias"
                 val description = descriptionText ?: "Same as /${names.first()}"
-                add(HelpEntry(path, description, helpCategory, 1, aliasOf = names.first()))
+                add(HelpEntry(path, description, helpCategory, 1, aliasOf = names.first(), aliases = lbqAliases.drop(1) + helpAliasNames))
                 children.forEach { it.collect(path, this, 2, helpCategory) }
             }
         }
     }
 
     /**
-     * [depth] is 0 for a root, 1 for a direct subcommand. [aliasOf] names the standalone root a `/lbq` mount points to.
+     * [depth] is 0 for a root, 1 for a direct subcommand. [aliasOf] names the standalone root a `/lbq` mount points to,
+     * [aliases] the other names of the same subcommand.
      */
-    data class HelpEntry(val usage: String, val description: String, val category: LbqHelp.Category? = null, val depth: Int = 0, val aliasOf: String? = null) {
+    data class HelpEntry(
+        val usage: String,
+        val description: String,
+        val category: LbqHelp.Category? = null,
+        val depth: Int = 0,
+        val aliasOf: String? = null,
+        val aliases: List<String> = emptyList(),
+    ) {
         /** First word after the root, e.g. "wp" for "lbq wp add <x>". */
         val top get() = usage.split(' ').getOrNull(1).orEmpty()
+
+        /**
+         * Whether `/lbq help <key>` is about this entry: its [top] word, one of its [aliases], or a name inside a
+         * range usage such as "f1..f7 | m1..m7" (f7, m3) or "t1..t5" (t5).
+         */
+        fun matches(key: String): Boolean {
+            if (top.equals(key, true) || aliases.any { it.equals(key, true) }) return true
+            if (depth != 1) return false
+            val wanted = topicRegex.matchEntire(key.lowercase()) ?: return false
+            val (prefix, number) = wanted.destructured
+            return usage.substringAfter(' ').split(" | ").any { token ->
+                val range = rangeRegex.matchEntire(token.trim().substringBefore(' ').lowercase()) ?: return@any false
+                val (from, low, to, high) = range.destructured
+                prefix == from && (to.isEmpty() || to == from) && number.toInt() in low.toInt() .. high.toInt()
+            }
+        }
+
+        private companion object {
+            val topicRegex = Regex("([a-z]+)(\\d+)")
+            val rangeRegex = Regex("([a-z]+)(\\d+)\\.\\.([a-z]*)(\\d+)")
+        }
     }
 
     private fun collect(prefix: String, out: MutableList<HelpEntry>, depth: Int, inheritedCategory: LbqHelp.Category?) {
+        if (hiddenFromHelp) return
         val segment = usageText ?: literalName ?: argumentName?.let { "<$it>" } ?: return
         val path = "$prefix $segment"
         val category = helpCategory ?: inheritedCategory
-        descriptionText?.let { out.add(HelpEntry(path, it, category, depth)) }
+        descriptionText?.let { out.add(HelpEntry(path, it, category, depth, aliases = helpAliasNames.toList())) }
         children.forEach { it.collect(path, out, depth + 1, category) }
     }
 

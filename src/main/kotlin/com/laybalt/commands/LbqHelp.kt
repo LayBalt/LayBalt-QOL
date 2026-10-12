@@ -17,7 +17,7 @@ object LbqHelp {
     enum class Category(val title: String, val key: String) {
         DUNGEONS("Dungeons & Kuudra", "dungeons"),
         SACKS("Sacks", "sacks"),
-        TERMINALS("Terminals & F7", "f7"),
+        TERMINALS("Terminals & F7", "terminals"), // not "f7": /lbq help f7 is the floor command
         WAYPOINTS("Waypoints", "waypoints"),
         PARTY("Party & Players", "party"),
         ITEMS("Items & Inventory", "items"),
@@ -28,14 +28,15 @@ object LbqHelp {
     @Volatile var entries: List<CommandBuilder.HelpEntry> = emptyList()
 
     /** Top-level subcommand names and category keys, for `/lbq help <topic>` completion. */
-    fun topics(): List<String> = (entries.map { it.top }.filter { it.isNotEmpty() && ! it.startsWith("<") && ".." !in it } + Category.entries.map { it.key }).distinct()
+    fun topics(): List<String> = (entries.flatMap { listOf(it.top) + it.aliases }.filter { it.isNotEmpty() && ! it.startsWith("<") && ".." !in it } + Category.entries.map { it.key }).distinct()
 
     fun print(topic: String?) {
         if (topic.isNullOrBlank()) return printOverview()
         val key = topic.trim().lowercase()
         Category.entries.firstOrNull { it.key == key || it.name.equals(key, true) }?.let { return printCategory(it) }
 
-        val matching = entries.filter { it.top.equals(key, true) }
+        val tops = entries.filter { it.matches(key) }.map { it.top }.toSet()
+        val matching = entries.filter { it.top in tops }
         if (matching.isEmpty()) return ChatUtils.modMessage("§cNo /lbq subcommand or help group \"$topic\". §7Groups: ${Category.entries.joinToString { it.key }}")
         ChatUtils.modMessage("§b/lbq $key §7commands:")
         matching.sortedBy { it.depth }.distinctBy { it.usage }.forEach { ChatUtils.chat(line(it)) }
@@ -69,7 +70,8 @@ object LbqHelp {
 
     private fun line(entry: CommandBuilder.HelpEntry): Component {
         val usage = "/${entry.usage}"
-        val alias = entry.aliasOf?.let { " §8(/$it)" }.orEmpty()
+        val alias = listOfNotNull(entry.aliasOf?.let { "/$it" }, entry.aliases.takeIf { it.isNotEmpty() }?.joinToString(prefix = "also ") { it })
+            .takeIf { it.isNotEmpty() }?.joinToString(prefix = " §8(", postfix = ")").orEmpty()
         val fill = usage.substringBefore(" <").substringBefore(" [").substringBefore("..").let { if (it.endsWith(' ')) it else "$it " }
         return Component.literal(" §e$usage$alias §7- ${entry.description}").withStyle {
             it.withClickEvent(ClickEvent.SuggestCommand(fill))

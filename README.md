@@ -150,6 +150,7 @@ Grouped by GUI category (<code>/lbq</code>) and generated from the feature class
 - **Maxors Crystals** - Utilities for F7 Maxor's Crystals.
 - **Melody Alert** - Tells your party when you open Melody and how far you are, and shows your teammates' Melody progress.
 - **Melody Display** - Displays the current progress someone for melody on screen.
+- **Relic Timer** - Counts server ticks from Necron's death to the relics spawning; /timer start|stop for a manual tick timer.
 - **Simon Says** - Simon Says Solver.
 - **Terminal Highlight** - Highlights the interactable hitboxes of the terminals in F7/M7.
 - **Terminal Simulator** - Practice floor 7 terminals in a local simulator. Clicking the toggle opens it; also /lbq termsim [type] [ping].
@@ -300,15 +301,17 @@ Every command is under <code>/lbq</code> (or <code>/laybalt</code>), so you neve
 #### Terminals & F7
 
 - `/lbq termsim [ping]`, `/lbq termsim <type|random> [ping]` - Terminal simulator.
+- `/lbq timer [start|stop]` (also `/timer`) - Server tick timer (Relic Timer feature): starts by itself when Necron dies and stops when the relics spawn.
 
 #### Waypoints
 
 - `/lbq wp` (or `/lbq waypoint`) `add [<x> <y> <z> [name]]`, `addtemp [name] [<x> <y> <z>]`, `here <name>`, `share [<x> <y> <z>]`, `list`, `clear` - Temporary waypoints.
 - `/lbq ndw <add|edit|remove|clear>` (also `/ndw`) - Dungeon waypoint on the block you look at.
 - `/lbq dwp importodin [all|clipboard|<pack>]` - Import Odin dungeon waypoint packs.
-- `/lbq dwp import [data]`, `/lbq dwp export` - Odin export strings: import one (or the clipboard), copy all your dungeon waypoints in Odin's format.
-- `/lbq dwp color <RRGGBB>`, `/lbq dwp fill`, `/lbq dwp depth` - Style a new `/ndw add` waypoint starts with (also in Dungeon Waypoints > New Waypoints).
+- `/lbq dwp import [data|https link]`, `/lbq dwp export` - Odin export strings: import one (a string, an https:// link or the clipboard), copy all your dungeon waypoints in Odin's format.
+- `/lbq dwp color <RRGGBB[AA]>`, `/lbq dwp fill`, `/lbq dwp depth` - Style a new `/ndw add` waypoint starts with (also in Dungeon Waypoints > New Waypoints).
 - `/lbq dwp resetsecrets` - Show every collected secret again.
+- `/lbq relative` (also `/relative`) - Room-relative coordinates of the block you look at.
 - `/lbq lsw ...` (also `/lsw`) - Secret Waypoints: `add`, `remove`, `found`, `missing`, `list`, `relpos`, `reltarget`, `import`, `unimport`, `reload`.
 
 #### Party & Players
@@ -330,7 +333,7 @@ Every command is under <code>/lbq</code> (or <code>/laybalt</code>), so you neve
 #### Config & Imports
 
 - `/lbq` - Open the LayBalt GUI. `/lbq hud` or `/lbq edithud` - HUD editor.
-- `/lbq toggle <feature>` - Turn a feature on or off (WIP features stay off).
+- `/lbq toggle <feature>` - Turn a feature on or off; `Info Display` and `Info_Display` both work (WIP features stay off).
 - `/lbq reset <feature|hud|gui>` - Reset a feature's settings, every HUD position or the GUI state.
 - `/lbq config <load|create|delete> <name>` - Config profiles.
 - `/lbq import config <na|odin|odinclient|all>` (old form `/lbq import <source>` still works) - Import settings from another mod again.
@@ -362,11 +365,11 @@ Every command is under <code>/lbq</code> (or <code>/laybalt</code>), so you neve
 | `/termsim [type] [ping]` | `/lbq termsim [type] [ping]` |
 | `/odw addtemp`, `/odw share`, `/odw clear` | `/lbq wp addtemp`, `/lbq wp share`, `/lbq wp clear` |
 | `/dwp import`, `/dwp export`, `/dwp color`, `/dwp fill`, `/dwp depth`, `/dwp resetsecrets` | `/lbq dwp import`, `export`, `color`, `fill`, `depth`, `resetsecrets` |
-| `/ndw ...`, `/pfs`, `/pcbl`, `/chathider`, `/protectitem` | `/lbq ndw ...`, `/lbq pfs`, `/lbq pcbl`, `/lbq chathider`, `/lbq protectitem` (old commands still work) |
+| `/ndw ...`, `/pfs`, `/pcbl`, `/chathider`, `/protectitem`, `/timer`, `/relative` | `/lbq ndw ...`, `/lbq pfs`, `/lbq pcbl`, `/lbq chathider`, `/lbq protectitem`, `/lbq timer`, `/lbq relative` (old commands still work) |
 | `/na config`, `/na sim`, `/na debug`, `/na ping`, `/na tps`, `/na swapmask`, `/na rodswap`, `/na swapto`, `/na leap` | same subcommand under `/lbq` |
 | `/odc sell ...`, `/odc ac ...`, `/odc highlight ...` | `/lbq sell ...`, `/lbq ac ...`, `/lbq esp ...` |
 
-Not carried over: `/na rtca`, `/na update` and `/ws` (they need NoammAddons' servers), `/odw` screen and `/odw clear area` (LayBaltQOL has no saved per-area waypoints), `/dwp type|size|useblocksize` (LayBaltQOL waypoints always outline the block itself), `/oddev`, `/odc stream` (no hidden cheat category in the LayBalt GUI), NoammAddons' dev `/timer`, `/relative` and `/test` (developer tools; `/lsw reltarget` gives relative coordinates).
+Not carried over: `/na rtca`, `/na update` and `/ws` (they need NoammAddons' servers), `/odw` screen and `/odw clear area` (LayBaltQOL has no saved per-area waypoints), `/dwp type|size|useblocksize` (LayBaltQOL waypoints always outline the block itself), `/oddev`, `/odc stream` (no hidden cheat category in the LayBalt GUI), NoammAddons' dev `/test`.
 
 ---
 
