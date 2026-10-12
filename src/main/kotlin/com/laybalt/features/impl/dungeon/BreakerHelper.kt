@@ -30,7 +30,8 @@ import net.minecraft.world.level.block.SkullBlock
 import net.minecraft.world.level.block.entity.SkullBlockEntity
 
 object BreakerHelper: Feature("Utilities for Dungeon Breaker") {
-    private val preventBreakingSecrets by ToggleSetting("Prevent Secret Mine").withDescription("Prevents you from breaking secret blocks like chests & levers.")
+    private val preventBreakingSecrets by ToggleSetting("Prevent Mine").jsonName("Prevent Secret Mine")
+        .withDescription("Prevents the Dungeon Breaker from mining blocks that cannot be broken (secrets, levers, buttons, command blocks...). Also works in the boss room, where levers and buttons stay mineable.")
     private val zeroPing by ToggleSetting("Zero Ping").withDescription("Removes the blocks you mine instantly instead of waiting for the server to remove them.")
     private val onlyWhenFatigue by ToggleSetting("Only With Mining Fatigue", true)
         .withDescription("Zero Ping only removes blocks while you have Mining Fatigue (as the Dungeon Breaker insta-mines) and while the breaker still has charges.")
@@ -47,7 +48,7 @@ object BreakerHelper: Feature("Utilities for Dungeon Breaker") {
         Blocks.TNT, Blocks.CHEST, Blocks.PLAYER_HEAD, Blocks.PLAYER_WALL_HEAD, Blocks.TRAPPED_CHEST, Blocks.END_PORTAL_FRAME,
         Blocks.END_PORTAL, Blocks.STICKY_PISTON, Blocks.PISTON_HEAD, Blocks.PISTON, Blocks.MOVING_PISTON, Blocks.LEVER,
         Blocks.STONE_BUTTON, Blocks.SKELETON_SKULL, Blocks.SKELETON_WALL_SKULL, Blocks.WITHER_SKELETON_SKULL,
-        Blocks.WITHER_SKELETON_WALL_SKULL
+        Blocks.WITHER_SKELETON_WALL_SKULL, Blocks.DISPENSER, Blocks.HOPPER, Blocks.DROPPER
     )
 
     override fun init() {
@@ -60,10 +61,10 @@ object BreakerHelper: Feature("Utilities for Dungeon Breaker") {
         register<PlayerInteractEvent.LEFT_CLICK.BLOCK> {
             if (! preventBreakingSecrets.value) return@register
             if (! LocationUtils.inDungeon) return@register
-            if (LocationUtils.inBoss) return@register
             if (event.item?.skyblockId != "DUNGEONBREAKER") return@register
             val block = WorldUtils.getBlockAt(event.pos)
             if (block !in blacklist) return@register
+            if (LocationUtils.inBoss && block.equalsOneOf(Blocks.LEVER, Blocks.STONE_BUTTON)) return@register
             if (block is SkullBlock && (level.getBlockEntity(event.pos) as? SkullBlockEntity)?.ownerProfile?.partialProfile()?.id.toString().equalsOneOf(*REDSTONE_KEY)) return@register
             event.isCanceled = true
         }

@@ -30,8 +30,9 @@ object SecretsCounter: Feature("Counts the secrets each player found and prints 
     private var snapshotDone = false
 
     override fun init() {
+        // The baseline is kept across runs (Odin f48d2cb): the end-of-run total is the next run's start value,
+        // so teammates already known are not requested from the API again.
         register<WorldChangeEvent> {
-            baseline.clear()
             snapshotDone = false
         }
 
@@ -43,7 +44,10 @@ object SecretsCounter: Feature("Counts the secrets each player found and prints 
             val players = players().ifEmpty { return@register }
             snapshotDone = true
             LayBaltQOL.scope.launch(Dispatchers.IO) {
-                for (player in players) pullSecrets(player.name).onSuccess { baseline[player.name] = it }
+                for (player in players) {
+                    if (baseline.containsKey(player.name)) continue
+                    pullSecrets(player.name).onSuccess { baseline[player.name] = it }
+                }
             }
         }
     }
@@ -53,11 +57,15 @@ object SecretsCounter: Feature("Counts the secrets each player found and prints 
 
     private fun fetchAndDisplay() {
         val players = players().ifEmpty { return }
+        baseline.keys.retainAll(players.map { it.name }.toSet())
         LayBaltQOL.scope.launch(Dispatchers.IO) {
             val delta = HashMap<String, Long?>()
             for (player in players) {
                 val before = baseline[player.name]
-                pullSecrets(player.name).onSuccess { after -> delta[player.name] = before?.let { (after - it).coerceAtLeast(0L) } }
+                pullSecrets(player.name).onSuccess { after ->
+                    delta[player.name] = before?.let { (after - it).coerceAtLeast(0L) }
+                    baseline[player.name] = after
+                }
             }
 
             players.sortedWith(compareBy<DungeonPlayer> { it.clazz.ordinal }.thenByDescending { delta[it.name] ?: - 1L }).forEach { player ->
