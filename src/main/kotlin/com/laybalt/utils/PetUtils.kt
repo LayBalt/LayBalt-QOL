@@ -289,7 +289,7 @@ object PetUtils: ISelfInit {
             if (withLevel && level != null) append("§7[Lvl $level] ")
             if (rarity != null) append(rarity.baseColor.toString())
             append(cleanName(name))
-            if (hasCustomSkin) append(" ${customSkinRarity?.baseColor.toString()}✦")
+            if (hasCustomSkin) append(" ${customSkinRarity?.baseColor?.toString().orEmpty()}✦")
         }
 
         fun matches(name: String, rarity: ItemRarity? = null, hasCustomSkin: Boolean = false): Boolean {
