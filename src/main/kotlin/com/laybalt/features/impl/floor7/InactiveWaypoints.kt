@@ -17,7 +17,6 @@ import com.laybalt.utils.render.RenderHelper.width
 import com.laybalt.utils.render.world.Render3D.renderBoxBounds
 import com.laybalt.utils.render.world.Render3D.renderString
 import net.minecraft.world.entity.decoration.ArmorStand
-import net.minecraft.world.phys.AABB
 import java.awt.Color
 
 object InactiveWaypoints: Feature("Shows inactive terminals, devices and levers in the Goldor phase of Floor 7.") {
@@ -156,7 +155,8 @@ object InactiveWaypoints: Feature("Shows inactive terminals, devices and levers 
                 val label = kind.label?.takeIf { kind.shown } ?: continue
                 val pos = stand.position()
 
-                if (box) event.ctx.renderBoxBounds(AABB(pos.x - 0.5, pos.y, pos.z - 0.5, pos.x + 0.5, pos.y + 1.0, pos.z + 0.5), c, fill = false, phase = throughWalls.value)
+                // Odin 833e053: outline the armor stand itself
+                if (box) event.ctx.renderBoxBounds(stand.boundingBox, c, fill = false, phase = throughWalls.value)
                 if (text) event.ctx.renderString(label, pos.add(0.0, 2.0, 0.0), scale = 1.5f, phase = throughWalls.value)
                 if (beacon) event.ctx.renderBoxBounds(
                     pos.x - 0.125, pos.y + 1.0, pos.z - 0.125, pos.x + 0.125, pos.y + 256.0, pos.z + 0.125,

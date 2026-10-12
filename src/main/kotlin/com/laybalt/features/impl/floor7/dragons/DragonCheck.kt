@@ -8,6 +8,7 @@ import com.laybalt.utils.ChatUtils.unformattedText
 import com.laybalt.utils.MathUtils.xzInAABB
 import com.laybalt.utils.ScoreboardUtils
 import com.laybalt.utils.dungeons.DungeonListener
+import com.laybalt.utils.dungeons.enums.DungeonClass
 import com.laybalt.utils.remove
 import gg.essential.universal.USound
 import net.minecraft.core.particles.ParticleTypes
@@ -40,50 +41,63 @@ object DragonCheck {
         if (particle.yDist != 3f) return
         if (particle.zDist != 2f) return
 
-        val dragons = mutableListOf<WitherDragonEnum>()
+        // Odin 1cf5805/73d9134 + NoammAddons a5fd05a7: since the dungeon update the dragons of a split no longer spawn
+        // together, so the order in which they start spawning decides the priority. A dragon that is already spawning
+        // never restarts its timer; one we still think is alive (missed death) does start spawning again.
+        val dragon = WitherDragonEnum.entries.find {
+            it.state != WitherDragonState.SPAWNING && particle.x in it.xRange && particle.z in it.zRange
+        } ?: return
 
-        WitherDragonEnum.entries.forEach { dragon ->
-            if (dragon.state == WitherDragonState.SPAWNING) {
-                dragons.add(dragon)
-                return@forEach
-            }
+        dragon.state = WitherDragonState.SPAWNING
+        dragon.timeToSpawn = 100
+        WitherDragons.spawnOrder.remove(dragon)
+        WitherDragons.spawnOrder.add(dragon)
 
-            if (particle.x in dragon.xRange && particle.z in dragon.zRange) {
-                dragon.state = WitherDragonState.SPAWNING
-                dragons.add(dragon)
-            }
-        }
-
-        if (dragons.isNotEmpty()) {
-            val priority = DragonPriority.findPriority(dragons)
-            WitherDragons.priorityDragon = priority
-            announcePriority(priority, dragons)
-        }
+        val priority = findPriority() ?: return
+        val changed = priority != WitherDragons.priorityDragon
+        WitherDragons.priorityDragon = priority
+        if (priority.state == WitherDragonState.SPAWNING) announcePriority(priority, title = changed)
     }
 
     /**
-     * Odin behaviour: once both dragons of the first split are known (or at least two dragons
-     * have spawned already) show the "X is spawning!" title and the priority message, once per spawn.
+     * The dragon to go for: of the dragons that are spawning right now, the one that started spawning first
+     * (NoammAddons a5fd05a7/4ed84238 only look at spawning dragons, the lowest time to spawn wins; Odin 1cf5805 keeps
+     * the spawn order). Dragons that are already up are ignored, so a dragon that starts spawning while an earlier one
+     * is still alive becomes the priority. With Dragon Priority on, the Solo Priority class takes the dragon that
+     * started spawning last instead, either only on the first split or on every split (NoammAddons 4244f12e).
+     * When nothing is spawning (the priority dragon died) the oldest dragon still up is kept for the arrow count.
      */
-    private fun announcePriority(priority: WitherDragonEnum, dragons: List<WitherDragonEnum>) {
-        if (! WitherDragons.enabled || priority == WitherDragonEnum.None) return
-        val spawnedTotal = WitherDragonEnum.entries.sumOf { it.timesSpawned }
-        if (dragons.size < 2 && spawnedTotal < 2) return
+    fun findPriority(): WitherDragonEnum? {
+        val order = spawningInOrder()
+        val first = order.firstOrNull() ?: return WitherDragons.spawnOrder.firstOrNull()
+        if (! WitherDragons.dragPrio.value) return first
+        if (WitherDragons.firstDragonOnly.value && WitherDragonEnum.dragonSpawnCount >= 2) return first
 
-        // Announce once per spawn wave (Odin guards on priorityDragon == null): while the dragon we
-        // announced is still spawning in that same cycle, a later particle packet of another dragon
-        // must not trigger a second title/message even if the computed priority changes.
-        val last = WitherDragons.lastAnnounced
-        if (last != null && last.first.state == WitherDragonState.SPAWNING && last.first.timesSpawned == last.second) return
-        val key = priority to priority.timesSpawned
-        if (last == key) return
-        WitherDragons.lastAnnounced = key
+        val playerClass = DungeonListener.thePlayer?.clazz
+        if ((playerClass == null || playerClass == DungeonClass.Empty) && ! WitherDragons.warnedClass) {
+            WitherDragons.warnedClass = true
+            ChatUtils.modMessage("&cFailed to get your dungeon class for dragon priority.")
+        }
+        val soloClass = if (WitherDragons.soloPriority.value == 0) DungeonClass.Healer else DungeonClass.Tank
+        return if (playerClass == soloClass) order.last() else first
+    }
 
-        if (WitherDragons.dragonTitle.value) {
+    /** The dragons that are spawning right now, in the order they started spawning. */
+    private fun spawningInOrder() = WitherDragons.spawnOrder.filter { it.state == WitherDragonState.SPAWNING }
+
+    /**
+     * "X is spawning!" title when the priority changed and, on a split with Dragon Priority on, the priority message
+     * (also when the second dragon of the split does not change your priority).
+     */
+    private fun announcePriority(priority: WitherDragonEnum, title: Boolean) {
+        if (! WitherDragons.enabled) return
+
+        if (title && WitherDragons.dragonTitle.value) {
             ChatUtils.showTitle("&${priority.colorCode}${priority.name} is spawning!")
             USound.playSoundStatic(SoundEvents.NOTE_BLOCK_PLING.value(), 1f, 1f)
         }
-        if (WitherDragons.dragonPriorityToggle.value && WitherDragons.priorityMessage.value && dragons.size > 1) ChatUtils.modMessage(
+        val dragons = spawningInOrder()
+        if (WitherDragons.dragPrio.value && WitherDragons.priorityMessage.value && dragons.size > 1) ChatUtils.modMessage(
             "${dragons.joinToString("&7, ") { "&${it.colorCode}${it.name}" }} &7-> &${priority.colorCode}${priority.name} &7is your priority dragon!"
         )
     }
@@ -125,10 +139,10 @@ object DragonCheck {
 
     fun trackArrows(packet: ClientboundSoundPacket) {
         if (packet.sound.value() != SoundEvents.ARROW_HIT_PLAYER) return
-        WitherDragons.priorityDragon.takeUnless { it == WitherDragonEnum.None }?.let {
-            if (it.state == WitherDragonState.ALIVE && DungeonListener.currentTime - it.spawnedTime <= it.skipKillTime) {
-                it.arrowsHit ++
-            }
+        val priorityDragon = WitherDragons.priorityDragon ?: return
+        if (priorityDragon.state != WitherDragonState.ALIVE) return
+        if (DungeonListener.currentTime - priorityDragon.spawnedTime <= priorityDragon.skipKillTime) {
+            priorityDragon.arrowsHit ++
         }
     }
 }

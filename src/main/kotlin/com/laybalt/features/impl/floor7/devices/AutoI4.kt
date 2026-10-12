@@ -42,7 +42,8 @@ object AutoI4: Feature("Fully Automated I4") {
     private val preferredLeapClass by DropdownSetting("Leap Priority", 0, leapPriorities.map { it.name }).showIf { leapSetting.value }
 
     private val melodyRegex = Regex("""Party > (?:\[[^]]+]\s)?(\w+):""")
-    private const val STORM_DEATH_MESSAGE = "[BOSS] Storm: I should have known that I stood no chance."
+    // NoammAddons 64bb7927: since the dungeon update the timings below count from Goldor's first line, not Storm's death.
+    private const val GOLDOR_START_MESSAGE = "[BOSS] Goldor: Who dares trespass into my domain?"
 
     private val doneCoords = ConcurrentHashMap.newKeySet<BlockPos>()
     private val tickTimer = AtomicInteger(- 1)
@@ -62,7 +63,7 @@ object AutoI4: Feature("Fully Automated I4") {
             val msg = event.unformattedText
             parseMelodyMessage(msg)?.let { melodyLeapTargetName = it }
 
-            if (msg == STORM_DEATH_MESSAGE) {
+            if (msg == GOLDOR_START_MESSAGE) {
                 ThreadUtils.setTimeout(30_000L) { tickTimer.set(- 1) }
                 tickTimer.set(0)
             }
@@ -79,12 +80,12 @@ object AutoI4: Feature("Fully Automated I4") {
             if (! I4Helper.isOnDev()) return@register
 
             when (timer) {
-                307 if leapSetting.value -> {
+                203 if leapSetting.value -> {
                     ChatUtils.debug("i4", "saveLeap")
                     queue(4, false, ::saveLeap)
                 }
 
-                244 -> {
+                140 -> {
                     if (rodSetting.value && maskSetting.value) {
                         if (swapOrder.value == 0 && ! hasChangedMask) {
                             hasChangedMask = true
@@ -109,7 +110,7 @@ object AutoI4: Feature("Fully Automated I4") {
                     }
                 }
 
-                174 -> {
+                70 -> {
                     if (rodSetting.value && maskSetting.value) {
                         if (swapOrder.value == 0) {
                             if (! hasRodSwapped) {
@@ -179,8 +180,7 @@ object AutoI4: Feature("Fully Automated I4") {
             event.cancel()
 
             scope.launch {
-                EventBus.post(ChatMessageEvent(Component.literal(STORM_DEATH_MESSAGE)))
-                repeat(104) { EventBus.post(TickEvent.Server) }
+                EventBus.post(ChatMessageEvent(Component.literal(GOLDOR_START_MESSAGE)))
                 ChatUtils.sendCommand("/start p3")
             }
         }

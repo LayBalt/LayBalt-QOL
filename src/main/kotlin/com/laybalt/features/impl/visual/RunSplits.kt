@@ -38,6 +38,9 @@ object RunSplits: Feature("A Splits HUD for Dungeons (and Kuudra), with personal
     private val kuudraSplits by ToggleSetting("Kuudra Splits")
         .withDescription("Also shows splits (Supplies, Build, Stun, DPS, Cleared) in Kuudra")
 
+    /** runSplits.json split boundary for Necron's death ([DungeonEvent.NecronDeathEvent]); never a real chat line. */
+    private const val NECRON_DEATH_MARKER = "@necron_death"
+
     private val floorSplits = DataDownloader.loadJson<Map<String, List<DialogueEntry>>>("runSplits.json")
     private val runEndRegex = Regex("^\\s*☠ Defeated (.+) in 0?([\\dhms ]+?)\\s*(\\(NEW RECORD!\\))?$")
     private val currentFloorSplits = linkedMapOf<String, Split>()
@@ -211,23 +214,34 @@ object RunSplits: Feature("A Splits HUD for Dungeons (and Kuudra), with personal
 
             val msg = event.unformattedText.trim()
             if (DungeonListener.dungeonStarted && runEndRegex.matches(msg)) defeatedSeen = true
-            val floor = LocationUtils.dungeonFloor ?: return@register
-            val currentSplits = floorSplits[floor] ?: floorSplits[floor.replace("M", "F")] ?: return@register
+            onDungeonLine(msg)
+        }
 
-            currentSplits.forEachIndexed { i, entry ->
-                val split = currentFloorSplits.getOrPut(entry.name) { Split() }
+        // NoammAddons 072bf9e6: since the dungeon update no dialogue line marks Necron's death at the right time, so the
+        // M7 Necron split of runSplits.json ends on this marker, fed in when Necron's boss bar empties.
+        register<DungeonEvent.NecronDeathEvent> {
+            if (LocationUtils.inDungeon) onDungeonLine(NECRON_DEATH_MARKER)
+        }
+    }
 
-                if (entry.startMatches(msg) || (i > 0 && currentSplits[i - 1].endMatches(msg))) {
-                    split.start = DualTime(DungeonListener.currentTime)
-                }
+    /** Starts/ends the floor splits of runSplits.json whose dialogue line (or marker) is [msg]. */
+    private fun onDungeonLine(msg: String) {
+        val floor = LocationUtils.dungeonFloor ?: return
+        val currentSplits = floorSplits[floor] ?: floorSplits[floor.replace("M", "F")] ?: return
 
-                if (entry.endMatches(msg) || (entry.end == null && runEndRegex.matches(msg))) {
-                    split.end = DualTime(DungeonListener.currentTime)
-                    split.start?.let { s -> record(entry.name.removeFormatting(), split.end !! - s) }
-                }
+        currentSplits.forEachIndexed { i, entry ->
+            val split = currentFloorSplits.getOrPut(entry.name) { Split() }
 
-                if (split.start != null || split.end != null) currentFloorSplits[entry.name] = split
+            if (entry.startMatches(msg) || (i > 0 && currentSplits[i - 1].endMatches(msg))) {
+                split.start = DualTime(DungeonListener.currentTime)
             }
+
+            if (entry.endMatches(msg) || (entry.end == null && runEndRegex.matches(msg))) {
+                split.end = DualTime(DungeonListener.currentTime)
+                split.start?.let { s -> record(entry.name.removeFormatting(), split.end !! - s) }
+            }
+
+            if (split.start != null || split.end != null) currentFloorSplits[entry.name] = split
         }
     }
 
