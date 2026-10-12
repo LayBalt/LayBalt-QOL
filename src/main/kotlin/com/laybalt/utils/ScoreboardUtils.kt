@@ -40,9 +40,9 @@ object ScoreboardUtils: ISelfInit {
         val objective = scoreboard.getDisplayObjective(DisplaySlot.SIDEBAR) ?: return emptyList()
 
         val lines = mutableListOf(objective.displayName)
-        scoreboard.listPlayerScores(objective).sortedByDescending { it.value }.take(15).forEach { score ->
-            val name = score.ownerName().string
-            lines.add(PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(name), Component.literal(name)).copy())
+        // like vanilla: hidden scores skipped, the team looked up by the owner (not by its display name)
+        scoreboard.listPlayerScores(objective).filterNot { it.isHidden }.sortedByDescending { it.value }.take(15).forEach { score ->
+            lines.add(PlayerTeam.formatNameForTeam(scoreboard.getPlayersTeam(score.owner), score.ownerName()).copy())
         }
 
         return lines
