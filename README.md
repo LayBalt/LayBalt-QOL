@@ -82,7 +82,8 @@ Grouped by GUI category (<code>/lbq</code>) and generated from the feature class
 - **Breaker Helper** - Utilities for Dungeon Breaker.
 - **Chest Profit** - Dungeon Chest Profit Calculator.
 - **Door Keys** - ESP box & Tracer for wither and blood doors.
-- **Dungeon Map** - Custom dungeon map HUD with room names, checkmarks, player heads and run info under the map.
+- **Door ESP** - Highlights blood rush doors (coloured by key status) and the doors of the room you are in.
+- **Dungeon Map** - Custom dungeon map HUD with room names, checkmarks, player heads and run info under the map (wither door boxes moved to Door ESP).
 - **Dungeon Queue** - Requeues dungeons automatically, shows the warp cooldown and announces kicks.
 - **Dungeon Waypoints** - Add a custom waypoint with /ndw add while looking at a block.
 - **Extra Stats** - Replaces Hypixel's end-of-run summary with a compact one that includes the extra stats.

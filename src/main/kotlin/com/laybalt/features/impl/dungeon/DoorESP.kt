@@ -30,7 +30,9 @@ import java.awt.Color
  * Without the Cheater Map, doors of undiscovered rooms stay hidden (except the fairy-room door).
  */
 object DoorESP: Feature(
-    name = "Door ESP",
+    //#if LEGIT
+    //$name = "Door Highlight",
+    //#endif
     jsonName = "Door ESP",
     description = "Highlights the doors of the dungeon during the clear: blood rush doors and the doors of your current room."
 ) {
