@@ -50,7 +50,7 @@ object Secrets: Feature() {
         .withDescription("Only change secret block hitboxes while you are inside a dungeon.")
     private val lever by ToggleSetting("Lever").withDescription("Expand block Lever hitbox.")
     private val leverStyle by DropdownSetting("Lever Hitbox Style", 0, listOf("Scaled", "1.8 Style", "Full Block"))
-        .withDescription("Scaled: lever box grown by the size slider. 1.8 Style: the bigger lever hitbox from Minecraft 1.8. Full Block: the whole block.")
+        .withDescription("Scaled: lever box grown by the size slider (1.0 = whole block). 1.8 Style: the Minecraft 1.8 lever box, only slightly bigger than vanilla. Full Block: the whole block.")
         .showIf { lever.value }
     private val leverSize by SliderSetting("Lever Hitbox Size", 1.0, 8.0 / 16.0, 1.0, 0.01).withDescription("Size of the scaled lever hitbox (1.0 = a full block face).").showIf { lever.value && leverStyle.value == 0 }
     @JvmStatic val button by ToggleSetting("Button").withDescription("Expand button hitbox.")
