@@ -10,6 +10,7 @@ import com.laybalt.ui.hud.HudElement
 import com.laybalt.ui.utils.Resolution
 import com.laybalt.utils.ChatUtils.removeFormatting
 import com.laybalt.utils.ColorUtils.withAlpha
+import com.laybalt.utils.location.LocationUtils
 import com.laybalt.utils.render.Render2D.drawRect
 import net.minecraft.ChatFormatting
 import net.minecraft.client.gui.GuiGraphicsExtractor
@@ -18,13 +19,14 @@ import net.minecraft.network.chat.numbers.StyledFormat
 import net.minecraft.world.scores.DisplaySlot
 import net.minecraft.world.scores.PlayerScoreEntry
 import net.minecraft.world.scores.PlayerTeam
+import kotlin.math.abs
 
 /**
  * Draws the sidebar scoreboard as a movable HUD element in the LayBalt panel style and hides the vanilla one.
  *
  * The lines are read from the live client scoreboard on every frame, exactly like vanilla `Hud.displayScoreboardSidebar`
- * does: Hypixel animates its sidebar by rewriting team prefixes / suffixes of fake players without touching the scores,
- * so any cache keyed on scoreboard packets risks showing stale lines. Lines are kept as [Component]s and drawn through
+ * does (Hypixel animates its sidebar by rewriting team prefixes / suffixes of fake players without touching the scores;
+ * reading them live needs no packet bookkeeping and costs a few map lookups per frame). Lines are kept as [Component]s and drawn through
  * the vanilla font, so colours, formatting resets and RGB colours look exactly like the vanilla sidebar.
  *
  * Position: [HudElement.x] / [HudElement.y] are the panel's top-left corner like every other HUD element (so the HUD
@@ -36,7 +38,7 @@ import net.minecraft.world.scores.PlayerTeam
  */
 object Scoreboard: Feature("Draws a custom scoreboard instead of the vanilla one.") {
     private val hideServerId by ToggleSetting("Hide Server ID")
-        .withDescription("Replaces the first Hypixel line ('07/10/26 m151AM') with 'Date: 07/10/26', hiding the server id.")
+        .withDescription("On Hypixel, replaces the first line ('07/10/26 m151AM') with 'Date: 07/10/26', hiding the server id.")
     private val hideFooter by ToggleSetting("Hide Footer")
         .withDescription("Hides the last line with the server address (www.hypixel.net).")
     private val collapseBlank by ToggleSetting("Collapse Empty Lines")
@@ -82,6 +84,14 @@ object Scoreboard: Feature("Draws a custom scoreboard instead of the vanilla one
     /** Placeholder position meaning "not placed yet": the first draw puts the panel at the vanilla sidebar's spot. */
     private const val UNPLACED = 10_000f
 
+    /**
+     * Config id of the HUD element. Up to 3.2.1 it was "Scoreboard" with x meaning the panel's RIGHT edge when Anchor is
+     * Right Edge, clamped against the GUI-scaled window width instead of the HUD canvas (so e.g. x=854 at a 2560 px wide
+     * window with GUI scale 3, well left of the canvas edge). Those saves are migrated by [migrateLegacyHud].
+     */
+    const val HUD_ID = "ScoreboardPanel"
+    const val LEGACY_HUD_ID = "Scoreboard"
+
     private val exampleTitle: Component = Component.literal("§e§lSKYBLOCK")
     private val example = listOf(
         "§707/10/26 §8m151AM", "", " Spring 4th", " §75:40pm §e☀", " §7⏣ §bVillage",
@@ -90,13 +100,17 @@ object Scoreboard: Feature("Draws a custom scoreboard instead of the vanilla one
 
     @Suppress("RemoveRedundantQualifierName")
     private val hud = object: HudElement() {
-        override val name = "Scoreboard"
+        override val name = HUD_ID
+        override val displayName = "Scoreboard"
         override val toggle get() = Scoreboard.enabled
         override val shouldDraw get() = ! NoRender.active(NoRender.scoreboard)
 
         /** On-canvas size of the previous frame, so the anchored edge can be held when the size changes. */
         private var lastW = 0f
         private var lastH = 0f
+        /** HUD canvas size of the previous frame, so a panel at the right / bottom edge or centred follows a resized window. */
+        private var lastScreenW = 0f
+        private var lastScreenH = 0f
 
         override fun draw(ctx: GuiGraphicsExtractor, example: Boolean): Pair<Float, Float> {
             val live = readSidebar()
@@ -177,6 +191,14 @@ object Scoreboard: Feature("Draws a custom scoreboard instead of the vanilla one
                     ny = (screenH - sh) / 2f
                 }
                 else {
+                    // like vanilla's sidebar: flush with the right edge / centred / flush with the bottom stays so when the
+                    // canvas changes size (window resized, aspect ratio changed); x / y are absolute canvas coordinates
+                    if (lastScreenW > 0f && screenW != lastScreenW && x + lastW >= lastScreenW - 1.5f) nx += screenW - lastScreenW
+                    if (lastScreenH > 0f && screenH != lastScreenH) {
+                        val centred = abs(y + lastH / 2f - lastScreenH / 2f) < 1.5f
+                        val bottom = y + lastH >= lastScreenH - 1.5f
+                        if (bottom) ny += screenH - lastScreenH else if (centred) ny += (screenH - lastScreenH) / 2f
+                    }
                     if (lastW > 0f && growDirection.value == 1) nx += lastW - sw
                     if (lastH > 0f) when (verticalAnchor.value) {
                         1 -> ny += (lastH - sh) / 2f
@@ -186,6 +208,8 @@ object Scoreboard: Feature("Draws a custom scoreboard instead of the vanilla one
             }
             lastW = sw
             lastH = sh
+            lastScreenW = screenW
+            lastScreenH = screenH
 
             if (screenW >= 50f && screenH >= 50f) {
                 nx = nx.coerceIn(0f, maxOf(0f, screenW - sw))
@@ -207,6 +231,18 @@ object Scoreboard: Feature("Draws a custom scoreboard instead of the vanilla one
 
     @JvmStatic
     fun replacesVanilla() = enabled
+
+    /**
+     * Applies a position saved under [LEGACY_HUD_ID] (read after the feature settings). With Anchor = Left Edge the old x / y
+     * already were the top-left corner and are kept; with Right Edge the old x was a right edge in the wrong coordinate space,
+     * so the panel goes back to the vanilla sidebar spot (right edge, vertically centred). The scale is kept either way.
+     */
+    fun migrateLegacyHud(x: Float?, y: Float?, scale: Float?) {
+        scale?.let { hud.scale = it }
+        if (growDirection.value == 1 || x == null || y == null) return
+        hud.x = x
+        hud.y = y
+    }
 
     override fun init() {
         hudElements.add(hud)
@@ -241,7 +277,7 @@ object Scoreboard: Feature("Draws a custom scoreboard instead of the vanilla one
         raw.forEachIndexed { index, line ->
             val plain = plain(line.text)
             var text = line.text
-            if (index == 0 && hideServerId.value) SERVER_ID_LINE.find(plain)?.let {
+            if (index == 0 && hideServerId.value && (LocationUtils.onHypixel || raw === example)) SERVER_ID_LINE.find(plain)?.let {
                 text = Component.literal("Date: " + it.groupValues[1]).withStyle(ChatFormatting.GRAY)
             }
             if (hideFooter.value && index == raw.lastIndex && plain.replace(" ", "").contains("hypixel.net", true)) return@forEachIndexed

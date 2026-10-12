@@ -3,6 +3,7 @@ package com.laybalt.config
 import com.laybalt.LayBaltQOL
 import com.laybalt.features.FeatureManager
 import com.laybalt.features.impl.dev.ClickGui
+import com.laybalt.features.impl.visual.Scoreboard
 import com.laybalt.init.types.ISelfInit
 import com.laybalt.ui.Palette
 import com.laybalt.utils.*
@@ -168,7 +169,14 @@ object ConfigManager: ISelfInit {
 
         root.getAsJsonArray("hud")?.forEach { hudElement ->
             val hudObj = hudElement.asJsonObject
-            val hud = FeatureManager.getHudByName(hudObj.get("name")?.asString ?: return@forEach) ?: return@forEach
+            val hudName = hudObj.get("name")?.asString ?: return@forEach
+            // 3.2.1 and older saved the scoreboard with a different meaning of x (see Scoreboard.HUD_ID)
+            if (hudName == Scoreboard.LEGACY_HUD_ID && FeatureManager.getHudByName(Scoreboard.HUD_ID) != null) {
+                if (root.getAsJsonArray("hud").none { it.asJsonObject.get("name")?.asString == Scoreboard.HUD_ID })
+                    runCatching { Scoreboard.migrateLegacyHud(hudObj.get("x")?.asFloat, hudObj.get("y")?.asFloat, hudObj.get("scale")?.asFloat) }
+                return@forEach
+            }
+            val hud = FeatureManager.getHudByName(hudName) ?: return@forEach
             val sx = hudObj.get("x")?.asFloat
             val sy = hudObj.get("y")?.asFloat
             // Widgets still at a superseded default (they overlapped) move to the new default instead.
