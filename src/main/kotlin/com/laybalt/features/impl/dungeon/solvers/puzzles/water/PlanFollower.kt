@@ -101,6 +101,11 @@ class PlanFollower(val play: ShippedPlay, val anchor: Int, var toleranceTicks: I
         }
     }
 
+    /** Legacy display (recovery off): counts a flip that does not fit the timing anyway, like the 3.2.2 click counting. */
+    fun forceConsume(lever: WaterLever) {
+        if (consumed[lever.ordinal] < play.schedule.getValue(lever).size) consumed[lever.ordinal] ++
+    }
+
     /** Advances to click-frame [now]: a planned flip more than the tolerance overdue is a [Kind.MISSED] divergence. */
     fun onTick(now: Int): Divergence? {
         val t = now - anchor
