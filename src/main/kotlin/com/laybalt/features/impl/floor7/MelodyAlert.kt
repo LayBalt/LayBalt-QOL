@@ -19,13 +19,15 @@ import net.minecraft.world.item.Items
 object MelodyAlert: Feature("Tells your party when you open Melody and how far you are, and shows your teammates' Melody progress.") {
     private val msg by TextInputSetting("Melody Message", "I ❤ Melody").withDescription("Party message sent when you open the Melody terminal (leave empty to send no open message).")
     private val sendProgress by ToggleSetting("Send Progress", true).withDescription("Also tells the party each time you complete a row of Melody.")
-    private val mode by DropdownSetting("Progress Mode", 0, listOf("1/4", "25%", "Melody 25% (Odin)")).withDescription("Format of the progress message: your message + 1/4, your message + 25%, or Odin's \"Melody 25%\".").showIf { sendProgress.value }
+    private val mode by DropdownSetting("Progress Mode", 0, listOf("1/3", "33%", "Melody 33% (Odin)")).withDescription("Format of the progress message: your message + 1/3, your message + 33%, or Odin's \"Melody 33%\".").showIf { sendProgress.value }
     private val sendCoords by ToggleSetting("Send Coords").withDescription("Sends your coordinates to the party when you open Melody, so teammates know which Melody you are on.")
 
     private val progressHud by ToggleSetting("Progress HUD").withDescription("Shows the Melody progress of teammates (read from their party messages: LayBalt, Odin and most other mods' formats).").section("Progress HUD")
     private val showPlayer by DropdownSetting("Show Player", 2, listOf("None", "Class", "Name", "Class & Name")).withDescription("How each teammate is labelled in the Progress HUD.").showIf { progressHud.value }
 
-    private val progressSlots = intArrayOf(25, 34, 43) // todo remove 43
+    // Clay of the second and third row: it turns lime once the row above is done (Melody has 3 rows).
+    private val progressSlots = intArrayOf(25, 34)
+    private val odinProgress = arrayOf("Melody 33%", "Melody 67%")
     private var isMelodyOpen = false
     private var currentStage = - 1
 
@@ -83,17 +85,16 @@ object MelodyAlert: Feature("Tells your party when you open Melody and how far y
                 return@register
             }
 
-            if (currentStage == 3) return@register
+            if (currentStage == progressSlots.lastIndex) return@register
             for (i in progressSlots.indices) {
                 if (i <= currentStage) continue
 
                 if (player.containerMenu.getSlot(progressSlots[i]).item.`is`(Items.DYED_TERRACOTTA.lime())) {
-                    //val progress = if (mode.value == 0) "${i + 1}/3" else "${(i + 1) * 33}%" todo
                     if (sendProgress.value && (mode.value == 2 || msg.value.isNotBlank())) ChatUtils.sendPartyMessage(
                         when (mode.value) {
-                            0 -> "${msg.value} ${i + 1}/4"
-                            1 -> "${msg.value} ${(i + 1) * 25}%"
-                            else -> "Melody ${(i + 1) * 25}%"
+                            0 -> "${msg.value} ${i + 1}/3"
+                            1 -> "${msg.value} ${(i + 1) * 33}%"
+                            else -> odinProgress[i]
                         }
                     )
                     currentStage = i
@@ -111,7 +112,7 @@ object MelodyAlert: Feature("Tells your party when you open Melody and how far y
 
             val (name, message) = partyRegex.find(text)?.destructured ?: return@register
             if (! message.contains("melody", true)) return@register
-            val progress = (4 downTo 1).find { message.contains("$it/4") || message.contains("${it * 25}%") } ?: 0
+            val progress = MelodyDisplay.melodyProgress(message) ?: 0
             val state = melodyStates.getOrPut(name) { MelodyState(name, progress) }
             state.progress = maxOf(state.progress, progress)
         }
@@ -124,7 +125,7 @@ object MelodyAlert: Feature("Tells your party when you open Melody and how far y
     }
 
     private fun formatLine(state: MelodyState): String {
-        val squares = (1 .. 4).joinToString("") { if (it <= state.progress) "§a■" else "§f■" }
+        val squares = (1 .. 3).joinToString("") { if (it <= state.progress) "§a■" else "§f■" }
         val clazz = DungeonListener.dungeonTeammates.find { it.name == state.name }?.clazz
         val classColor = clazz?.code ?: "&7"
         val className = clazz?.name ?: "Unknown"
@@ -134,6 +135,6 @@ object MelodyAlert: Feature("Tells your party when you open Melody and how far y
             3 -> "&6${state.name} &8($classColor$className&8)"
             else -> ""
         }
-        return "$squares §7${state.progress}/4 $label".trim()
+        return "$squares §7${state.progress}/3 $label".trim()
     }
 }

@@ -85,6 +85,9 @@ object AutoTerminal: Feature("Automatically clicks terminals for you.") {
             if (handler.enabled()) event.isCanceled = true
         }
 
+        // A broken terminal is re-synced from the server, so the last clicked slot may need clicking again.
+        register<TerminalEvent.Break> { lastClickedSlot = null }
+
         register<TerminalEvent.Close> {
             lastClickedSlot = null
             lastClickTime = 0L

@@ -13,12 +13,12 @@ import kotlin.reflect.KMutableProperty0
 object MelodyTerminal: Terminal() {
     override val titleRegex = Regex("^Click the button on time!$")
     override val displayName = "Melody"
-    override val gridSize = 6 to 4 // todo change back to 6x3
+    override val gridSize = 6 to 3
     override val slotCount = 54
 
     override val trackProgress = false
 
-    val claySlots = listOf(16, 25, 34, 43) // todo remove 43
+    val claySlots = listOf(16, 25, 34)
     var buttonRow: Int? = null
     var current: Int? = null
     var correct: Int? = null
@@ -26,7 +26,8 @@ object MelodyTerminal: Terminal() {
     override fun onSlotUpdate(items: Map<Int, ItemStack>, title: String, updatedSlot: Int, updatedItem: ItemStack): Boolean {
         if (updatedItem.item != Items.STAINED_GLASS_PANE.lime()) return true
 
-        val newCorrect = items.entries.find { it.value.item == Items.STAINED_GLASS_PANE.magenta() }?.key?.minus(1)
+        // The magenta column marker is shown above and below the three rows; only its column matters.
+        val newCorrect = items.entries.find { it.value.item == Items.STAINED_GLASS_PANE.magenta() }?.key?.let { it % 9 - 1 }
         buttonRow = (floor(updatedSlot / 9.0) - 1).toInt()
         current = updatedSlot % 9 - 1
         if (newCorrect != null) correct = newCorrect
@@ -43,7 +44,7 @@ object MelodyTerminal: Terminal() {
         val currentColumn = current ?: return ""
         val correctColumn = correct ?: return ""
 
-        return (0 .. 4).joinToString("", " §7[", "§7]") {
+        return (0 until (gridSize.first - 1)).joinToString("", " §7[", "§7]") {
             when (it) {
                 currentColumn -> "§a="
                 correctColumn -> "§d="
