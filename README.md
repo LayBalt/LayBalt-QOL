@@ -1,7 +1,14 @@
 <!-- markdownlint-disable-file MD001 MD033 -->
 <h2 align="center">LayBalt Repository</h2>
-<h2 align="center">Version 3.2.2</h2>
+<h2 align="center">Version 3.2.3</h2>
 <h4 align="center">LayBaltQOL (LBQ) is a feature-rich Fabric mod for Hypixel Skyblock on Minecraft 26.2.</h4>
+
+---
+
+<h3 align="center">3.2.3: Auto Enchanting fixes</h3>
+
+- **Chronomatron.** Auto Experiments no longer fails on the 3rd click or in round 3. Root cause: Hypixel lights each note as a block of 2-3 slots and the solver tracked single slots, so when one slot of a note went dark before its neighbour, the neighbour was counted as the next note. The solver now follows notes (colours), checks its chain against the timer, and starts fresh for every experiment window.
+- **Superpairs.** The solver stays in step with the board: a click that revealed nothing counts as used, wrong pairs get time to flip back before the next click, powerup cards no longer throw off which click is the second of a pair, and it stops at "Remaining Clicks: 0".
 
 ---
 
