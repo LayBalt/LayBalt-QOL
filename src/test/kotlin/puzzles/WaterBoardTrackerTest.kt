@@ -4,8 +4,8 @@ import com.google.gson.JsonParser
 import com.laybalt.features.impl.dungeon.solvers.puzzles.WaterBoardTracker
 import com.laybalt.features.impl.dungeon.solvers.puzzles.WaterBoardTracker.Cause
 import com.laybalt.features.impl.dungeon.solvers.puzzles.WaterBoardTracker.Phase
-import com.laybalt.features.impl.dungeon.solvers.puzzles.WaterLever
-import com.laybalt.features.impl.dungeon.solvers.puzzles.WaterLever.*
+import com.laybalt.features.impl.dungeon.solvers.puzzles.water.WaterLever
+import com.laybalt.features.impl.dungeon.solvers.puzzles.water.WaterLever.*
 import java.io.File
 import kotlin.random.Random
 import kotlin.test.*

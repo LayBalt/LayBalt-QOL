@@ -6,6 +6,7 @@ import com.laybalt.features.impl.dungeon.solvers.PuzzleSolvers
 import com.laybalt.features.impl.dungeon.solvers.PuzzleSolvers.currentClickColor
 import com.laybalt.features.impl.dungeon.solvers.PuzzleSolvers.nextColor
 import com.laybalt.features.impl.dungeon.solvers.puzzles.WaterBoardTracker.Phase
+import com.laybalt.features.impl.dungeon.solvers.puzzles.water.WaterLever
 import com.laybalt.init.DataDownloader
 import com.laybalt.utils.ChatUtils
 import com.laybalt.utils.MathUtils.center

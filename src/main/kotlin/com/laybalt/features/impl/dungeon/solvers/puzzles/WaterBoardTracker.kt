@@ -1,21 +1,7 @@
 package com.laybalt.features.impl.dungeon.solvers.puzzles
 
+import com.laybalt.features.impl.dungeon.solvers.puzzles.water.WaterLever
 import kotlin.math.roundToLong
-
-/** The seven Water Board levers, keyed like `waterSolutions.json`. Pure: no Minecraft types. */
-enum class WaterLever(val key: String, val displayName: String) {
-    QUARTZ("quartz_block", "Quartz"),
-    GOLD("gold_block", "Gold"),
-    COAL("coal_block", "Coal"),
-    DIAMOND("diamond_block", "Diamond"),
-    EMERALD("emerald_block", "Emerald"),
-    CLAY("hardened_clay", "Clay"),
-    WATER("water", "Water");
-
-    companion object {
-        fun fromKey(key: String) = entries.find { it.key == key }
-    }
-}
 
 /**
  * Pure state machine behind the Water Board solver: follows a precomputed solution, notices when the
