@@ -24,11 +24,15 @@ abstract class DungeonEvent: Event(false) {
     class PlayerDeathEvent(val name: String, val reason: String): DungeonEvent()
 
     class Score(val oldScore: Int, val score: Int): DungeonEvent()
+
     /** Necron's boss bar emptied (F7/M7). Posted by [com.laybalt.utils.dungeons.F7Listener]. */
     object NecronDeathEvent: DungeonEvent()
 
     /** The Wither King's boss bar appeared (M7 phase 5). Posted by [com.laybalt.utils.dungeons.F7Listener]. */
     object WitherKingStartEvent: DungeonEvent()
+
+    /** Posted once per run, on The Watcher's first chat line (the blood room has opened). */
+    object BloodOpenEvent: DungeonEvent()
 
     object BossEnterEvent: DungeonEvent()
     object RunStatedEvent: DungeonEvent()

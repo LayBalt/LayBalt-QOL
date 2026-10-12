@@ -28,7 +28,6 @@ object ScanUtils: ISelfInit, ICommandProvider, Shortcuts {
     private val roomsByCore = roomList.flatMap { room -> room.cores.map { it to room } }.toMap()
     private val roomsByName = roomList.associateBy(RoomData::name)
     private val coreTokenCache = IdentityHashMap<Block, Int>()
-    val secretMap = roomList.associate { it.name to it.secretCoords }
 
     /** Every known room (name, shape and secret coordinates), e.g. to match imported room data by name or coordinates. */
     val allRooms: List<RoomData> get() = roomList

@@ -575,6 +575,7 @@ object ForeignConfigImport: ICommandProvider {
             alias("Offset", "Time Offset")
             alias("Tick", "Spawn Tick")
             alias("Move HUD", "Move Timer HUD")
+            alias("Move alert", "Kill Title")
             skip(NO_EQUIVALENT, "Move Prediction", "Move Message", "Party Move Message")
         }
         odin("Croesus", "Chest Profit") {
