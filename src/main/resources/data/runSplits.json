@@ -177,7 +177,7 @@
     {
       "name": "&cNecron",
       "start": null,
-      "end": "[BOSS] Necron: All this, for nothing..."
+      "end": "@necron_death"
     },
     {
       "name": "&4Dragons",

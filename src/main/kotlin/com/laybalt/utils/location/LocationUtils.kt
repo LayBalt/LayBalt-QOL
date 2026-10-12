@@ -99,7 +99,7 @@ object LocationUtils: ISelfInit, Shortcuts {
         if (mc.level == null || mc.player == null) return
         inSkyblock = true
         inDungeon = true
-        dungeonFloor = "F7"
+        dungeonFloor = "M7"
         dungeonFloorNumber = 7
         F7Phase = getPhase(player.y)
         P3Section = findP3Section(player.x, player.y, player.z)
