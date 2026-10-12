@@ -16,11 +16,10 @@ import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
-@Mixin(SkullBlock.class)
+@Mixin(value = SkullBlock.class, priority = 1500)
 abstract class MixinSkullBlock extends AbstractSkullBlock {
     @Shadow @Final private static VoxelShape SHAPE_PIGLIN;
 
@@ -30,11 +29,9 @@ abstract class MixinSkullBlock extends AbstractSkullBlock {
         super(type, properties);
     }
 
-    @Inject(method = "getShape", at = @At("HEAD"), cancellable = true)
-    private void modifyShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
-        if (Secrets.shouldModifySkull() && DungeonUtils.isSecret(pos)) {
-            cir.setReturnValue(Shapes.block());
-        }
+    @WrapMethod(method = "getShape")
+    private VoxelShape laybalt$secretSkullShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, Operation<VoxelShape> original) {
+        return Secrets.shouldModifySkull() && DungeonUtils.isSecret(pos) ? Shapes.block() : original.call(state, level, pos, context);
     }
 
     @Override

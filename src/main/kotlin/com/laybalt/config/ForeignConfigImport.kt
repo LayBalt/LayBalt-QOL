@@ -744,8 +744,17 @@ object ForeignConfigImport: ICommandProvider {
         }
         odinClient("Secret Hitboxes", "Secrets") {
             gate = setOf("Lever", "Button", "Skulls", "Chests")
-            custom("1.8 lever hitbox") { c, v -> set(c, "1.8 lever hitbox", "Lever Hitbox Style", JsonPrimitive(if (v.asBoolean) "1.8 Style" else "Scaled")) }
-            custom("Flat button hitbox") { c, v -> set(c, "Flat button hitbox", "Button Hitbox Style", JsonPrimitive(if (v.asBoolean) "Flat" else "Scaled")) }
+            // A hitbox style only carries intent when OdinClient actually expanded that block (module on + part on);
+            // otherwise it is OdinClient's default ("1.8 lever hitbox" is on by default) and would replace the
+            // NoammAddons size-based hitbox (e.g. a full-block lever) with the near-vanilla 1.8 lever box.
+            custom("1.8 lever hitbox") { c, v ->
+                if (! secretHitboxPartUsed(c.module, "Lever")) c.report.line("    - 1.8 lever hitbox: skipped (OdinClient's Lever hitbox was not in use)")
+                else set(c, "1.8 lever hitbox", "Lever Hitbox Style", JsonPrimitive(if (v.asBoolean) "1.8 Style" else "Scaled"))
+            }
+            custom("Flat button hitbox") { c, v ->
+                if (! secretHitboxPartUsed(c.module, "Button")) c.report.line("    - Flat button hitbox: skipped (OdinClient's Button hitbox was not in use)")
+                else set(c, "Flat button hitbox", "Button Hitbox Style", JsonPrimitive(if (v.asBoolean) "Flat" else "Scaled"))
+            }
         }
         odinClient("Auto GFS", "Auto GFS") {
             custom("In Skyblock") { c, v ->
@@ -811,6 +820,53 @@ object ForeignConfigImport: ICommandProvider {
 
     private fun fail(reason: String): Nothing = throw ConversionException(reason)
 
+    /** OdinClient Secret Hitboxes expanded [part] ("Lever" / "Button"): the module was on and the part switched on. */
+    private fun secretHitboxPartUsed(module: Module, part: String) =
+        module.enabled && runCatching { module.settings.get(part)?.asBoolean }.getOrNull() == true
+
+    private const val REPAIRS = "repairs"
+    private const val SECRET_HITBOX_REPAIR = "secretHitboxStyles"
+
+    /**
+     * One-time repair for configs imported (3.0.0 - 3.2.1) before [secretHitboxPartUsed] gated the hitbox styles: the OdinClient
+     * import copied "1.8 lever hitbox" (on by default) / "Flat button hitbox" from a Secret Hitboxes module that was not
+     * in use, switching the NoammAddons size-based lever hitbox (Lever Hitbox Size 1.0 = full block) to the 1.8 lever box,
+     * which is barely bigger than vanilla, so the lever hitbox looked like it did nothing. Styles set that way go back to
+     * "Scaled" (the Lever / Button Hitbox Size sliders apply again). Runs once per config, marked in foreignImport.json.
+     * @return the chat notice when something was reset.
+     */
+    private fun repairSecretHitboxStyles(): String? {
+        val marker = ForeignImportMarker.source(Source.ODINCLIENT.key) ?: return null
+        val done = marker.getAsJsonArray(REPAIRS)?.any { runCatching { it.asString }.getOrNull() == SECRET_HITBOX_REPAIR } == true
+        if (done) return null
+
+        val reset = mutableListOf<String>()
+        val secrets = findFeature(listOf("Secrets"))
+        val module = odinClientFile()?.let { readModules(it, Source.ODINCLIENT, Report()) }?.firstOrNull { it.name == "Secret Hitboxes" }
+        if (secrets != null && module != null && "Secrets" in ForeignImportMarker.imported(Source.ODINCLIENT.key).orEmpty()) {
+            for ((part, option, target) in listOf(
+                Triple("Lever", "1.8 lever hitbox", "Lever Hitbox Style"),
+                Triple("Button", "Flat button hitbox", "Button Hitbox Style"),
+            )) {
+                if (secretHitboxPartUsed(module, part)) continue
+                if (runCatching { module.settings.get(option)?.asBoolean }.getOrNull() != true) continue
+                val style = secrets.configSettings.firstOrNull { it.name == target } as? DropdownSetting ?: continue
+                if (style.value != 1) continue
+                style.value = 0
+                reset.add(target)
+                logger.info("[ForeignConfigImport] Secrets: reset $target to Scaled (it came from OdinClient's unused '$option' default)")
+            }
+        }
+
+        ForeignImportMarker.update { root ->
+            val obj = root.getAsJsonObject(Source.ODINCLIENT.key) ?: return@update
+            val list = obj.getAsJsonArray(REPAIRS) ?: JsonArray().also { obj.add(REPAIRS, it) }
+            list.add(SECRET_HITBOX_REPAIR)
+        }
+        if (reset.isEmpty()) return null
+        return "Secrets: ${reset.joinToString(" and ")} reset to Scaled; the OdinClient import had set them from an unused OdinClient default, which hid your hitbox size."
+    }
+
     /** Called from [com.laybalt.init.ClassGraphInitializer] after [ConfigManager.load] and [LegacyConfigImport.run]. */
     /**
      * Fresh install: NoammAddons (copied at pre-launch) is reported and Odin/OdinClient are imported in full.
@@ -858,7 +914,16 @@ object ForeignConfigImport: ICommandProvider {
                 changed = true
             }
 
+            val repairNotice = repairSecretHitboxStyles()
+            if (repairNotice != null) changed = true
+
             if (changed) ConfigManager.save()
+            repairNotice?.let { text ->
+                ForeignImportMarker.update { root ->
+                    val old = root.get("notice")?.takeIf { it.isJsonPrimitive }?.asString
+                    root.addProperty("notice", listOfNotNull(old, text).joinToString(" "))
+                }
+            }
             val notices = listOfNotNull(
                 counts.takeIf { it.isNotEmpty() }?.let(::noticeText),
                 added.takeIf { it.isNotEmpty() }?.let(::incrementalNoticeText),

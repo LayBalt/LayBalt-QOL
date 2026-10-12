@@ -19,9 +19,8 @@ import org.jetbrains.annotations.NotNull;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 
 import java.util.Map;
 import java.util.function.Supplier;
@@ -30,7 +29,7 @@ import java.util.function.Supplier;
  * Secrets "Chests" hitbox: full block outline / ray-trace shape for (trapped) chests in dungeons.
  * Collision is kept vanilla by overriding getCollisionShape with the original chest shapes.
  */
-@Mixin(ChestBlock.class)
+@Mixin(value = ChestBlock.class, priority = 1500)
 abstract class MixinChestBlock extends AbstractChestBlock<ChestBlockEntity> {
     @Shadow @Final private static VoxelShape SHAPE;
 
@@ -40,11 +39,9 @@ abstract class MixinChestBlock extends AbstractChestBlock<ChestBlockEntity> {
         super(properties, supplier);
     }
 
-    @Inject(method = "getShape", at = @At("HEAD"), cancellable = true)
-    private void laybalt$expandChestShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, CallbackInfoReturnable<VoxelShape> cir) {
-        if (Secrets.shouldExpandChest(state)) {
-            cir.setReturnValue(Shapes.block());
-        }
+    @WrapMethod(method = "getShape")
+    private VoxelShape laybalt$expandChestShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context, Operation<VoxelShape> original) {
+        return Secrets.shouldExpandChest(state) ? Shapes.block() : original.call(state, level, pos, context);
     }
 
     @Override
