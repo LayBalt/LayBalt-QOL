@@ -314,7 +314,7 @@ object AutoI4: Feature("Fully Automated I4") {
     private fun parseMelodyMessage(message: String): String? {
         if (! message.startsWith("Party > ")) return null
         val name = melodyRegex.find(message)?.groupValues?.get(1)?.takeUnless { it == mc.user.name } ?: return null
-        if ((4 downTo 0).none { i -> message.containsOneOf("$i/4", "${i * 25}%") }) return null
+        if (com.laybalt.features.impl.floor7.MelodyDisplay.melodyProgress(message) == null) return null // 3-row Melody formats (and the old 4-row ones)
         return name
     }
 }
