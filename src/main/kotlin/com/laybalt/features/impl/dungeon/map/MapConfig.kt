@@ -4,7 +4,6 @@ package com.laybalt.features.impl.dungeon.map
 import com.laybalt.config.ConfigHolder
 import com.laybalt.config.SettingProvider
 import com.laybalt.config.types.*
-import com.laybalt.utils.ColorUtils.withAlpha
 import java.awt.Color
 
 //#if LEGIT
@@ -90,12 +89,5 @@ object MapConfig: SettingProvider {
     val colorRoomDoor by ColorSetting("Normal Door", colorRoom.value, true)
     val colorOpenWitherDoor by ColorSetting("Opened Wither Door", colorRoom.value, true)
     val colorEntranceDoor by ColorSetting("Entrance Door", colorEntrance.value, true)
-
-    val boxDoors by ToggleSetting("Box Wither Doors").section("Door ESP")
-    val highlightAllDoors by ToggleSetting("Highlight All Doors")
-        .withDescription("Highlights every unopened door instead of only the next door after the run starts.")
-        .showIf { boxDoors.value && dungeonMapCheater.value }
-    val boxDoorsMode by DropdownSetting("Highlight Mode", 2, listOf("Outline", "Fill", "Filled Outline"))
-    val doorNoKeyColor by ColorSetting("No Key Color ", Color.RED.withAlpha(100)).showIf { boxDoors.value }
-    val doorKeyColor by ColorSetting("Has Key Color ", Color.GREEN.withAlpha(100)).showIf { boxDoors.value }
+    // The "Door ESP" section (Box Wither Doors) moved to the Door ESP feature; ConfigMigratorV1ToV2 carries the settings over.
 }

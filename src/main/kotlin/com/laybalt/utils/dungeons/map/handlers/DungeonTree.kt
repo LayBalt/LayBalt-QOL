@@ -1,7 +1,6 @@
 package com.laybalt.utils.dungeons.map.handlers
 
 import com.laybalt.event.EventBus
-import com.laybalt.event.impl.DungeonEvent
 import com.laybalt.event.impl.WorldChangeEvent
 import com.laybalt.init.types.ISelfInit
 import com.laybalt.utils.dungeons.map.core.DoorTile
@@ -19,7 +18,6 @@ object DungeonTree: ISelfInit {
 
     override fun init() {
         EventBus.register<WorldChangeEvent> { clearCache() }
-        EventBus.register<DungeonEvent.TileScannedEvent> { clearCache() }
     }
 
     fun clearCache() {
