@@ -68,12 +68,12 @@ class RubixSim: TermSimGUI("Change all to same color!", 45) {
     }
 }
 
-/** Numbers ("Click in order!"). */
+/** Numbers ("Click in order!"): 10 panes in a 5x2 grid since the Hypixel dungeon update. */
 class NumbersSim: TermSimGUI("Click in order!", 36) {
     override fun create() {
-        val numbers = (1 .. 14).shuffled().toMutableList()
+        val numbers = (1 .. 10).shuffled().toMutableList()
         setSlots {
-            if (it.index / 9 in 1 .. 2 && it.index % 9 in 1 .. 7) {
+            if (it.index / 9 in 1 .. 2 && it.index % 9 in 2 .. 6) {
                 val number = numbers.removeFirst()
                 named(ItemStack(Items.STAINED_GLASS_PANE.pick(DyeColor.RED), number), "§a$number")
             }
@@ -177,7 +177,10 @@ class SelectAllSim(private val color: DyeColor = DyeColor.entries.random()): Ter
     }
 }
 
-/** Melody ("Click the button on time!"): click the row's clay when the green pane is in the purple column. */
+/**
+ * Melody ("Click the button on time!"): click the row's clay when the green pane is in the purple column.
+ * Three rows since the Hypixel dungeon update, with the purple column marker above and below them.
+ */
 class MelodySim: TermSimGUI("Click the button on time!", 54) {
     private var magentaColumn = 1
     private var limeColumn = 1
@@ -195,7 +198,7 @@ class MelodySim: TermSimGUI("Click the button on time!", 54) {
 
     override fun containerTick() {
         super.containerTick()
-        if (counter ++ % 10 != 0 || currentRow > 4) return
+        if (counter ++ % 10 != 0 || currentRow > ROWS) return
         limeColumn += limeDirection
         if (limeColumn == 1 || limeColumn == 5) limeDirection *= - 1
         updateRow(currentRow)
@@ -208,11 +211,11 @@ class MelodySim: TermSimGUI("Click the button on time!", 54) {
         magentaColumn = (1 until 5).random()
         currentRow ++
         updateRow(0)
-        updateRow(5)
+        updateRow(ROWS + 1)
         updateRow(oldRow)
-        if (currentRow <= 4) updateRow(currentRow)
+        if (currentRow <= ROWS) updateRow(currentRow)
 
-        if (currentRow >= 5) return complete()
+        if (currentRow > ROWS) return complete()
         super.slotClick(slot, button)
     }
 
@@ -224,13 +227,17 @@ class MelodySim: TermSimGUI("Click the button on time!", 54) {
         val row = index / 9
         val col = index % 9
         return when {
-            col == magentaColumn && row !in 1 .. 4 -> pane(DyeColor.MAGENTA)
+            col == magentaColumn && (row == 0 || row == ROWS + 1) -> pane(DyeColor.MAGENTA)
             col == limeColumn && row == currentRow -> pane(DyeColor.LIME)
             col in 1 .. 5 && row == currentRow -> pane(DyeColor.RED)
             col == 7 && row == currentRow -> named(ItemStack(Items.DYED_TERRACOTTA.pick(DyeColor.LIME)))
-            col == 7 && row in 1 .. 4 -> named(ItemStack(Items.DYED_TERRACOTTA.pick(DyeColor.RED)))
-            col in 1 .. 5 && row in 1 .. 4 -> pane(DyeColor.WHITE)
+            col == 7 && row in 1 .. ROWS -> named(ItemStack(Items.DYED_TERRACOTTA.pick(DyeColor.RED)))
+            col in 1 .. 5 && row in 1 .. ROWS -> pane(DyeColor.WHITE)
             else -> blackPane
         }
+    }
+
+    private companion object {
+        const val ROWS = 3
     }
 }
