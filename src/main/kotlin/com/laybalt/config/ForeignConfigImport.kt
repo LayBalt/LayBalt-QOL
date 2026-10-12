@@ -346,9 +346,17 @@ object ForeignConfigImport: ICommandProvider {
             skip(NO_EQUIVALENT, "On Key Release", "Only Classes", "Color Style", "Background Color", "Render Scale")
         }
         odin("King Relic", "M7 Relics") {
-            alias("Relic Time", "Place Timer")
+            alias("Relic Time", "Instant Place Time") // Odin announced your own place time when you clicked the cauldron
             skip("removed upstream after the dungeon update", "Relic Spawn Ticks")
-            custom("Relics") { c, v -> importPBs(c, v) { "M7_relic_${it.uppercase()}" } }
+            // Odin 1cf5805 (0.3.6) times relics from the relic landing in hotbar slot 9 to placing it: those PBs go to
+            // LayBaltQOL's "Pickup To Place Time". Older Odin configs (they still have "Relic Time"/"Relic Spawn Ticks")
+            // timed from Necron's "All this, for nothing...", while LayBaltQOL's place time now starts at the Wither
+            // King's boss bar, so those PBs would not compare and are skipped.
+            custom("Relics") { c, v ->
+                if (c.settings.has("Relic Time") || c.settings.has("Relic Spawn Ticks"))
+                    c.report.line("    - Relics: skipped (pre-0.3.6 Odin relic PBs are timed from Necron's last line, LayBaltQOL times from the Wither King's boss bar)")
+                else importPBs(c, v) { "M7_relic_pickup_${it.uppercase()}" }
+            }
         }
         odin("Command Keybinds", "Command Keybinds")
         odin("Mimic", "Mimic")
@@ -432,9 +440,11 @@ object ForeignConfigImport: ICommandProvider {
             custom("Display in Ticks") { c, v -> set(c, "Display in Ticks", "Format", JsonPrimitive(if (v.asBoolean) "Ticks" else "Seconds")) }
             alias("Display Symbol", "Suffix")
             alias("Show Prefix", "Prefix")
-            alias("Start timer", "Maxor Start")
+            // Odin's "Start timer" is the Goldor start countdown inside the Goldor HUD (64 ticks after Storm dies);
+            // the Goldor HUD itself is the 60-tick Goldor death tick timer. Odin has no Maxor start timer.
+            alias("Start timer", "Goldor Start")
             skip("removed upstream after the dungeon update", "Necron Hud")
-            alias("Goldor Hud", "Goldor Start")
+            alias("Goldor Hud", "Goldor Death Ticks")
             alias("Storm Pad Hud", "Storm Pad Timer")
             alias("Storm PY Hud", "Storm PY Timer")
             skip("removed upstream after the dungeon update", "Secrets Hud")
@@ -620,7 +630,8 @@ object ForeignConfigImport: ICommandProvider {
         odin("Puzzle HUD", "Puzzle HUD")
         odin("Room Clear", "Room Clear")
         odin("Dungeon Queue", "Dungeon Queue") { alias("Warp Cooldown", "Warp Cooldown HUD") }
-        odin("Inactive Waypoints", "Inactive Waypoints") {
+        // Odin 16794b8 (0.3.6) renamed "Inactive Waypoints" to "Terminals Status" and kept its setting names.
+        val terminalsStatus: Spec.() -> Unit = {
             val shows = listOf("All", "TermsAndLevers", "Terminals", "Devices", "Levers")
             val styles = listOf("Full", "BoxText", "Box", "Text")
             custom("Show") { c, v -> set(c, "Show", "Show", JsonPrimitive(shows.indexOf(v.asString).coerceAtLeast(0))) }
@@ -654,6 +665,8 @@ object ForeignConfigImport: ICommandProvider {
             skip("folded into Show (see Show Terminals)", "Show Devices", "Show Levers")
             skip("folded into Style (see Render Box)", "Render Text", "Render Beacon")
         }
+        odin("Inactive Waypoints", "Inactive Waypoints", block = terminalsStatus)
+        odin("Terminals Status", "Inactive Waypoints", block = terminalsStatus)
         odin("Extra Stats", "Extra Stats")
         odin("Waypoints", "Waypoints") {
             skip(NO_EQUIVALENT, "Ping Waypoint", "Ping Keybind", "Send Pinged Location", "Ping Waypoint Time", "Ping Distance")

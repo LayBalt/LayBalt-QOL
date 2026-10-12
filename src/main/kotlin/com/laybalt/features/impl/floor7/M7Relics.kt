@@ -25,7 +25,9 @@ import com.laybalt.utils.render.world.Render3D.renderBlock
 import com.laybalt.utils.render.world.Render3D.renderTracer
 import kotlinx.coroutines.launch
 import net.minecraft.core.BlockPos
+import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
+import net.minecraft.network.protocol.game.ClientboundSetPlayerInventoryPacket
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.phys.EntityHitResult
@@ -36,7 +38,9 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
     private val relicBox by ToggleSetting("Box Relics").withDescription("Draws a box on where the relics are spawning and the cauldron you need to place.")
     private val relicTimer by ToggleSetting("Place Timer").withDescription("When all 5 relics are placed, sends in chat how long after the start of P5 each one was placed.")
     private val instantPlaceTime by ToggleSetting("Instant Place Time", true)
-        .withDescription("Prints your own relic place time (from the start of P5) with a personal-best comparison as soon as you click the cauldron, without waiting for all 5 relics.")
+        .withDescription("Prints your own relic place time (from the start of P5, now the Wither King's boss bar; PBs saved before the dungeon update counted from Necron's last line) with a personal-best comparison as soon as you click the cauldron, without waiting for all 5 relics.")
+    private val pickupPlaceTime by ToggleSetting("Pickup To Place Time", true).showIf { instantPlaceTime.value }
+        .withDescription("Adds how long it took from the relic landing in your 9th hotbar slot to placing it (Odin's relic time), with its own personal best.")
     private val relicBeacon by ToggleSetting("Relic Beacon", false)
         .withDescription("Draws a beacon-style beam above the cauldron of the relic you are holding.")
 
@@ -52,6 +56,8 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
     private val relicTimes = mutableListOf<RelicEntry>()
     /** Server tick at which the Wither King phase started (his boss bar appeared); 0 until then. */
     private var p5StartTime = 0L
+    /** Server tick at which your relic landed in hotbar slot 9 (Odin 1cf5805); -1 until then. */
+    private var relicPickupTick = - 1L
 
     /** Relics you placed yourself this run -> whether that place time was a new PB (from Instant Place Time). */
     private val ownPlaceResults = mutableMapOf<WitherRelic, Boolean>()
@@ -69,6 +75,7 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
         register<WorldChangeEvent> {
             relicTimes.clear()
             p5StartTime = 0L
+            relicPickupTick = - 1L
             ownPlaceResults.clear()
             //#if CHEAT
             lastRelicClick = 0L
@@ -117,6 +124,15 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
             )
         }
 
+        // Odin 1cf5805: the relic time counts server ticks from the relic landing in hotbar slot 9 (inventory menu slot 44)
+        // to placing it. Checked after every packet that can fill that slot, like Odin's SetSlotEvent.
+        register<MainThreadPacketReceivedEvent.Post> {
+            if (relicPickupTick != - 1L || LocationUtils.F7Phase != 5) return@register
+            val packet = event.packet
+            if (packet !is ClientboundContainerSetSlotPacket && packet !is ClientboundContainerSetContentPacket && packet !is ClientboundSetPlayerInventoryPacket) return@register
+            if (heldRelic() != null) relicPickupTick = DungeonListener.currentTime
+        }
+
         // Odin "Relic Time": announce your own place time immediately when you click the cauldron.
         register<PlayerInteractEvent.RIGHT_CLICK.BLOCK> {
             if (! instantPlaceTime.value || p5StartTime == 0L || LocationUtils.F7Phase != 5) return@register
@@ -139,7 +155,7 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
                 oldPB != null -> " §8(§7${oldPB.toFixed(2)}s§8)"
                 else -> ""
             }
-            ChatUtils.modMessage("${relic.coloredName} relic §7placed in §6${seconds}s§7!$pbText")
+            ChatUtils.modMessage("${relic.coloredName} relic §7placed in §6${seconds}s§7!$pbText${pickupPlaceText(relic)}")
         }
 
         register<TickEvent.Start> {
@@ -212,6 +228,23 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
             }
         }
         //#endif
+    }
+
+    /**
+     * " | pickup → place 0.85s (PB)" for Odin's relic time (Odin 1cf5805), under its own PB key: it is measured from a
+     * different moment than LayBaltQOL's place time, which counts from the start of P5.
+     */
+    private fun pickupPlaceText(relic: WitherRelic): String {
+        if (! pickupPlaceTime.value || relicPickupTick < 0) return ""
+        val key = "M7_relic_pickup_${relic.name}"
+        val seconds = ((DungeonListener.currentTime - relicPickupTick) / 20.0).toFixed(2).toDouble()
+        val oldPB = PersonalBest.getPB(key)?.toDouble()
+        val pbText = when {
+            PersonalBest.checkAndSetPB(key, seconds, lowerIsBetter = true) -> " §d§l(PB)"
+            oldPB != null -> " §8(§7${oldPB.toFixed(2)}s§8)"
+            else -> ""
+        }
+        return " §8| §7pickup → place §6${seconds}s$pbText"
     }
 
     private val placeBlocks = setOf(Blocks.CAULDRON, Blocks.ANVIL)

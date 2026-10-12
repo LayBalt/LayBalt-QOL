@@ -14,6 +14,8 @@ import com.laybalt.utils.render.RenderHelper.width
  * Timings for the dungeon update (NoammAddons 64bb7927, Odin 833e053): Maxor now starts 83 ticks after his first line,
  * Goldor 64 ticks after Storm's death (Odin) and the Storm PY window is 62 ticks (NoammAddons). The Storm/Necron start
  * timers and the 0s death / secret tick timers were removed upstream.
+ * The upstreams disagree on PY: NoammAddons 1cec5e74 counts 62 ticks, Odin 833e053 counts 55 from the same
+ * "ENERGY HEED MY CALL" / "THUNDER LET ME BE YOUR CATALYST" line. 62 is kept until a run confirms one of them.
  */
 object TickTimers: Feature("Shows various types of server tick timers for F7 boss fight.") {
     private const val MAXOR_START_TICKS = 83
