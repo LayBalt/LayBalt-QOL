@@ -1,7 +1,28 @@
 <!-- markdownlint-disable-file MD001 MD033 -->
 <h2 align="center">LayBalt Repository</h2>
-<h2 align="center">Version 3.1.1</h2>
+<h2 align="center">Version 3.2.0</h2>
 <h4 align="center">LayBaltQOL (LBQ) is a feature-rich Fabric mod for Hypixel Skyblock on Minecraft 26.2.</h4>
+
+---
+
+<h3 align="center">3.2.0: Hypixel dungeon update</h3>
+<p align="center">
+Brings the dungeon and M7 helpers in line with Hypixel's dungeon update, following the latest NoammAddons and Odin changes. Nothing below has been checked in a live run yet.
+</p>
+
+- **Terminals.** The Melody solver, overlay, Melody Alert and Melody Display handle the new 3-row Melody (progress is <code>x/3</code>, <code>33%</code> / <code>66%</code>). The Numbers solver uses the new 5x2 grid. Odin's invincibility messages are no longer read as Melody progress. Auto Terminal keeps clicking after a terminal breaks and re-syncs. <code>/lbq termsim</code> simulates the new Melody and Numbers terminals.
+- **Wither Dragons.** Your priority is the dragon that starts spawning first. The new <b>Dragon Priority</b> option sends the chosen Healer or Tank to the later dragon. A dragon that is already spawning no longer has its timer reset. The old priority settings (Normal/Easy Power, Purple Solo Debuff, Paul Buff and so on) are gone, and Dragon Priority starts off for everyone.
+- **M7 phase 5.** Relic times start when the Wither King's boss bar appears. The relic spawn timer, spawn announcement and the Ragnarock M7 dragon alert are removed. The relic leap box is larger.
+- **Run splits.** The M7 Necron split ends when Necron's boss bar empties.
+- **Tick Timers.** Maxor start is 83 ticks, Goldor start 64 ticks after Storm dies and PY 62 ticks. The Storm Start, Necron Start, 0s Death Tick and Secret Tick timers are removed.
+- **Auto I4** timings count from Goldor's first line. **Simon Says** shows <code>/4</code>. **Inactive Waypoints** boxes the armor stand itself.
+- **Livid.** The invulnerability timer is 340 ticks, and the tracer and HP label also show while Livid is asleep.
+- **Blood Camp.** Kill Title and the Move Timer HUD start when the blood room opens and fire after 20.5s. Speed Alert is removed. The Watcher's mob count is 8 + floor in Bossbar Health and the Watcher bar.
+- **Door ESP (new).** Boxes blood rush doors (by key status) and the doors of your current room. It replaces Dungeon Map's Box Wither Doors, and your old settings move over. Highlight Mimic Room now needs Cheater Map.
+- **Breaker Helper.** Prevent Mine also works in boss rooms (levers and buttons stay mineable) and now blocks dispensers, hoppers and droppers.
+- **Room data** is updated and parsed field by field. **Secrets Counter** caches teammates' secret totals.
+- **Other fixes.** Pet cache and pet skin fixes, Protect Item blocks Hypixel's fake quiver arrows, Command Shortcuts autocomplete and arguments work again, Info Display has ping suffix and colour options and keeps TPS/ping across world changes, settings are autosaved every 5 minutes, section headers in the settings panel show whenever any of their settings is visible, and the NoammAddons/Odin importer follows their latest config changes (Odin 0.3.6 Terminals Status and Temporary Waypoints, NoammAddons slot binds).
+- **Config version.** Saved configs move to version 2. Going back to 3.1.1 afterwards cannot read them.
 
 ---
 
@@ -37,7 +58,7 @@ Type <code>/lbq</code> or <code>/laybalt</code>, press the <b>Click Gui &gt; Ope
 
 <h3 align="center">Features</h3>
 <p align="center">
-Grouped by GUI category (<code>/lbq</code>) and generated from the feature classes: 187 features in total. Features marked <i>WIP</i> are shown greyed out and cannot be enabled yet.
+Grouped by GUI category (<code>/lbq</code>) and generated from the feature classes: 188 features in total. Features marked <i>WIP</i> are shown greyed out and cannot be enabled yet.
 </p>
 
 #### General (26)
@@ -69,7 +90,7 @@ Grouped by GUI category (<code>/lbq</code>) and generated from the feature class
 - **Term AC** - Automatically uses Salvation ability when holding right click.
 - **Wardrobe Keybinds** - Make it possible to bind armor slots to your keyboard.
 
-#### Dungeon (39)
+#### Dungeon (40)
 
 - **Architect Draft** - Announces and can automatically get an Architect's First Draft after a failed puzzle.
 - **Auto Abilities** - Allows you to use dungeon class abilities with keybinds and automatically trigger ultimates when needed.
