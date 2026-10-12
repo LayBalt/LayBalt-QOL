@@ -1,7 +1,15 @@
 <!-- markdownlint-disable-file MD001 MD033 -->
 <h2 align="center">LayBalt Repository</h2>
-<h2 align="center">Version 3.2.1</h2>
+<h2 align="center">Version 3.2.2</h2>
 <h4 align="center">LayBaltQOL (LBQ) is a feature-rich Fabric mod for Hypixel Skyblock on Minecraft 26.2.</h4>
+
+---
+
+<h3 align="center">3.2.2: fixes</h3>
+
+- **Secret Hitboxes.** Levers work again. Root cause: the OdinClient importer copied OdinClient's unused "1.8 lever hitbox" default into <b>Lever Hitbox Style</b>, and 1.8 Style is barely bigger than vanilla and ignores the size slider. The importer now only takes "1.8 lever hitbox" and "Flat button hitbox" when the OdinClient module was on, and configs it changed are set back to Scaled once, with a chat notice. The hitbox mixins also hold up when other mods change the same shapes.
+- **Scoreboard.** Lines are read live from the sidebar every frame, with vanilla colours and order. The panel is clamped to the HUD canvas instead of the GUI-scaled window, so it no longer drifts into the middle of the screen at GUI scale 3 or 4. It keeps its anchored edge when it resizes or the window changes, and can match the vanilla sidebar's size (<b>Match Vanilla Size</b>). A 3.2.1 position saved with the Right Edge anchor starts at the vanilla spot once. <b>Hide Server ID</b> only applies on Hypixel.
+- **Water Board recovery.** The solver notices a failed run (wrong lever, extra click, a click too early or too late) and shows the fix: turn the water off, wait for the board to drain, flip the listed levers back, then pull the water lever to restart. A wrong lever flipped before the water starts is marked FLIP BACK. New options: Water Recovery Guidance, Water Timing Tolerance, Water Fix Color, Water Failure Message, and a Water Board Recovery HUD line. Only your own clicks are tracked.
 
 ---
 
