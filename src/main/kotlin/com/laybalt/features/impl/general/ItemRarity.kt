@@ -1,9 +1,7 @@
 package com.laybalt.features.impl.general
 
 import com.laybalt.LayBaltQOL.MOD_ID
-import com.laybalt.config.types.DropdownSetting
-import com.laybalt.config.types.SliderSetting
-import com.laybalt.config.types.ToggleSetting
+import com.laybalt.config.types.*
 import com.laybalt.event.impl.ContainerEvent
 import com.laybalt.features.Feature
 import com.laybalt.utils.ColorUtils.withAlpha
