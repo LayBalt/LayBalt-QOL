@@ -204,7 +204,7 @@ object PartyFinder: Feature(), ICommandProvider {
         val cleanName = name.removeFormatting()
 
         val data = ProfileUtils.getProfile(cleanName).onFailure {
-            ChatUtils.modMessage("&cFailed to get stats for $name. ${it.message}")
+            ChatUtils.modMessage("&cFailed to get stats for $name. ${it.message?.take(100)}")
         }.getOrNull() ?: return
         val dungeons = data.dungeons
 
