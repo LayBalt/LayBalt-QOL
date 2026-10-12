@@ -400,6 +400,7 @@ object CustomESP: Feature("Outlines entities. Press the add key while looking at
         setName("lbq", "laybalt")
 
         literal("esp") {
+            category(com.laybalt.commands.LbqHelp.Category.MISC)
             description("Custom ESP list: list, add <name>, remove <name>, clear")
             runs { listEntries() }
 

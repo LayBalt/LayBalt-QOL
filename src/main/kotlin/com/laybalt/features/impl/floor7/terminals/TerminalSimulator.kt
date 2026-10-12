@@ -42,6 +42,7 @@ object TerminalSimulator: Feature("Practice floor 7 terminals in a local simulat
     /** Adds `termsim [type] [ping]` under /lbq; called from [com.laybalt.commands.LbqCommand] so it is listed in /lbq help. */
     fun registerCommand(builder: CommandBuilder) = with(builder) {
         literal("termsim") {
+            category(com.laybalt.commands.LbqHelp.Category.TERMINALS)
             description("Opens the terminal simulator: /lbq termsim [ping] or /lbq termsim <type> [ping]")
             runs { open() }
 

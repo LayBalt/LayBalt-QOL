@@ -40,6 +40,12 @@ object PlayerUtils: ISelfInit, Shortcuts {
     val LocalPlayer.serverYaw get() = (this as ILocalPlayer).serverYaw
     val LocalPlayer.serverPitch get() = (this as ILocalPlayer).serverPitch
 
+    /** Your block position as "x: _, y: _, z: _", the format coordinate waypoints in chat are read from (Odin's getPositionString). */
+    fun positionString(): String {
+        val pos = mc.player?.blockPosition() ?: return "x: 0, y: 0, z: 0"
+        return "x: ${pos.x}, y: ${pos.y}, z: ${pos.z}"
+    }
+
     fun swingArm() {
         if (! player.swinging || player.swingTime < 0) {
             player.swingingArm = InteractionHand.MAIN_HAND

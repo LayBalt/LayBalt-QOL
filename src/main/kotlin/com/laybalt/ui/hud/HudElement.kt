@@ -29,6 +29,14 @@ abstract class HudElement {
         scale = defaultScale
     }
 
+    /** Puts the element back at its default position and scale (HUD editor "Reset" and /lbq reset hud). */
+    fun resetPosition() {
+        x = defaultX
+        y = defaultY
+        scale = defaultScale
+        defaults.invoke(this)
+    }
+
     var isDragging = false
     private var dragX = 0f
     private var dragY = 0f

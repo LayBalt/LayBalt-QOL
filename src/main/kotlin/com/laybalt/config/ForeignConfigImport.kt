@@ -1595,7 +1595,7 @@ object ForeignConfigImport: ICommandProvider {
             "odin" -> listOf(Source.ODIN)
             "odinclient" -> listOf(Source.ODINCLIENT)
             "all" -> Source.entries.toList()
-            else -> return ChatUtils.modMessage("§cUsage: /lbq import <na|odin|odinclient|all>")
+            else -> return ChatUtils.modMessage("§cUsage: /lbq import config <na|odin|odinclient|all>")
         }
         try {
             val report = Report()
@@ -1632,12 +1632,24 @@ object ForeignConfigImport: ICommandProvider {
     override fun CommandBuilder.command() {
         setName("lbq", "laybalt")
 
+        val sources = listOf("na", "odin", "odinclient", "all")
         literal("import") {
-            description("Re-imports settings from another mod: /lbq import <na|odin|odinclient|all>")
-            runs { ChatUtils.modMessage("§cUsage: /lbq import <na|odin|odinclient|all>") }
+            category(com.laybalt.commands.LbqHelp.Category.CONFIG)
+            description("Imports from other mods: /lbq import <config|odinwaypoints|secrets> ...")
+            runs { ChatUtils.modMessage("§cUsage: /lbq import config <na|odin|odinclient|all> | odinwaypoints [all|clipboard|<pack>] | secrets <path>") }
 
+            literal("config") {
+                runs { ChatUtils.modMessage("§cUsage: /lbq import config <na|odin|odinclient|all>") }
+                argument("source", StringArgumentType.word()) {
+                    description("Re-imports the settings of NoammAddons, Odin, OdinClient or all three")
+                    suggests { sources }
+                    runs { runOnDemand(StringArgumentType.getString(it, "source")) }
+                }
+            }
+
+            // Old form, kept working: /lbq import <na|odin|odinclient|all>
             argument("source", StringArgumentType.word()) {
-                suggests { listOf("na", "odin", "odinclient", "all") }
+                suggests { sources }
                 runs { runOnDemand(StringArgumentType.getString(it, "source")) }
             }
         }

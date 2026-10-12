@@ -227,12 +227,7 @@ class HudEditorScreen(private val parent: Screen? = null): Screen(Component.lite
                     return
                 }
                 resetConfirmUntil = 0L
-                FeatureManager.hudElements.forEach {
-                    it.x = HudElement.defaultX
-                    it.y = HudElement.defaultY
-                    it.scale = HudElement.defaultScale
-                    it.defaults.invoke(it)
-                }
+                FeatureManager.hudElements.forEach(HudElement::resetPosition)
             }
             Button.DONE -> onClose()
         }

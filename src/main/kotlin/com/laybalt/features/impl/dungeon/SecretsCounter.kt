@@ -26,6 +26,9 @@ object SecretsCounter: Feature("Counts the secrets each player found and prints 
     private val dungeonStartRegex = Regex("^\\[NPC] Mort: Good luck\\.$")
     private val dungeonEndRegex = Regex("^\\s*(?:Master Mode )?(?:The )?Catacombs - (?:Entrance|Floor .{1,3})$")
 
+    /** The configured stats server without a trailing slash, or "" when none is set (also used by /lbq cata). */
+    val apiBaseUrl: String get() = apiUrl.value.trim().removeSuffix("/")
+
     private val baseline = ConcurrentHashMap<String, Long>()
     private var snapshotDone = false
 

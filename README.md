@@ -281,6 +281,95 @@ Grouped by GUI category (<code>/lbq</code>) and generated from the feature class
 
 ---
 
+<h3 align="center">Commands</h3>
+<p align="center">
+Every command is under <code>/lbq</code> (or <code>/laybalt</code>), so you never need another mod's command. <code>/lbq help</code> lists them by group (click a line to type it), <code>/lbq help &lt;command|group&gt;</code> shows every form of one command, and Tab completes feature names, floors, tiers, players and files. The standalone commands (<code>/ndw</code>, <code>/pfs</code>, <code>/lsw</code>, <code>/lbqsell</code>, ...) keep working.
+</p>
+
+#### Dungeons & Kuudra
+
+- `/lbq f1`..`f7`, `/lbq m1`..`m7` - Join a Catacombs floor or a Master Mode floor.
+- `/lbq t1`..`t5` - Join a Kuudra tier (Basic, Hot, Burning, Fiery, Infernal).
+- `/lbq leaporder <name|class> <player1> [player2] [player3] [player4]` - Custom leap menu order.
+- `/lbq leap <class>` - Leap to the teammate playing that class.
+
+#### Sacks
+
+- `/lbq ep|ij|sl|sb|dd|tap|twap [amount]` - Refill ender pearls, inflatable jerries, spirit leaps, superboom TNT, decoys, toxic or twilight arrow poison from your sacks up to `[amount]` (default 16 for pearls and leaps, 64 for the rest).
+
+#### Terminals & F7
+
+- `/lbq termsim [ping]`, `/lbq termsim <type|random> [ping]` - Terminal simulator.
+
+#### Waypoints
+
+- `/lbq wp` (or `/lbq waypoint`) `add [<x> <y> <z> [name]]`, `addtemp [name] [<x> <y> <z>]`, `here <name>`, `share [<x> <y> <z>]`, `list`, `clear` - Temporary waypoints.
+- `/lbq ndw <add|edit|remove|clear>` (also `/ndw`) - Dungeon waypoint on the block you look at.
+- `/lbq dwp importodin [all|clipboard|<pack>]` - Import Odin dungeon waypoint packs.
+- `/lbq dwp import [data]`, `/lbq dwp export` - Odin export strings: import one (or the clipboard), copy all your dungeon waypoints in Odin's format.
+- `/lbq dwp color <RRGGBB>`, `/lbq dwp fill`, `/lbq dwp depth` - Style a new `/ndw add` waypoint starts with (also in Dungeon Waypoints > New Waypoints).
+- `/lbq dwp resetsecrets` - Show every collected secret again.
+- `/lbq lsw ...` (also `/lsw`) - Secret Waypoints: `add`, `remove`, `found`, `missing`, `list`, `relpos`, `reltarget`, `import`, `unimport`, `reload`.
+
+#### Party & Players
+
+- `/lbq cata [player]` - Dungeon stats card (level, secrets, classes, floor times, magical power, armour, missing items). Uses the stats server set in Secrets Counter > API URL.
+- `/lbq soopy <command> [player]` - Soopy stats commands (dungeon, secrets, nw, skills, ...).
+- `/lbq pfs [player]` (also `/pfs`) - Party Finder stats.
+- `/lbq sendcoords [message]` - Send your coordinates in chat.
+- `/lbq pcbl <add|remove|list|clear>` (also `/pcbl`) - Party command blacklist.
+- `/lbq posmsg <add at|add in|remove|clear|list>` - Positional messages.
+
+#### Items & Inventory
+
+- `/lbq sell <add|remove|clear|list|defaults>` (also `/lbqsell`) - Auto Sell list.
+- `/lbq autoclicker` or `/lbq ac` `<add|remove|clear|list>` (also `/lbqac`) - Auto Clicker item whitelists.
+- `/lbq protectitem` (also `/protectitem`) - Protect the held item from dropping and selling.
+- `/lbq swapmask`, `/lbq rodswap`, `/lbq swapto <skyblock id>` - Equipment swaps.
+
+#### Config & Imports
+
+- `/lbq` - Open the LayBalt GUI. `/lbq hud` or `/lbq edithud` - HUD editor.
+- `/lbq toggle <feature>` - Turn a feature on or off (WIP features stay off).
+- `/lbq reset <feature|hud|gui>` - Reset a feature's settings, every HUD position or the GUI state.
+- `/lbq config <load|create|delete> <name>` - Config profiles.
+- `/lbq import config <na|odin|odinclient|all>` (old form `/lbq import <source>` still works) - Import settings from another mod again.
+- `/lbq import odinwaypoints [all|clipboard|<pack>]`, `/lbq import secrets <path>` - Import Odin dungeon waypoints or a secret waypoint dataset.
+- `/lbq export odinwaypoints` - Copy your dungeon waypoints in Odin's format.
+
+#### Misc
+
+- `/lbq help [command|group]`, `/lbq ping`, `/lbq tps`, `/lbq discord`.
+- `/lbq esp <list|add|remove|clear>` - Custom ESP list (OdinClient's `/odc highlight`).
+- `/lbq blockesp <add|remove|list|clear>` (also `/blockesp`) - Block ESP list.
+- `/lbq chathider <add|remove|list>` (also `/chathider`) - Hide chat messages by regex.
+- `/lbq sim <message>`, `/lbq debug [flag]` - Testing helpers.
+
+#### Coming from NoammAddons, Odin or OdinClient
+
+| Old command | LayBaltQOL |
+| --- | --- |
+| `/na`, `/od`, `/odin` | `/lbq` |
+| `/na hud`, `/od edithud` | `/lbq hud`, `/lbq edithud` |
+| `/od f7`, `/od m7`, `/od t5` | `/lbq f7`, `/lbq m7`, `/lbq t5` |
+| `/na ep`, `/od ep [amount]` (and ij, sl, sb, dd, tap, twap) | `/lbq ep [amount]` |
+| `/od toggle module <name>` | `/lbq toggle <feature>` |
+| `/od reset module <name>`, `/od reset hud`, `/od reset clickgui` | `/lbq reset <feature>`, `/lbq reset hud`, `/lbq reset gui` |
+| `/od sendcoords [message]` | `/lbq sendcoords [message]` |
+| `/na leaporder`, `/od leaporder <p1> .. <p4>` | `/lbq leaporder name <p1> .. <p4>` |
+| `/cata [player]` | `/lbq cata [player]` |
+| `/soopycmd <command> [player]` | `/lbq soopy <command> [player]` |
+| `/termsim [type] [ping]` | `/lbq termsim [type] [ping]` |
+| `/odw addtemp`, `/odw share`, `/odw clear` | `/lbq wp addtemp`, `/lbq wp share`, `/lbq wp clear` |
+| `/dwp import`, `/dwp export`, `/dwp color`, `/dwp fill`, `/dwp depth`, `/dwp resetsecrets` | `/lbq dwp import`, `export`, `color`, `fill`, `depth`, `resetsecrets` |
+| `/ndw ...`, `/pfs`, `/pcbl`, `/chathider`, `/protectitem` | `/lbq ndw ...`, `/lbq pfs`, `/lbq pcbl`, `/lbq chathider`, `/lbq protectitem` (old commands still work) |
+| `/na config`, `/na sim`, `/na debug`, `/na ping`, `/na tps`, `/na swapmask`, `/na rodswap`, `/na swapto`, `/na leap` | same subcommand under `/lbq` |
+| `/odc sell ...`, `/odc ac ...`, `/odc highlight ...` | `/lbq sell ...`, `/lbq ac ...`, `/lbq esp ...` |
+
+Not carried over: `/na rtca`, `/na update` and `/ws` (they need NoammAddons' servers), `/odw` screen and `/odw clear area` (LayBaltQOL has no saved per-area waypoints), `/dwp type|size|useblocksize` (LayBaltQOL waypoints always outline the block itself), `/oddev`, `/odc stream` (no hidden cheat category in the LayBalt GUI), NoammAddons' dev `/timer`, `/relative` and `/test` (developer tools; `/lsw reltarget` gives relative coordinates).
+
+---
+
 <h3 align="center">Installation</h3>
 <p align="center">
 Requires Minecraft 26.2 with <a href="https://fabricmc.net/use/">Fabric Loader 0.19.3+</a> and the following mods in your <code>mods</code> folder:

@@ -13,6 +13,7 @@ import com.laybalt.event.impl.WorldChangeEvent
 import com.laybalt.features.Feature
 import com.laybalt.init.types.ICommandProvider
 import com.laybalt.utils.ChatUtils
+import com.laybalt.utils.PlayerUtils
 import com.laybalt.utils.ColorUtils.withAlpha
 import com.laybalt.utils.MathUtils.center
 import com.laybalt.utils.render.world.Render3D.renderBoxBounds
@@ -173,11 +174,6 @@ object Waypoints: Feature("Renders temporary waypoints from coordinates posted i
         ChatUtils.modMessage("§aRemoved $count temporary waypoint(s).")
     }
 
-    private fun positionString(): String {
-        val pos = mc.player?.blockPosition() ?: BlockPos(0, 0, 0)
-        return "x: ${pos.x}, y: ${pos.y}, z: ${pos.z}"
-    }
-
     // region /lbq waypoint
 
     private fun coordSuggestion(axis: Char): List<String> {
@@ -199,8 +195,37 @@ object Waypoints: Feature("Renders temporary waypoints from coordinates posted i
         }
 
     private fun CommandBuilder.waypointCommand(literalName: String) = literal(literalName) {
-        description("Temporary waypoints: /lbq $literalName <add|here|share|list|clear>")
-        runs { ChatUtils.modMessage("§bUsage: /lbq $literalName add [<x> <y> <z> [name]] | here <name> | share [<x> <y> <z>] | list | clear") }
+        category(com.laybalt.commands.LbqHelp.Category.WAYPOINTS)
+        description("Temporary waypoints: /lbq $literalName <add|addtemp|here|share|list|clear>")
+        runs { ChatUtils.modMessage("§bUsage: /lbq $literalName add [<x> <y> <z> [name]] | addtemp [name] [<x> <y> <z>] | here <name> | share [<x> <y> <z>] | list | clear") }
+
+        // Odin's /odw addtemp: [<x> <y> <z>] or <name> [<x> <y> <z>], your position when no coordinates are given
+        literal("addtemp") {
+            description("Adds a temporary waypoint (Odin's /odw addtemp): [<x> <y> <z>] or <name> [<x> <y> <z>]")
+            runs {
+                val pos = mc.player?.blockPosition() ?: return@runs
+                addTempWaypoint("", pos.x, pos.y, pos.z)
+            }
+            xyz {
+                runs { ctx ->
+                    addTempWaypoint("Waypoint", IntegerArgumentType.getInteger(ctx, "x"), IntegerArgumentType.getInteger(ctx, "y"), IntegerArgumentType.getInteger(ctx, "z"))
+                }
+            }
+            argument("name", StringArgumentType.word()) {
+                runs { ctx ->
+                    val pos = mc.player?.blockPosition() ?: return@runs
+                    addTempWaypoint(StringArgumentType.getString(ctx, "name"), pos.x, pos.y, pos.z)
+                }
+                xyz {
+                    runs { ctx ->
+                        addTempWaypoint(
+                            StringArgumentType.getString(ctx, "name"),
+                            IntegerArgumentType.getInteger(ctx, "x"), IntegerArgumentType.getInteger(ctx, "y"), IntegerArgumentType.getInteger(ctx, "z")
+                        )
+                    }
+                }
+            }
+        }
 
         literal("add") {
             runs {
@@ -232,7 +257,7 @@ object Waypoints: Feature("Renders temporary waypoints from coordinates posted i
         }
 
         literal("share") {
-            runs { ChatUtils.sendMessage(positionString()) }
+            runs { ChatUtils.sendMessage(PlayerUtils.positionString()) }
             xyz {
                 runs { ctx ->
                     ChatUtils.sendMessage("x: ${IntegerArgumentType.getInteger(ctx, "x")}, y: ${IntegerArgumentType.getInteger(ctx, "y")}, z: ${IntegerArgumentType.getInteger(ctx, "z")}")

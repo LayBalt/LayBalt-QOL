@@ -66,6 +66,8 @@ object PartyHelper: Feature("Chat commands for party, guild, private and co-op c
 
     override fun CommandBuilder.command() {
         setName("partycommandsblacklist", "pcbl")
+        alsoUnderLbq("pcbl")
+        category(com.laybalt.commands.LbqHelp.Category.PARTY)
         description("Manages the party command blacklist")
         runs { showBlacklist() }
 

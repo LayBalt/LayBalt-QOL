@@ -267,6 +267,8 @@ object BlockESP: Feature("Highlights the block types you choose (ores, spawners,
 
     override fun CommandBuilder.command() {
         setName("blockesp")
+        alsoUnderLbq("blockesp")
+        category(com.laybalt.commands.LbqHelp.Category.MISC)
         description("Manage the Block ESP block list")
         runs { ChatUtils.modMessage("§bUsage: /blockesp <add|remove|list|clear> [block id]") }
 

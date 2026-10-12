@@ -21,7 +21,9 @@ class DungeonWaypointScreen(
     private val roomName: String,
     private val absolutePos: BlockPos,
     private val relativePos: BlockPos,
-    private val initialState: DungeonWaypoints.DungeonWaypoint? = null
+    private val initialState: DungeonWaypoints.DungeonWaypoint? = null,
+    /** Pre-filled style of a new waypoint (Dungeon Waypoints > New Waypoints, /lbq dwp color|fill|depth). */
+    private val defaults: DungeonWaypoints.DungeonWaypoint? = null,
 ): LayBaltSubScreen("Waypoint Editor") {
     private companion object {
         const val ROW_H = 30f
@@ -41,10 +43,15 @@ class DungeonWaypointScreen(
         var rect = Rect(0f, 0f, 0f, 0f)
     }
 
+    private var initialized = false
     private var filled = true
     private var outline = true
     private var phase = true
     private var selectedColorIndex = 0
+
+    /** The fixed palette plus, when the waypoint's colour is not in it, that colour as a "Custom" swatch. */
+    private val palette = colorPalette.toMutableList()
+    private val paletteNames = colorNames.toMutableList()
 
     private val toggles = listOf(
         Toggle("Filled", "Fill the block with a see-through colour", { filled }, { filled = it }),
@@ -52,7 +59,7 @@ class DungeonWaypointScreen(
         Toggle("See through walls", "Keep the waypoint visible behind blocks", { phase }, { phase = it })
     )
 
-    private val swatchHover = List(colorPalette.size) { UI.Smooth() }
+    private val swatchHover = List(colorPalette.size + 1) { UI.Smooth() }
     private val swatchRects = ArrayList<Rect>()
     private val selectedRing = UI.Smooth(0f, 20f)
     private var ringX = Float.NaN
@@ -73,12 +80,18 @@ class DungeonWaypointScreen(
 
     override fun init() {
         super.init()
-        val state = initialState ?: return
+        if (initialized) return // init() runs again on every resize: keep what the player picked
+        initialized = true
+        val state = initialState ?: defaults ?: return
         filled = state.filled
         outline = state.outline
         phase = state.phase
         val initialRgb = state.color.rgb and 0xFFFFFF
-        selectedColorIndex = colorPalette.indexOfFirst { (it.rgb and 0xFFFFFF) == initialRgb }.coerceAtLeast(0)
+        selectedColorIndex = palette.indexOfFirst { (it.rgb and 0xFFFFFF) == initialRgb }.takeIf { it >= 0 } ?: run {
+            palette.add(Color(initialRgb))
+            paletteNames.add("Custom #%06X".format(initialRgb))
+            palette.lastIndex
+        }
     }
 
     override fun drawBody(ctx: GuiGraphicsExtractor, mx: Float, my: Float) {
@@ -110,7 +123,7 @@ class DungeonWaypointScreen(
 
         // colour
         UI.textMid(ctx, "COLOUR", x + 2f, y + 4f, Palette.textMuted, 5.8f, UIFont.Weight.SEMIBOLD)
-        UI.textMid(ctx, colorNames[selectedColorIndex], x + 2f + UI.width("COLOUR", 5.8f, UIFont.Weight.SEMIBOLD) + 6f, y + 4f, Palette.textSecondary, 6.6f, UIFont.Weight.MEDIUM)
+        UI.textMid(ctx, paletteNames[selectedColorIndex], x + 2f + UI.width("COLOUR", 5.8f, UIFont.Weight.SEMIBOLD) + 6f, y + 4f, Palette.textSecondary, 6.6f, UIFont.Weight.MEDIUM)
         y += 14f
         drawSwatches(ctx, x, y, w, mx, my)
 
@@ -133,16 +146,16 @@ class DungeonWaypointScreen(
         // preview tile on the right, swatches spread over the rest
         val previewS = 24f
         val px = x + w - previewS - 2f
-        val step = (px - 14f - x - SWATCH_R * 2f) / (colorPalette.size - 1)
+        val step = (px - 14f - x - SWATCH_R * 2f) / (palette.size - 1)
         swatchRects.clear()
-        colorPalette.forEachIndexed { i, _ -> swatchRects += Rect(x + 2f + i * step, y, SWATCH_R * 2f, SWATCH_R * 2f) }
+        palette.forEachIndexed { i, _ -> swatchRects += Rect(x + 2f + i * step, y, SWATCH_R * 2f, SWATCH_R * 2f) }
 
         val sel = swatchRects[selectedColorIndex]
         ringX = if (ringX.isNaN()) sel.x else UI.approach(ringX, sel.x, UI.dt, 22f)
         UI.circle(ctx, ringX + SWATCH_R, y + SWATCH_R, SWATCH_R + 3f, UI.fade(Palette.accent, selectedRing.update(1f)))
         UI.circle(ctx, ringX + SWATCH_R, y + SWATCH_R, SWATCH_R + 1.6f, Palette.surface)
 
-        colorPalette.forEachIndexed { i, color ->
+        palette.forEachIndexed { i, color ->
             val r = swatchRects[i]
             val hot = swatchHover[i].update(r.contains(mx, my))
             if (hot > 0.5f) ctx.requestCursor(CursorTypes.POINTING_HAND)
@@ -156,7 +169,7 @@ class DungeonWaypointScreen(
         }
 
         // what the waypoint will look like
-        val base = colorPalette[selectedColorIndex]
+        val base = palette[selectedColorIndex]
         val py = y + SWATCH_R - previewS / 2f
         UI.rect(ctx, px, py, previewS, previewS, 4f, Palette.input)
         if (filled) UI.rect(ctx, px + 3f, py + 3f, previewS - 6f, previewS - 6f, 2f, base.withAlpha(90))
@@ -229,7 +242,7 @@ class DungeonWaypointScreen(
             return
         }
         Style.playClickSound(1.2f)
-        val base = colorPalette[selectedColorIndex]
+        val base = palette[selectedColorIndex]
         val finalColor = if (filled) base.withAlpha(60) else base
         DungeonWaypoints.saveWaypoint(absolutePos, relativePos, roomName, finalColor, filled, outline, phase)
         onClose()

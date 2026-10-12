@@ -27,4 +27,11 @@ object GuiState {
     }
 
     fun save() = store.save()
+
+    /** Back to the first category with every scroll position at the top (/lbq reset gui). */
+    fun reset() {
+        store.get().category = CategoryType.GENERAL.name
+        store.get().scroll = mutableMapOf()
+        save()
+    }
 }

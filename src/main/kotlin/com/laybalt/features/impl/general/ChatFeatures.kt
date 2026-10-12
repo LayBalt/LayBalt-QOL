@@ -42,6 +42,9 @@ object ChatFeatures: Feature(jsonName = "Chat", description = "Useful tweaks for
 
     override fun CommandBuilder.command() {
         setName("chathider")
+        alsoUnderLbq("chathider")
+        category(com.laybalt.commands.LbqHelp.Category.MISC)
+        description("Chat Hider: hide chat messages matching a regex: /chathider <add|remove|list>")
         requires("Enable the $name Feature to use /chathider.") { enabled }
         runs { ChatUtils.modMessage("&bUsage: /chathider <add|remove|list>") }
 

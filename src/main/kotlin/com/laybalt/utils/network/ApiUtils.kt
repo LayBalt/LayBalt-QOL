@@ -41,7 +41,23 @@ object ApiUtils {
         return lastLevelInList + levelsAboveLastLevel
     }
 
-    fun getMagicalPower(talismanBag: Collection<ItemStack>, profileInfo: DungeonStats): Int {
+    /** Catacombs or class level with the progress into the next level as the fraction (Odin's calculateDungeonLevel). */
+    fun getCatacombsLevelExact(totalXp: Double): Double {
+        if (totalXp <= 0) return 0.0
+        for (i in xpRequirements.indices) {
+            val required = xpRequirements[i].toDouble()
+            if (totalXp < required) {
+                val previous = if (i == 0) 0.0 else xpRequirements[i - 1].toDouble()
+                return i + (totalXp - previous) / (required - previous)
+            }
+        }
+        return xpRequirements.size + (totalXp - xpRequirements.last()) / 200_000_000.0
+    }
+
+    fun getMagicalPower(talismanBag: Collection<ItemStack>, profileInfo: DungeonStats) =
+        getMagicalPower(talismanBag, profileInfo.abiphoneContacts.size, profileInfo.consumedRiftPrism)
+
+    fun getMagicalPower(talismanBag: Collection<ItemStack>, abiphoneContacts: Int, consumedRiftPrism: Boolean): Int {
         return talismanBag.map {
             val itemId = it.skyblockId.let { id -> if (id.startsWith("PARTY_HAT_")) "PARTY_HAT" else id }
             val unusable = it.lore.any { line -> requiredRegex.matches(line.removeFormatting()) }
@@ -62,7 +78,7 @@ object ApiUtils {
 
             val bonus = when (itemId) {
                 "HEGEMONY_ARTIFACT" -> mp
-                "ABICASE" -> floor(profileInfo.abiphoneContacts.size / 2.0).toInt()
+                "ABICASE" -> floor(abiphoneContacts / 2.0).toInt()
                 else -> 0
             }
 
@@ -72,7 +88,7 @@ object ApiUtils {
         }.values.fold(0) { acc, pair ->
             acc + pair.second
         }.let {
-            if (profileInfo.consumedRiftPrism) it + 11 else it
+            if (consumedRiftPrism) it + 11 else it
         }
     }
 

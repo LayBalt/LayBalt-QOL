@@ -189,6 +189,9 @@ object PartyFinder: Feature(), ICommandProvider {
 
     override fun CommandBuilder.command() {
         setName("pfs")
+        alsoUnderLbq("pfs")
+        category(com.laybalt.commands.LbqHelp.Category.PARTY)
+        description("Party Finder stats of a player: /pfs [player]")
         runs { scope.launch { printPlayerStats(mc.user.name) } }
 
         argument("name", StringArgumentType.word()) {

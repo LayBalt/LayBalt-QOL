@@ -158,6 +158,8 @@ object AutoClicker: Feature("Auto clicker for left click, right click or both, w
 
     override fun CommandBuilder.command() {
         setName("lbqac", "lbqautoclicker")
+        alsoUnderLbq("autoclicker", "ac")
+        category(com.laybalt.commands.LbqHelp.Category.ITEMS)
         description("Manages the Auto Clicker item whitelists")
         runs { listWhitelists() }
 

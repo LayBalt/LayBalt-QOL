@@ -193,6 +193,7 @@ object PositionalMessages: Feature("Sends a party message when you reach a saved
         setName("lbq", "laybalt")
 
         literal("posmsg") {
+            category(com.laybalt.commands.LbqHelp.Category.PARTY)
             description("Positional Messages: /lbq posmsg <add at|add in|remove|clear|list>")
             runs { ChatUtils.modMessage("§bUsage: /lbq posmsg add at <x> <y> <z> <delay> <distance> <color> <dontSend> <message> | add in <x> <y> <z> <x2> <y2> <z2> <delay> <color> <dontSend> <message> | remove <message> | clear | list") }
 

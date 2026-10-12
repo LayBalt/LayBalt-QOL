@@ -106,6 +106,9 @@ object ProtectItem: Feature("Prevents dropping or selling important items via /p
 
     override fun CommandBuilder.command() {
         setName("protectitem")
+        alsoUnderLbq("protectitem")
+        category(com.laybalt.commands.LbqHelp.Category.ITEMS)
+        description("Protects the held item from being dropped or sold (run again to unprotect)")
         runs {
             val heldItem = player.mainHandItem.takeUnless { it.isEmpty }
                 ?: return@runs ChatUtils.modMessage("&cYou need to be holding an item.")

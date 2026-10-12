@@ -1,6 +1,7 @@
 package com.laybalt.commands
 
 import com.laybalt.LayBaltQOL
+import com.laybalt.commands.LbqHelp.Category
 import com.laybalt.config.ConfigManager
 import com.laybalt.event.EventBus
 import com.laybalt.event.impl.ChatMessageEvent
@@ -20,25 +21,31 @@ import kotlinx.coroutines.launch
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource
 import net.minecraft.network.chat.Component
 
+/**
+ * The `/lbq` (`/laybalt`) root: GUI, help and the general subcommands. Feature subcommands come from their features
+ * (other [ICommandProvider]s that register the /lbq root, or standalone roots mounted with [CommandBuilder.alsoUnderLbq])
+ * and from the providers in [com.laybalt.commands.impl]; brigadier merges them all into one tree.
+ */
 object LbqCommand: ICommandProvider {
     override fun CommandBuilder.command() {
-        setName("lbq", "laybalt")
+        setName(*LbqHelp.ROOTS.toTypedArray())
         description("opens the Config GUI")
         runs { GuiUtils.setScreen(LayBaltScreen()) }
 
         com.laybalt.features.impl.floor7.terminals.TerminalSimulator.registerCommand(this) // /lbq termsim (P2)
 
         literal("help") {
-            runs {
-                val helpMenu = StringBuilder()
-                this@command.helpEntries().forEach { (usage, desc) ->
-                    helpMenu.append("§e/$usage §7- $desc\n")
-                }
-                ChatUtils.chat(helpMenu.toString().trim())
+            category(Category.MISC)
+            description("Lists every /lbq command by group; /lbq help <command|group> shows the details")
+            runs { LbqHelp.print(null) }
+            argument("topic", StringArgumentType.word()) {
+                suggests { LbqHelp.topics() }
+                runs { LbqHelp.print(StringArgumentType.getString(it, "topic")) }
             }
         }
 
         literal("discord") {
+            category(Category.MISC)
             description("Opens the link to the Discord server")
             runs {
                 Utils.openDiscordLink()
@@ -46,11 +53,19 @@ object LbqCommand: ICommandProvider {
         }
 
         literal("hud") {
-            description("HUD editor")
+            category(Category.CONFIG)
+            description("Opens the HUD editor")
+            runs { GuiUtils.setScreen(HudEditorScreen()) }
+        }
+
+        literal("edithud") {
+            category(Category.CONFIG)
+            description("Opens the HUD editor (same as /lbq hud)")
             runs { GuiUtils.setScreen(HudEditorScreen()) }
         }
 
         literal("ping") {
+            category(Category.MISC)
             description("Shows your ping in chat")
             runs {
                 ChatUtils.modMessage("§aPing: §f${ServerUtils.averagePing}ms")
@@ -58,22 +73,25 @@ object LbqCommand: ICommandProvider {
         }
 
         literal("tps") {
+            category(Category.MISC)
             description("Shows the server's tps in chat")
             runs {
                 ChatUtils.modMessage("§aTPS: §f${ServerUtils.tps}")
             }
         }
 
-        refillCommand("ep", "ENDER_PEARL", "ender_pearl", 16)
-        refillCommand("ij", "INFLATABLE_JERRY", "inflatable_jerry", 64)
-        refillCommand("sl", "SPIRIT_LEAP", "spirit_leap", 16)
-        refillCommand("sb", "SUPERBOOM_TNT", "superboom_tnt", 64)
-        refillCommand("dd", "DUNGEON_DECOY", "dungeon_decoy", 64)
-        refillCommand("tap", "TOXIC_ARROW_POISON", "toxic_arrow_poison", 64)
-        refillCommand("twap", "TWILIGHT_ARROW_POISON", "twilight_arrow_poison", 64)
+        literal("sendcoords") {
+            category(Category.PARTY)
+            description("Sends your coordinates in chat, optionally followed by a message")
+            runs { ChatUtils.sendMessage(PlayerUtils.positionString()) }
+            argument("message", StringArgumentType.greedyString()) {
+                runs { ChatUtils.sendMessage("${PlayerUtils.positionString()} ${StringArgumentType.getString(it, "message")}") }
+            }
+        }
 
         literal("debug") {
-            description("Debug flags")
+            category(Category.MISC)
+            description("Shows or toggles debug flags")
             runs {
                 ChatUtils.modMessage("§7Flags: §f${LayBaltQOL.debugFlags.joinToString(", ")}")
             }
@@ -91,12 +109,13 @@ object LbqCommand: ICommandProvider {
         }
 
         literal("sim") {
+            category(Category.MISC)
+            description("Simulates a received chat message (for testing features)")
             runs {
                 ChatUtils.modMessage("§cInvalid Usage: §f/lbq sim <message>")
             }
 
             argument("message", StringArgumentType.greedyString()) {
-                description("Simulate chat message")
                 runs { ctx ->
                     val msg = StringArgumentType.getString(ctx, "message").addColor()
                     ChatUtils.modMessage(msg)
@@ -106,7 +125,8 @@ object LbqCommand: ICommandProvider {
         }
 
         literal("leaporder") {
-            description("Configure custom leap sorting")
+            category(Category.DUNGEONS)
+            description("Custom leap menu order: /lbq leaporder <name|class> <player1> [player2] [player3] [player4]")
             val partyMembersSuggestion = { PartyUtils.members.map(String::lowercase) }
             argument("sorting", StringArgumentType.word()) {
                 suggests { listOf("name", "class") }
@@ -134,8 +154,12 @@ object LbqCommand: ICommandProvider {
         }
 
         literal("config") {
+            category(Category.CONFIG)
+            description("Config profiles: /lbq config <load|create|delete> <name>")
+            runs { ChatUtils.modMessage("§bConfigs: §f${ConfigManager.getConfigs().keys.sorted().joinToString(", ")} §7(/lbq config <load|create|delete> <name>)") }
             literal("load") {
                 argument("config", StringArgumentType.string()) {
+                    description("Loads a saved config profile")
                     suggests { ConfigManager.getConfigs().keys }
                     runs {
                         val configName = StringArgumentType.getString(it, "config")
@@ -145,6 +169,7 @@ object LbqCommand: ICommandProvider {
             }
             literal("create") {
                 argument("config", StringArgumentType.string()) {
+                    description("Saves the current settings as a new config profile")
                     runs {
                         val configName = StringArgumentType.getString(it, "config").removeSuffix(".json")
                         ConfigManager.createConfig(configName)
@@ -153,6 +178,7 @@ object LbqCommand: ICommandProvider {
             }
             literal("delete") {
                 argument("config", StringArgumentType.string()) {
+                    description("Deletes a config profile")
                     suggests { ConfigManager.getConfigs().keys }
                     runs {
                         val configName = StringArgumentType.getString(it, "config").removeSuffix(".json")
@@ -164,6 +190,7 @@ object LbqCommand: ICommandProvider {
 
         //#if CHEAT
         literal("swapmask") {
+            category(Category.ITEMS)
             description("Equips either Bonzo Mask or Spirit Mask")
             runs {
                 LayBaltQOL.scope.launch {
@@ -173,6 +200,7 @@ object LbqCommand: ICommandProvider {
         }
 
         literal("rodswap") {
+            category(Category.ITEMS)
             description("Automatically rodswaps for you")
             runs {
                 LayBaltQOL.scope.launch {
@@ -182,9 +210,11 @@ object LbqCommand: ICommandProvider {
         }
 
         literal("swapto") {
+            category(Category.ITEMS)
+            description("Equips an inventory item in the equipment menu: /lbq swapto <skyblock id>")
             runs { ChatUtils.modMessage("missing skyblock id argument. /lbq swapto <ItemID>") }
             argument("skyblock id", StringArgumentType.word()) {
-                description("Automatically equips the item in the EQ menu")
+                suggests { LayBaltQOL.mc.player?.inventory?.nonEquipmentItems?.map { it.skyblockId }?.filter { it.isNotEmpty() }?.distinct().orEmpty() }
                 runs {
                     LayBaltQOL.scope.launch {
                         val inv = LayBaltQOL.mc.player?.inventory?.nonEquipmentItems ?: return@launch
@@ -197,9 +227,10 @@ object LbqCommand: ICommandProvider {
         }
 
         literal("leap") {
+            category(Category.DUNGEONS)
+            description("Leaps to the teammate playing a class: /lbq leap <class>")
             argument("class", StringArgumentType.word()) {
                 suggests { DungeonClass.entries.filterNot { it == DungeonClass.Empty }.map { it.name } }
-                description("Automatically leaps to the selected class")
                 runs { ctx ->
                     val clazz = StringArgumentType.getString(ctx, "class")
                     val player = DungeonListener.dungeonTeammatesNoSelf.find { it.clazz.name == clazz } ?: return@runs ChatUtils.modMessage("leap target not found")
@@ -223,19 +254,5 @@ object LbqCommand: ICommandProvider {
         LeapMenu.customLeapOrder = validPlayers
         LeapMenu.customLeapType = sortingType
         ChatUtils.modMessage("§aCustom leap order set to: §f$sortingType §awith players: §f${validPlayers.joinToString(", ")}")
-    }
-
-    private fun CommandBuilder.refillCommand(name: String, itemId: String, sackName: String, defaultAmount: Int) {
-        literal(name) {
-            description("Refills ${sackName.replace('_', ' ')} from sacks")
-            runs { refill(itemId, sackName, defaultAmount) }
-        }
-    }
-
-    private fun refill(itemId: String, sackName: String, amount: Int) {
-        val inventory = LayBaltQOL.mc.player?.inventory ?: return
-        val currentAmount = inventory.sumOf { stack -> if (stack.skyblockId == itemId) stack.count else 0 }
-        val missingAmount = amount - currentAmount
-        if (missingAmount > 0) ChatUtils.sendCommand("gfs $sackName $missingAmount")
     }
 }

@@ -4,6 +4,7 @@ package com.laybalt.init
 
 import com.laybalt.LayBaltQOL
 import com.laybalt.commands.CommandBuilder
+import com.laybalt.commands.LbqHelp
 import com.laybalt.config.ConfigManager
 import com.laybalt.config.ForeignConfigImport
 import com.laybalt.config.LegacyConfigImport
@@ -56,14 +57,18 @@ class ClassGraphInitializer {
         val providers = getClassesImplementing(ICommandProvider::class.java).map { it.getInstance<ICommandProvider>() }
 
         ClientCommandRegistrationCallback.EVENT.register { dispatcher, _ ->
+            val help = mutableListOf<CommandBuilder.HelpEntry>()
             providers.forEach { provider ->
                 val commandBuilder = CommandBuilder()
                 with(provider) { commandBuilder.command() }
 
+                // Several providers register the same /lbq root: brigadier merges their subcommand trees.
                 commandBuilder.build().forEach { root ->
                     dispatcher.register(root as LiteralArgumentBuilder<FabricClientCommandSource>)
                 }
+                help += commandBuilder.lbqHelpEntries()
             }
+            LbqHelp.entries = help
         }
     }
 

@@ -705,6 +705,8 @@ object SecretWaypoints: Feature(
 
     override fun CommandBuilder.command() {
         setName("lsw", "secretwaypoints")
+        alsoUnderLbq("lsw")
+        category(com.laybalt.commands.LbqHelp.Category.WAYPOINTS)
         description("Secret Waypoints: record and manage dungeon secret waypoints.")
         requires("Enable the Secret Waypoints feature to use this command.") { enabled }
         runs {
@@ -850,7 +852,18 @@ object SecretWaypoints: Feature(
         return listOf(File(cleaned), File(dataFile.parentFile, cleaned)).firstOrNull { it.exists() }
     }
 
-    private fun importDataset(raw: String) {
+    /** Marks every secret waypoint of every loaded room as missing again (Odin's /dwp resetsecrets). Returns how many changed. */
+    fun resetFound(): Int {
+        var changed = 0
+        for (list in roomWaypoints.values) for (waypoint in list) if (waypoint.found) {
+            waypoint.found = false
+            changed ++
+        }
+        return changed
+    }
+
+    /** /lsw import and /lbq import secrets. */
+    fun importDataset(raw: String) {
         val source = resolveImportPath(raw) ?: return ChatUtils.modMessage(
             "&cNothing found at '$raw'. Use an absolute path, or one relative to the game folder or to config/$CONFIG_DIR/data/."
         )
@@ -913,5 +926,22 @@ object SecretWaypoints: Feature(
                 "Their waypoints are saved under that name but will not show until you rename the room in secretWaypoints.json and run /lsw reload."
         )
         if (result.errors.isNotEmpty()) ChatUtils.modMessage("&e${result.errors.size} file(s) could not be read, e.g. ${result.errors.first()}")
+    }
+}
+
+/** `/lbq import secrets <path>`: the same dataset import as `/lsw import <path>`. */
+object SecretWaypointsLbqImport: ICommandProvider {
+    override fun CommandBuilder.command() {
+        setName(*com.laybalt.commands.LbqHelp.ROOTS.toTypedArray())
+        literal("import") {
+            literal("secrets") {
+                description("Loads a secret waypoint dataset from your disk (folder, .json, .zip or .jar), same as /lsw import")
+                helpUsage("secrets <path>")
+                requires("Enable the Secret Waypoints feature to use this command.") { SecretWaypoints.enabled }
+                argument("path", StringArgumentType.greedyString()) {
+                    runs { SecretWaypoints.importDataset(StringArgumentType.getString(it, "path")) }
+                }
+            }
+        }
     }
 }

@@ -143,6 +143,8 @@ object AutoSell: Feature("Automatically sells listed items in trade and Booster 
 
     override fun CommandBuilder.command() {
         setName("lbqsell")
+        alsoUnderLbq("sell")
+        category(com.laybalt.commands.LbqHelp.Category.ITEMS)
         description("Manage the Auto Sell list")
         runs { ChatUtils.modMessage("&bUsage: /lbqsell <add|remove|clear|list|defaults> [item name]") }
 

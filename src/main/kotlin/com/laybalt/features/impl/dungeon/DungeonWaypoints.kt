@@ -2,6 +2,7 @@
 package com.laybalt.features.impl.dungeon
 
 import com.laybalt.commands.CommandBuilder
+import com.laybalt.commands.LbqHelp
 import com.laybalt.config.PogObject
 import com.laybalt.config.types.*
 import com.laybalt.event.impl.*
@@ -21,7 +22,11 @@ import net.minecraft.core.BlockPos
 import net.minecraft.world.level.block.Blocks
 import java.awt.Color
 import java.util.concurrent.*
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
+import com.laybalt.config.ConfigManager
+import java.io.ByteArrayOutputStream
+import java.util.zip.GZIPOutputStream
 import com.google.gson.JsonParser
 import net.fabricmc.loader.api.FabricLoader
 import java.io.File
@@ -54,6 +59,13 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
 
     private val importOdinButton by ButtonSetting("Import Odin Waypoints") { importOdin(null) }.section("Odin Import")
         .withDescription("Adds the waypoints of the packs selected in Odin (config/odin/dungeon-waypoints) to these waypoints, keeping existing ones. Same as /lbq dwp importodin")
+
+    private val defaultColor by ColorSetting("Default Color", Color.GREEN, false).section("New Waypoints")
+        .withDescription("Colour pre-selected in the editor when you add a waypoint with /ndw add. Also /lbq dwp color <RRGGBB>")
+    private val defaultFilled by ToggleSetting("Default Filled", true)
+        .withDescription("New waypoints start filled. Also /lbq dwp fill")
+    private val defaultSeeThrough by ToggleSetting("Default See Through Walls", true)
+        .withDescription("New waypoints start visible through walls; off is Odin's depth check. Also /lbq dwp depth")
 
     private val storage = PogObject("dungeonWaypoints", mutableMapOf<String, MutableSet<DungeonWaypoint>>())
     private val roomWaypoints = ConcurrentHashMap<UniqueRoom, MutableSet<DungeonWaypoint>>()
@@ -145,6 +157,9 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
 
     override fun CommandBuilder.command() {
         setName("ndw")
+        alsoUnderLbq("ndw")
+        category(com.laybalt.commands.LbqHelp.Category.WAYPOINTS)
+        description("Dungeon Waypoints: /ndw <add|edit|remove|clear> for the block you look at")
         requires("Enable the $name Feature to use /ndw.") { enabled }
         runs { ChatUtils.modMessage("&bUsage: /ndw <add|edit|remove|clear>") }
 
@@ -156,7 +171,8 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
                 if (currentWaypoints.any { it.pos == lookingAt }) return@runs ChatUtils.modMessage("§cA waypoint already exists here. Use /ndw edit.")
 
                 val relativePos = ScanUtils.getRelativeCoord(lookingAt, info.corner, info.rotation)
-                GuiUtils.setScreen(DungeonWaypointScreen(info.name, lookingAt, relativePos))
+                val defaults = DungeonWaypoint(relativePos, defaultColor.value, defaultFilled.value, true, defaultSeeThrough.value)
+                GuiUtils.setScreen(DungeonWaypointScreen(info.name, lookingAt, relativePos, defaults = defaults))
             }
         }
 
@@ -260,12 +276,15 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
      * so positions are copied as they are. Odin's size, title and type are not used (the block's own shape is drawn).
      * [source]: null = Odin's selected packs (all packs if none are selected), "all", "clipboard" or a pack name.
      */
-    fun importOdin(source: String?, notify: (String) -> Unit = ChatUtils::modMessage) {
+    fun importOdin(source: String?, notify: (String) -> Unit = ChatUtils::modMessage) = importOdin(source, null, notify)
+
+    /** [data]: an Odin export string (base64 gzip or plain JSON) given in the command; read like the clipboard. */
+    fun importOdin(source: String?, data: String?, notify: (String) -> Unit = ChatUtils::modMessage) {
         val odinDir = File(FabricLoader.getInstance().configDir.toFile(), "odin")
         val packsDir = File(odinDir, "dungeon-waypoints")
         val packs = packsDir.listFiles { file -> file.extension == "json" }?.associateBy { it.nameWithoutExtension }.orEmpty()
-        val fromClipboard = source.equals("clipboard", true)
-        val clipboard = if (fromClipboard) mc.keyboardHandler.clipboard.trim() else ""
+        val fromClipboard = data != null || source.equals("clipboard", true)
+        val clipboard = data?.trim() ?: if (fromClipboard) mc.keyboardHandler.clipboard.trim() else ""
         // Reading and parsing packs can take a while for large packs, so do it off the client thread.
         ThreadUtils.async {
             val parsed = readOdinPacks(source, fromClipboard, clipboard, odinDir, packsDir, packs, notify)
@@ -366,6 +385,57 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
         else GZIPInputStream(Base64.getDecoder().decode(input).inputStream()).bufferedReader().use { it.readText() }
     }.getOrNull()
 
+    /** Copies every waypoint to the clipboard in Odin's export format (base64 of gzip JSON), for Odin's /dwp import. */
+    fun exportOdin() {
+        val data = storage.get()
+        val count = data.values.sumOf { it.size }
+        if (count == 0) return ChatUtils.modMessage("§cThere are no dungeon waypoints to export.")
+        val root = JsonObject()
+        for ((room, waypoints) in data) {
+            val list = JsonArray()
+            for (wp in waypoints) list.add(JsonObject().apply {
+                add("blockPos", JsonObject().apply {
+                    addProperty("x", wp.pos.x)
+                    addProperty("y", wp.pos.y)
+                    addProperty("z", wp.pos.z)
+                })
+                addProperty("color", "#%02X%02X%02X%02X".format(wp.color.red, wp.color.green, wp.color.blue, wp.color.alpha))
+                addProperty("filled", wp.filled)
+                addProperty("depth", ! wp.phase)
+                add("aabb", JsonObject().apply {
+                    addProperty("minX", 0.0); addProperty("minY", 0.0); addProperty("minZ", 0.0)
+                    addProperty("maxX", 1.0); addProperty("maxY", 1.0); addProperty("maxZ", 1.0)
+                })
+                addProperty("type", "NORMAL")
+            })
+            root.add(room, list)
+        }
+        val bytes = ByteArrayOutputStream().also { out -> GZIPOutputStream(out).use { it.write(root.toString().toByteArray()) } }.toByteArray()
+        mc.keyboardHandler.clipboard = Base64.getEncoder().encodeToString(bytes)
+        ChatUtils.modMessage("§aCopied §b$count§a waypoints in §b${data.size}§a rooms to the clipboard (Odin format).")
+    }
+
+    /** Odin's /dwp resetsecrets: every secret highlighted by Secret Waypoints (this feature) counts as not collected again. */
+    fun resetSecrets() = doneSecrets.clear()
+
+    fun setDefaultColor(color: Color) {
+        defaultColor.value = color
+        ConfigManager.save()
+        ChatUtils.modMessage("§aNew waypoints now start with colour §f#%06X§a.".format(color.rgb and 0xFFFFFF))
+    }
+
+    fun toggleDefaultFilled() {
+        defaultFilled.value = ! defaultFilled.value
+        ConfigManager.save()
+        ChatUtils.modMessage("§aNew waypoints start filled: §f${defaultFilled.value}")
+    }
+
+    fun toggleDefaultDepth() {
+        defaultSeeThrough.value = ! defaultSeeThrough.value
+        ConfigManager.save()
+        ChatUtils.modMessage("§aNew waypoints are added with depth check: §f${! defaultSeeThrough.value} §7(see through walls: ${defaultSeeThrough.value})")
+    }
+
     /** Re-applies the stored waypoints to rooms that are already loaded (rotation found). */
     private fun refreshLoadedRooms(names: Set<String>) {
         for (room in roomWaypoints.keys.toList()) {
@@ -393,21 +463,108 @@ object DungeonWaypoints: Feature("Add a custom waypoint with /ndw add while look
     data class DungeonWaypoint(val pos: BlockPos, val color: Color, val filled: Boolean, val outline: Boolean, val phase: Boolean)
     private data class RoomInfo(val name: String, val corner: BlockPos, val rotation: Int, val room: UniqueRoom?)
 }
-/** `/lbq dwp importodin [all|clipboard|<pack>]`: imports Odin dungeon waypoint packs into Dungeon Waypoints. */
-object DungeonWaypointsOdinImport: ICommandProvider {
+/**
+ * `/lbq dwp ...` (Odin's `/dwp` mapped onto these Dungeon Waypoints) plus `/lbq import odinwaypoints` and
+ * `/lbq export odinwaypoints`. The NoammAddons-style editor itself is `/ndw` (also `/lbq ndw`).
+ */
+object DungeonWaypointsLbqCommands: ICommandProvider {
+    private val hexRegex = Regex("^#?([0-9A-Fa-f]{6})([0-9A-Fa-f]{2})?$")
+
+    private fun odinPackSuggestions(): List<String> {
+        val dir = File(FabricLoader.getInstance().configDir.toFile(), "odin/dungeon-waypoints")
+        return listOf("all", "clipboard") + dir.listFiles { f -> f.extension == "json" }?.map { it.nameWithoutExtension }.orEmpty()
+    }
+
+    /** `[all|clipboard|<pack>]` argument of the Odin pack import. */
+    private fun CommandBuilder.odinPackImport() {
+        runs { DungeonWaypoints.importOdin(null) }
+        argument("source", StringArgumentType.greedyString()) {
+            suggests(::odinPackSuggestions)
+            runs { DungeonWaypoints.importOdin(StringArgumentType.getString(it, "source").trim()) }
+        }
+    }
+
     override fun CommandBuilder.command() {
-        setName("lbq", "laybalt")
+        setName(*LbqHelp.ROOTS.toTypedArray())
+
         literal("dwp") {
+            category(LbqHelp.Category.WAYPOINTS)
+            description("Dungeon Waypoints (Odin's /dwp): import/export Odin packs and the style of new waypoints")
+            runs {
+                ChatUtils.modMessage(
+                    "§bDungeon Waypoints: §e/ndw add§7 while looking at a block, or\n" +
+                        "§e/lbq dwp <importodin|import|export|color|fill|depth|resetsecrets>"
+                )
+            }
+
             literal("importodin") {
-                description("Imports Odin dungeon waypoint packs: /lbq dwp importodin [all|clipboard|<pack>] (default: the packs selected in Odin)")
-                runs { DungeonWaypoints.importOdin(null) }
-                argument("source", StringArgumentType.greedyString()) {
-                    suggests {
-                        val dir = File(FabricLoader.getInstance().configDir.toFile(), "odin/dungeon-waypoints")
-                        listOf("all", "clipboard") + dir.listFiles { f -> f.extension == "json" }?.map { it.nameWithoutExtension }.orEmpty()
-                    }
-                    runs { DungeonWaypoints.importOdin(StringArgumentType.getString(it, "source").trim()) }
+                description("Imports Odin dungeon waypoint packs (default: the packs selected in Odin)")
+                helpUsage("importodin [all|clipboard|<pack>]")
+                odinPackImport()
+            }
+
+            literal("import") {
+                description("Imports an Odin waypoint export string, or the clipboard when none is given")
+                helpUsage("import [data]")
+                runs { DungeonWaypoints.importOdin("clipboard") }
+                argument("data", StringArgumentType.greedyString()) {
+                    runs { DungeonWaypoints.importOdin(null, StringArgumentType.getString(it, "data")) }
                 }
+            }
+
+            literal("export") {
+                description("Copies all your dungeon waypoints to the clipboard in Odin's format")
+                runs { DungeonWaypoints.exportOdin() }
+            }
+
+            literal("color") {
+                description("Colour of the next waypoint you add with /ndw add (RRGGBB, Odin's RRGGBBAA also works)")
+                helpUsage("color <hex>")
+                argument("hex", StringArgumentType.word()) {
+                    runs { ctx ->
+                        val match = hexRegex.find(StringArgumentType.getString(ctx, "hex"))
+                            ?: return@runs ChatUtils.modMessage("§cColor hex not properly formatted! Use RRGGBB or RRGGBBAA.")
+                        DungeonWaypoints.setDefaultColor(Color(match.groupValues[1].toInt(16)))
+                    }
+                }
+            }
+
+            literal("fill") {
+                description("Toggles whether new waypoints start filled")
+                runs { DungeonWaypoints.toggleDefaultFilled() }
+            }
+
+            literal("depth") {
+                description("Toggles the depth check of new waypoints (off = visible through walls)")
+                runs { DungeonWaypoints.toggleDefaultDepth() }
+            }
+
+            literal("resetsecrets") {
+                description("Shows every collected secret of the Secret Waypoints highlight again")
+                runs {
+                    DungeonWaypoints.resetSecrets()
+                    val marked = SecretWaypoints.resetFound()
+                    ChatUtils.modMessage("§aSecrets have been reset!" + if (marked > 0) " §7($marked recorded secret waypoints marked missing)" else "")
+                }
+            }
+        }
+
+        literal("import") {
+            category(LbqHelp.Category.CONFIG)
+            literal("odinwaypoints") {
+                description("Imports Odin dungeon waypoint packs into Dungeon Waypoints (same as /lbq dwp importodin)")
+                helpUsage("odinwaypoints [all|clipboard|<pack>]")
+                odinPackImport()
+            }
+        }
+
+        literal("export") {
+            category(LbqHelp.Category.CONFIG)
+            description("Exports to other mods' formats: /lbq export odinwaypoints")
+            runs { ChatUtils.modMessage("§cUsage: /lbq export odinwaypoints") }
+            literal("odinwaypoints") {
+                description("Copies your dungeon waypoints to the clipboard in Odin's format (same as /lbq dwp export)")
+                runs { DungeonWaypoints.exportOdin() }
             }
         }
     }
