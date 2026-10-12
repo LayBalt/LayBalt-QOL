@@ -7,6 +7,7 @@ import com.laybalt.features.Feature
 import com.laybalt.features.impl.dungeon.solvers.puzzles.*
 import com.laybalt.utils.ColorUtils.withAlpha
 import com.laybalt.utils.location.LocationUtils.inBoss
+import com.laybalt.ui.utils.Resolution
 import com.laybalt.utils.render.Render2D.drawCenteredString
 import com.laybalt.utils.render.RenderHelper.width
 import com.laybalt.config.PersonalBest
@@ -96,6 +97,18 @@ object PuzzleSolvers: Feature() {
     val water by ToggleSetting("Enabled       ").section("Water Board Solver")
     val currentClickColor by ColorSetting("Click Color", Color.GREEN).showIf { water.value }
     val nextColor by ColorSetting("Next Click Color", Color.YELLOW).showIf { water.value }
+    val waterRecovery by ToggleSetting("Water Recovery Guidance", true)
+        .withDescription("Notices when the Water Board run goes wrong (wrong lever, extra flip, flip too early or too late) and shows how to fix it: undo wrong flips before the water starts, otherwise turn the water off, wait for the board to drain, flip the marked levers back and restart.")
+        .showIf { water.value }
+    val waterTolerance by SliderSetting("Water Timing Tolerance", 1.0, 0.2, 3.0, 0.1, "s")
+        .withDescription("How early or late a lever may be flipped before the run counts as failed.")
+        .showIf { water.value && waterRecovery.value }
+    val waterFixColor by ColorSetting("Water Fix Color", Color(255, 85, 255))
+        .withDescription("Colour of the recovery markers (levers to flip back, the water lever to turn off or restart).")
+        .showIf { water.value && waterRecovery.value }
+    val waterFailMessage by ToggleSetting("Water Failure Message", true)
+        .withDescription("Prints a chat message explaining what went wrong when the Water Board run fails.")
+        .showIf { water.value && waterRecovery.value }
 
     val icefill by ToggleSetting("Enabled        ").section("Ice Fill Solver")
     val icefillColor by ColorSetting("Click Color", Color.GREEN).showIf { icefill.value }
@@ -162,6 +175,21 @@ object PuzzleSolvers: Feature() {
             return@hudElement text.width().toFloat() to 9f
         } defaults {
             scale = 3f
+        }
+
+        hudElement(
+            name = "Water Board Recovery",
+            enabled = { water.value && waterRecovery.value },
+            shouldDraw = { WaterBoardSolver.hudText != null },
+            centered = { true }
+        ) { ctx, example ->
+            val text = if (example) "§cWater Board failed §7- §fturn the water §cOFF" else WaterBoardSolver.hudText ?: ""
+            ctx.drawCenteredString(text, 0f, 0f)
+            return@hudElement text.width().toFloat() to 9f
+        } defaults {
+            x = Resolution.width / 2f
+            y = Resolution.height * 0.3f
+            scale = 1.5f
         }
 
         register<DungeonEvent.RoomEvent.onStateChange> { puzzles.forEach { if (it.enabled) it.onStateChange(event) } }
