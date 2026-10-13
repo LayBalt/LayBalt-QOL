@@ -32,7 +32,7 @@ object WaterBoardCommand: ICommandProvider {
         }
 
         literal("record") {
-            description("Records every Water Board run to config/LayBaltQOL/waterboard (for the solver's test data)")
+            description("Records a trace of every Water Board room and its runs to config/LayBaltQOL/waterboard (on by default, local files only)")
             helpUsage("record <on|off>")
             runs { ChatUtils.modMessage("§7Water Board recorder is §f${if (PuzzleSolvers.waterRecorder.value) "on" else "off"}§7. Use §f/lbq water record on|off") }
             literal("on") {

@@ -10,6 +10,7 @@ import com.laybalt.utils.location.LocationUtils.inBoss
 import com.laybalt.ui.utils.Resolution
 import com.laybalt.utils.render.Render2D.drawCenteredString
 import com.laybalt.utils.render.RenderHelper.width
+import com.laybalt.config.ConfigManager
 import com.laybalt.config.PersonalBest
 import com.laybalt.utils.ChatUtils
 import com.laybalt.utils.NumbersUtils.toFixed
@@ -98,7 +99,7 @@ object PuzzleSolvers: Feature() {
     val currentClickColor by ColorSetting("Click Color", Color.GREEN).showIf { water.value }
     val nextColor by ColorSetting("Next Click Color", Color.YELLOW).showIf { water.value }
     val waterRecovery by ToggleSetting("Water Recovery Guidance", true)
-        .withDescription("Watches the real board (doors, water, lever blocks) and, when the run goes wrong - water in the wrong channel, water that stops short, flips off the timing, levers moved by teammates - shows how to finish from where the board is: a quick fix when one is known to work, otherwise turn the water off, let it drain and run the solutions that open the doors still closed. Off: the plain 3.2.2 timer display.")
+        .withDescription("Watches the real board (doors, water, lever blocks) and, when the run goes wrong - water in the wrong channel, water that stops short, flips off the timing, levers moved by teammates - shows how to finish from where the board is: a quick fix when one is known to work, otherwise turn the water off, let it drain and run the solutions that open the doors still closed. Whenever the board cannot be read reliably the plain timer display is shown instead. Off: the plain 3.2.2 timer display.")
         .showIf { water.value }
     val waterTolerance by SliderSetting("Water Timing Tolerance", 1.0, 0.2, 3.0, 0.1, "s")
         .withDescription("How far a flip may be from its planned time. Beyond it the run counts as off track: a quick fix from the board when one is known to work, otherwise turn the water off, drain and restart. Flips by teammates playing their own timings are not judged.")
@@ -115,9 +116,9 @@ object PuzzleSolvers: Feature() {
     val waterPingCompensation by ToggleSetting("Water Ping Compensation", true)
         .withDescription("Shows the CLICK of computed fixes earlier by your ping, so the flip reaches the server on time.")
         .showIf { water.value && waterRecovery.value && waterQuickFixes.value }
-    val waterRecorder by ToggleSetting("Water Board Recorder", false)
-        .withDescription("Saves the Water Board room and every run to config/LayBaltQOL/waterboard (also /lbq water record on). The files help to test the solver.")
-        .showIf { water.value && waterRecovery.value }
+    val waterRecorder by ToggleSetting("Water Board Recorder", true)
+        .withDescription("Keeps a short trace of every Water Board room (when the doors closed, lever flips, the water, which display was shown and why) plus the room layout, runs and calibration in config/LayBaltQOL/waterboard - local files only, nothing is sent anywhere, and only the newest files are kept. If the solver ever misbehaves, these files show what happened. Also /lbq water record on|off.")
+        .showIf { water.value }
     val waterReset by ButtonSetting("Reset Water") { WaterBoardSolver.resetSession() }
         .withDescription("Forgets everything about the Water Board room and reads the board again.")
         .showIf { water.value }
@@ -175,6 +176,10 @@ object PuzzleSolvers: Feature() {
 
     override fun init() {
         val puzzles = PuzzleSolver::class.sealedSubclasses.mapNotNull { it.objectInstance }
+
+        // The recorder became a default-on diagnostic (its trace is what field reports are made of). Configs saved before
+        // hold the old default (off), so it is switched on once; turning it off afterwards sticks.
+        ConfigManager.oneShotDefault("water-board-recorder-on") { waterRecorder.value = true }
 
         hudElement(
             name = "Quiz Timer",

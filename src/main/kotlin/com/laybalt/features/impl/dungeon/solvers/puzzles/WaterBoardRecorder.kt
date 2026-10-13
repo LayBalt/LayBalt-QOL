@@ -25,9 +25,14 @@ import java.time.format.DateTimeFormatter
 import java.util.concurrent.Executors
 
 /**
- * Self-recorded Water Board data (setting "Water Board Recorder" or `/lbq water record on`): a dump of the room the first
- * time it is read, and the observed timeline of every run, written to `config/LayBaltQOL/waterboard/`. These files are
- * the player's own recordings; copied into `src/test/resources/waterboard/` they become the simulator's test fixtures.
+ * Self-recorded Water Board data (setting "Water Board Recorder", on by default, or `/lbq water record on|off`), written
+ * to `config/LayBaltQOL/waterboard/` on this computer only:
+ * - `trace-<time>.log`: a compact trace of every room - activation, the doors, lever flips, the water at the entry and
+ *   the outlets, unwatched stretches, calibration, stages and what was shown - so a bug can be found from these files;
+ * - a dump of the room the first time it is read, the observed timeline of every run and the calibration results.
+ *
+ * The folder stays small: only the newest files of each kind are kept ([KEEP]) and appended logs are rotated. Copied into
+ * `src/test/resources/waterboard/`, layouts and runs become the simulator's test fixtures.
  *
  * World reads happen on the client thread; the files are written on a background thread.
  */
@@ -39,7 +44,54 @@ object WaterBoardRecorder {
     private val gson = GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create()
     private val compact = GsonBuilder().disableHtmlEscaping().create()
     private val stamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
+    private val clock = DateTimeFormatter.ofPattern("HH:mm:ss")
     private val io = Executors.newSingleThreadExecutor { Thread(it, "LayBalt-WaterRecorder").apply { isDaemon = true } }
+
+    /** How many files of each kind are kept (by name prefix); older ones are deleted. */
+    private val KEEP = mapOf("trace-" to 40, "layout-" to 20, "run-" to 40, "calibration-" to 20)
+
+    /** Appended logs are rotated (one old copy kept) once they reach this size. */
+    private const val MAX_APPEND_BYTES = 512L * 1024
+
+    /** A name for a new room's trace file. */
+    fun traceFileName(): String = "trace-${LocalDateTime.now().format(stamp)}.log"
+
+    /** The first lines of a room's trace file. */
+    fun traceHeader(roomName: String, centerX: Int, centerZ: Int): List<String> = listOf(
+        "# LayBaltQOL ${LayBaltQOL.MOD_VERSION} Water Board trace, ${LocalDateTime.now()}",
+        "# $roomName at $centerX,$centerZ. Ticks (t=) are server ticks counted by the solver; the clock time leads each line.",
+    )
+
+    /** Appends [lines] (and [header] first, for a new file) to the trace [file], each line stamped with the clock time. */
+    fun appendTrace(file: String, header: List<String>?, lines: List<String>) {
+        val time = LocalDateTime.now().format(clock)
+        val text = buildString {
+            header?.forEach { append(it).append('\n') }
+            lines.forEach { append(time).append(' ').append(it).append('\n') }
+        }
+        io.execute {
+            runCatching {
+                Files.createDirectories(dir)
+                val path = dir.resolve(file)
+                val fresh = ! Files.exists(path)
+                Files.writeString(path, text, StandardOpenOption.CREATE, StandardOpenOption.APPEND)
+                if (fresh) prune()
+            }.onFailure { LayBaltQOL.logger.warn("[WaterBoard] could not append to $file", it) }
+        }
+    }
+
+    /** Deletes the oldest files of each kind beyond [KEEP] (on the recorder thread). */
+    private fun prune() {
+        runCatching {
+            val files = Files.list(dir).use { s -> s.filter { Files.isRegularFile(it) }.toList() }
+            for ((prefix, keep) in KEEP) {
+                files.filter { it.fileName.toString().startsWith(prefix) }
+                    .sortedByDescending { Files.getLastModifiedTime(it).toMillis() }
+                    .drop(keep)
+                    .forEach { Files.deleteIfExists(it) }
+            }
+        }.onFailure { LayBaltQOL.logger.warn("[WaterBoard] could not clean up $dir", it) }
+    }
 
     /** Characters handed out to block ids in a dump, in order of appearance ('.' is air, '~' is water). */
     private const val PALETTE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@$%&*+=?<>^"
@@ -181,11 +233,15 @@ object WaterBoardRecorder {
         write(name, compact.toJson(json))
     }
 
-    /** Appends one line to [file] (for the `.jsonl` logs). */
+    /** Appends one line to [file] (for the `.jsonl` logs); a file past [MAX_APPEND_BYTES] is rotated to `<file>.old`. */
     fun appendLine(file: String, line: String) = io.execute {
         runCatching {
             Files.createDirectories(dir)
-            Files.writeString(dir.resolve(file), line + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND)
+            val path = dir.resolve(file)
+            if (Files.exists(path) && Files.size(path) > MAX_APPEND_BYTES) {
+                Files.move(path, dir.resolve("$file.old"), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            }
+            Files.writeString(path, line + "\n", StandardOpenOption.CREATE, StandardOpenOption.APPEND)
         }.onFailure { LayBaltQOL.logger.warn("[WaterBoard] could not append to $file", it) }
     }
 
@@ -194,6 +250,7 @@ object WaterBoardRecorder {
             Files.createDirectories(dir)
             Files.writeString(dir.resolve(name), text)
             LayBaltQOL.logger.info("[WaterBoard] wrote ${dir.resolve(name)}")
+            prune()
         }.onFailure { LayBaltQOL.logger.warn("[WaterBoard] could not write $name", it) }
     }
 

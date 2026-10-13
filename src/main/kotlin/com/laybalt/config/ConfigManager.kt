@@ -27,6 +27,19 @@ object ConfigManager: ISelfInit {
     /** Set once the config was read (or there was none yet), so a failed load is never overwritten by the autosave. */
     @Volatile private var loaded = false
 
+    /** Defaults that changed after configs had been saved with the old value, applied once per config ([OneShotDefaults]). */
+    private val oneShotDefaults = OneShotDefaults()
+
+    /** Registers a one-shot default change (call from a feature's init, which runs before [load]). */
+    fun oneShotDefault(id: String, change: () -> Unit) = oneShotDefaults.register(id, change)
+
+    /** Applies the one-shot defaults [root] has not had yet; true when something was applied. */
+    private fun applyOneShotDefaults(root: JsonObject?): Boolean {
+        val done = oneShotDefaults.apply(root) { id, e -> LayBaltQOL.logger.warn("[ConfigManager] could not apply the new default $id", e) }
+        done.forEach { LayBaltQOL.logger.info("[ConfigManager] applied the new default $it") }
+        return done.isNotEmpty()
+    }
+
     /** NoammAddons 0616ab4f: settings changed outside the GUI (map/list settings) are saved every 5 minutes and on exit. */
     override fun init() {
         ThreadUtils.addShutdownHook { if (loaded) save() }
@@ -99,7 +112,10 @@ object ConfigManager: ISelfInit {
     }
 
     fun load() {
-        val fileContent = configFile.read().takeUnless(String::isEmpty) ?: return run { loaded = true }
+        val fileContent = configFile.read().takeUnless(String::isEmpty) ?: return run {
+            applyOneShotDefaults(null)
+            loaded = true
+        }
         val root = JsonParser.parseString(fileContent).asJsonObject
         val originalVersion = root.get("version")?.asInt ?: 0
 
@@ -113,10 +129,12 @@ object ConfigManager: ISelfInit {
 
         read(migrated)
         loaded = true
+        if (applyOneShotDefaults(migrated)) save()
     }
 
     fun save() = configFile.write(GsonUtils.gson.toJson(gsonObject {
         addProperty("version", VERSION)
+        add(OneShotDefaults.KEY, oneShotDefaults.toJson())
         add("config", gsonArray {
             for (feature in FeatureManager.features) add(gsonObject {
                 addProperty("name", feature.jsonName)
