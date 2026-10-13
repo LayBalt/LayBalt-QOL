@@ -101,13 +101,21 @@ object Calibration {
         val perms = permutations(Door.entries.size)
 
         var best: Fit? = null
+        // Every fit with the best pass count so far (see the end: the timing kept when no timing passes every play).
+        val bestFits = ArrayList<Fit>()
         val fullPasses = ArrayList<Fit>()
         for (drips in booleanArrayOf(true, false)) {
             for (rules in grid(input, drips)) {
                 cancel.check()
                 val outcomes = plays.map { SimRunner.runPlay(layout, rules, it, input.startOffset) }
                 val fit = bestPermutation(plays, outcomes, perms, rules) ?: continue
-                if (best == null || fit.passes > best.passes) best = fit
+                val top = best
+                if (top == null || fit.passes > top.passes) {
+                    best = fit
+                    bestFits.clear()
+                    bestFits += fit
+                }
+                else if (fit.passes == top.passes) bestFits += fit
                 if (fit.passes == plays.size) fullPasses += fit
             }
             if (fullPasses.isNotEmpty()) break
@@ -151,6 +159,10 @@ object Calibration {
                 chosen = alt.second
             }
         }
+        // No timing passes every play and the start stayed: the first grid point that reaches the most passes is an
+        // accident of the grid order (3.2.4 field logs: "water +1" on variant 0, while one water step alone takes 5
+        // ticks). The middle of the widest run of equally good timings is kept instead, as for full passes.
+        if (fullPasses.isEmpty() && offset == input.startOffset && bestFits.size > 1) chosen = middle(bestFits)
 
         val trust = when {
             chosen.passes == plays.size -> SimTrust.TRUSTED
@@ -160,11 +172,26 @@ object Calibration {
         val static = if (trust.simulates) staticTable(layout, chosen.rules, chosen.perm, offset, cancel) else null
         val staticTicks = static?.let { staticTicks(layout, chosen.rules, offset, it, cancel) }
         val summary = "${chosen.passes}/${plays.size} shipped plays reproduced (${chosen.rules.describe()})" +
-            (if (offset != input.startOffset) ", untouched levers corrected: ${WaterLever.names(offset xor input.startOffset)}" else "")
+            (if (offset != input.startOffset) ", untouched levers corrected: ${WaterLever.names(offset xor input.startOffset)}" else "") +
+            failing(chosen.checks)
         return CalibrationResult(
             trust, chosen.rules, chosen.perm, offset, offset != input.startOffset,
             chosen.passes, plays.size, chosen.checks, static, summary, staticTicks,
         )
+    }
+
+    /** ", failing: 024 (toggles 02; wets an outlet twice)" for the plays the simulation did not reproduce (log and trace). */
+    fun failing(checks: List<PlayCheck>): String {
+        val failed = checks.filterNot { it.passed }
+        if (failed.isEmpty()) return ""
+        return ", failing: " + failed.joinToString(", ") { c ->
+            val what = buildList {
+                add(if (c.doors == 0) "reaches no door" else "toggles ${Door.keyOf(c.doors)}")
+                if (c.rewet) add("wets an outlet twice")
+                if (c.lastArrival > c.lastClick + COMPLETION_SLACK) add("last door ${c.lastArrival - c.lastClick} ticks after the last click")
+            }
+            "${c.key} (${what.joinToString("; ")})"
+        }
     }
 
     /** Ticks after the water click until the last door of each usable static setting opens. */

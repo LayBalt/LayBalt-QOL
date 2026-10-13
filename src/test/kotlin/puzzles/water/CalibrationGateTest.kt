@@ -103,6 +103,27 @@ class CalibrationGateTest {
     }
 
     @Test
+    fun `with one play no timing reproduces, the timing kept is the middle of the best ones and the play is named`() {
+        // 3.2.4 field logs: 9/10 on variants 0-2 with "water +1" / "+3" - the first grid point that passed nine plays.
+        val table = syntheticTable(planted, plantedPerm)
+        val plays = table.plays.values.sortedBy { it.key }
+        // One play gets another play's times: it toggles that play's doors under every timing and mapping.
+        val victim = plays.first()
+        val donor = plays.first { it.doors and victim.doors == 0 || Integer.bitCount(it.doors and victim.doors) == 1 }
+        val broken = ShippedTable(0, plays.map { if (it === victim) ShippedPlay(0, victim.key, donor.times) else it })
+        val result = Calibration.calibrate(CalibrationInput(layout, broken, WaterRules(), 0, 0))
+        assertEquals(plays.size - 1, result.passes, result.summary)
+        assertEquals(SimTrust.DEGRADED, result.trust)
+        assertTrue(result.summary.contains("failing: ${victim.key}"), result.summary)
+        // Without the broken play the others already pass with the water right after the lever (the grid's first
+        // points) - which is what 3.2.4 kept. The middle of the run of equally good timings is kept now.
+        val low = Calibration.calibrate(CalibrationInput(layout, broken, WaterRules(), 0, 0, measuredWaterMinusLever = 0))
+        assertEquals(plays.size - 1, low.passes, "timings right after the lever pass as many plays: ${low.summary}")
+        val waterMinusLever = result.rules.sourceDelay - result.rules.leverDelay
+        assertTrue(waterMinusLever > 4, "kept water delay $waterMinusLever, not the first grid point: ${result.summary}")
+    }
+
+    @Test
     fun `a board without five outlets is untrusted at once`() {
         val rows = ToyBoards.combRows().toMutableList()
         rows[5] = rows[5].replaceFirst('O', '.')
