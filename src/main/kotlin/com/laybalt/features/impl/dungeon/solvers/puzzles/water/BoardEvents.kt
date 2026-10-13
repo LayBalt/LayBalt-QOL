@@ -24,6 +24,22 @@ sealed interface BoardEvent {
 
     /** A door opened or closed. */
     data class DoorToggled(val door: Door, val closed: Boolean, override val tick: Int) : BoardEvent
+
+    /**
+     * The board was not watched for [gap] ticks (its chunks were unloaded: the player went far away, teleported or died)
+     * and has been read again in one go. Whatever changed meanwhile is taken as it is now - the doors ([doorsBefore] to
+     * [doorsAfter]), the block levers in [levers], the water ([waterBefore] to [waterAfter]) - and none of it is timed:
+     * nothing in between was seen as it happened, so it must not be judged like a live flip or a door toggling now.
+     */
+    data class Resynced(
+        override val tick: Int,
+        val gap: Int,
+        val doorsBefore: Int,
+        val doorsAfter: Int,
+        val levers: Int,
+        val waterBefore: Boolean,
+        val waterAfter: Boolean,
+    ) : BoardEvent
 }
 
 /** The board as the supervisor sees it. Implemented by [BoardTracker]; tests use their own fakes. */

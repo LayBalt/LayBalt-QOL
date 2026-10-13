@@ -22,6 +22,10 @@ import kotlin.math.max
  */
 class WaterSimBridge(
     private val tracker: BoardTracker,
+    /** Runs a result handler on the client thread; an exception in it switches the board-truth side off, not the game. */
+    private val guard: (String, () -> Unit) -> Unit = { _, block -> block() },
+    /** A line for the room's trace. */
+    private val trace: (String) -> Unit = {},
     private val frame: () -> RoomFrame?,
 ) : WaterSupervisor.SimSupport {
     val sessionId = WaterPlannerExecutor.newSession()
@@ -50,7 +54,9 @@ class WaterSimBridge(
     /** Ticks a plan typically takes from the request to the player (measured; plans start no earlier). */
     private var planLatency = 8
     private val requestedAt = HashMap<Int, Int>()
-    private var doorsWithoutWater = 0
+
+    /** Door toggles without water in their outlet column (a diagnostic for the log and the trace). */
+    private val doorWater = DoorWaterCheck(tracker)
 
     // ================================================================================================================
     // Layout and calibration
@@ -82,7 +88,9 @@ class WaterSimBridge(
         val f = frame() ?: return
         val offLead = if (tracker.measured(2) && tracker.measured(3)) tracker.lag(2) - tracker.lag(3) else null
         val input = CalibrationInput(layout, table, WaterRules(rotation = f.rot), tracker.startOffset, uncertain, measured, offLead)
-        WaterPlannerExecutor.submit(WaterPlannerExecutor.Kind.CALIBRATION, sessionId, { Calibration.calibrate(input, it) }) { apply(it) }
+        WaterPlannerExecutor.submit(WaterPlannerExecutor.Kind.CALIBRATION, sessionId, { Calibration.calibrate(input, it) }) {
+            guard("calibration result") { apply(it) }
+        }
     }
 
     private fun apply(result: CalibrationResult) {
@@ -90,6 +98,10 @@ class WaterSimBridge(
         trust = if (demotions > 0 && result.trust == SimTrust.TRUSTED) SimTrust.DEGRADED else result.trust
         if (result.startOffsetChanged) tracker.overrideStart(result.startOffset, "calibration (the shipped solutions only work from it)")
         LayBaltQOL.logger.info("[WaterBoard] calibration: $trust - ${result.summary}")
+        trace("calibration $trust - ${result.summary}" + result.outletToDoor?.let { perm ->
+            val l = layout
+            ", outlets " + perm.indices.joinToString(" ") { o -> "x=${l?.let { BoardGeometry.x(it.outlets[o]) } ?: o}:${Door.entries[perm[o]].displayName}" }
+        }.orEmpty())
         if (WaterBoardRecorder.enabled) WaterBoardRecorder.write("calibration-v${tracker.variant}-${LocalDateTime.now().format(STAMP)}.json", calibrationJson(result))
     }
 
@@ -98,6 +110,7 @@ class WaterSimBridge(
     // ================================================================================================================
 
     fun onEvents(events: List<BoardEvent>) {
+        doorWater.onEvents(events)
         for (e in events) when (e) {
             is BoardEvent.LeverFlipped -> {
                 recentFlips.addLast(intArrayOf(e.lever.ordinal, e.tick))
@@ -106,7 +119,7 @@ class WaterSimBridge(
 
             is BoardEvent.DoorToggled -> {
                 doorToggled[e.door.digit] = e.tick
-                checkDoorHadWater(e)
+                learnDoorLatency(e)
             }
 
             is BoardEvent.WaterSwitched -> {
@@ -117,27 +130,40 @@ class WaterSimBridge(
                 }
             }
 
+            is BoardEvent.Resynced -> {
+                // Nothing in between was seen: the shadow run, recent flips and the last water switch no longer describe
+                // the board.
+                shadow?.stop()
+                shadow = null
+                recentFlips.clear()
+                lastSwitch = null
+            }
         }
     }
 
     /**
-     * The whole recovery rests on doors toggling only when water reaches their outlet (and keeping their state when the
-     * board drains). A door that changes without water at its outlet is logged, so recordings can show if Hypixel does
-     * otherwise (for example resetting the doors when the water is pulled again).
+     * The outlet column (x) of [door]: the fitted mapping of a board the simulator reproduces, otherwise the old
+     * Skyblocker mapping (which the fitted one matched on every board of the 3.2.4 field logs).
      */
-    private fun checkDoorHadWater(e: BoardEvent.DoorToggled) {
-        // The outlet-to-door mapping is only known once the gate fitted it on shipped plays that work.
+    private fun outletX(door: Door): Int {
+        val l = layout
+        val perm = calibration.outletToDoor
+        if (l != null && perm != null && trust.simulates) {
+            val o = perm.indexOf(door.digit)
+            if (o >= 0) return BoardGeometry.x(l.outlets[o])
+        }
+        return DoorWaterCheck.DEFAULT_OUTLET_X[door.digit]
+    }
+
+    private fun learnDoorLatency(e: BoardEvent.DoorToggled) {
+        // Only with the fitted mapping: the latency feeds the plans of a trusted simulator.
         if (! trust.simulates) return
         val l = layout ?: return
         val perm = calibration.outletToDoor ?: return
         val o = perm.indexOf(e.door.digit)
         if (o < 0) return
         val cell = l.outlets[o]
-        val sinceWet = e.tick - tracker.wetSince[cell]
-        if (tracker.water[cell] >= 0) doorLatencies.learn(sinceWet)
-        if (tracker.water[cell] >= 0 || sinceWet <= DOOR_WATER_WINDOW) return
-        doorsWithoutWater ++
-        LayBaltQOL.logger.info("[WaterBoard] the ${e.door.displayName} door ${if (e.closed) "closed" else "opened"} at ${e.tick} without water at its outlet (x=${BoardGeometry.x(cell)})")
+        if (tracker.water[cell] >= 0) doorLatencies.learn(e.tick - tracker.wetSince[cell])
     }
 
     /** Ticks from water reaching an outlet to its door toggling, measured on this board (plans and pending doors use it). */
@@ -150,7 +176,8 @@ class WaterSimBridge(
     private fun pendingDoors(now: Int): Int {
         val l = layout ?: return 0
         val perm = calibration.outletToDoor ?: return 0
-        val window = DoorLatency.pendingWindow(doorLatency)
+        // A door is only reported once it held its new state for the tracker's debounce.
+        val window = DoorLatency.pendingWindow(doorLatency) + BoardTracker.DOOR_DEBOUNCE
         var pending = 0
         for (o in l.outlets.indices) {
             val cell = l.outlets[o]
@@ -165,6 +192,10 @@ class WaterSimBridge(
     /** [silentFailures]: plays in a row that failed although every flip was on time (see [WaterSupervisor.silentFailures]). */
     fun tick(now: Int, silentFailures: Int = 0, solved: Boolean = false) {
         while (recentFlips.isNotEmpty() && recentFlips.first()[1] < now - 10) recentFlips.removeFirst()
+        for (text in doorWater.tick(now, ::outletX)) {
+            LayBaltQOL.logger.info("[WaterBoard] $text")
+            trace(text)
+        }
         val sh = shadow
         if (sh != null) {
             if (! solved && (tracker.waterOn || tracker.boardWater > 0)) {
@@ -215,17 +246,20 @@ class WaterSimBridge(
                 }
                 requestedAt[r.id] = now
                 WaterPlannerExecutor.submit(WaterPlannerExecutor.Kind.PLAN, sessionId, { Planner.plan(req, it) }) { result ->
-                    requestedAt.remove(r.id)?.let { at -> learnLatency(tracker.now - at) }
-                    lastPlanNote = result.note
-                    LayBaltQOL.logger.info("[WaterBoard] plan: ${result.best ?: "none, restart"} (${result.note})")
-                    sup.onPlanResult(r.id, result.best, tracker)
+                    guard("plan result") {
+                        requestedAt.remove(r.id)?.let { at -> learnLatency(tracker.now - at) }
+                        lastPlanNote = result.note
+                        LayBaltQOL.logger.info("[WaterBoard] plan: ${result.best ?: "none, restart"} (${result.note})")
+                        trace("plan: ${result.best ?: "none, restart"} (${result.note})")
+                        sup.onPlanResult(r.id, result.best, tracker)
+                    }
                 }
             }
 
             is WaterSupervisor.CheckNeeded -> {
                 val req = request(now, r.remaining, null, sup) ?: continue
                 WaterPlannerExecutor.submit(WaterPlannerExecutor.Kind.CHECK, sessionId, { Planner.check(req, req.remaining.orEmpty(), it) }) { e ->
-                    sup.onCheckResult(r.id, e.solved, reason(e), tracker)
+                    guard("check result") { sup.onCheckResult(r.id, e.solved, reason(e), tracker) }
                 }
             }
         }
@@ -381,7 +415,7 @@ class WaterSimBridge(
         shadow?.let { lines += "§7Shadow check: §f${it.ticksCompared} §7ticks, mean §f${"%.1f".format(it.meanDiff)} §7max §f${it.maxDiff} §7cells off" }
         if (demotions > 0) lines += "§7Shadow demotions: §f$demotions"
         lines += "§7Water to door: §f$doorLatency §7ticks" + if (doorLatencies.measured) "" else " §8(default)"
-        if (doorsWithoutWater > 0) lines += "§7Doors that changed without water at their outlet: §f$doorsWithoutWater §7(see the log)"
+        if (doorWater.withoutWater > 0) lines += "§7Doors that changed without water in their outlet column: §f${doorWater.withoutWater} §7(see the log)"
         if (lastPlanNote.isNotEmpty()) lines += "§7Last plan: §f$lastPlanNote"
         return lines
     }
@@ -421,8 +455,5 @@ class WaterSimBridge(
 
     companion object {
         private val STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
-
-        /** A door toggling this long after its outlet last got water is logged as toggling without water. */
-        const val DOOR_WATER_WINDOW = 40
     }
 }

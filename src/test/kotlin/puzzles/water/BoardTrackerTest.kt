@@ -191,6 +191,8 @@ class BoardTrackerTest {
 
     @Test
     fun `doors are debounced`() {
+        // DOOR_DEBOUNCE went from 2 to 8 ticks: the 3.2.4 field logs show doors reading open for 3 ticks and then closed
+        // again (23:14:11, Red and Green); a door must have settled before it counts.
         val t = tracker()
         t.update(101)
         t.setDoor(Door.BLUE, false)
@@ -200,16 +202,112 @@ class BoardTrackerTest {
         t.update(104)
         assertEquals(emptyList(), t.drainEvents())
         t.setDoor(Door.RED, false)
-        t.update(105)
-        t.update(106)
-        t.update(107)
+        for (tick in 105 until 104 + BoardTracker.DOOR_DEBOUNCE) t.update(tick)
+        assertEquals(emptyList(), t.drainEvents(), "not settled yet")
+        t.update(104 + BoardTracker.DOOR_DEBOUNCE)
         assertEquals(listOf(BoardEvent.DoorToggled(Door.RED, false, 104)), t.drainEvents())
         assertEquals(Door.bitsOf("02"), t.doors)
+    }
+
+    @Test
+    fun `a door that reads open for three ticks and closed again is no toggle`() {
+        // 23:14:11: "Red opened at 394504", "Red closed at 394507", then the same for the next door.
+        val t = tracker()
+        t.update(101)
+        t.setDoor(Door.RED, false)
+        for (tick in 102 .. 104) t.update(tick)
+        t.setDoor(Door.RED, true)
+        t.update(105)
+        t.setDoor(Door.PURPLE, false)
+        for (tick in 106 .. 108) t.update(tick)
+        t.setDoor(Door.PURPLE, true)
+        for (tick in 109 .. 140) t.update(tick)
+        assertEquals(emptyList(), t.drainEvents())
+        assertEquals(Door.bitsOf("024"), t.doors)
     }
 
     private fun BoardTracker.entry(wet: Boolean) {
         setWater(BoardGeometry.ENTRY_CELL, if (wet) 8 else - 1)
         setWater(BoardGeometry.ENTRANCE_CELL, if (wet) 8 else - 1)
+    }
+
+    @Test
+    fun `nothing runs while the board is not readable and the read after it is a resync without timed events`() {
+        // 22:59:28-23:00:02: a teammate's water-lever flip is read, then the chunks go before the water shows at the
+        // entry. 3.2.4 timed the "no water came in within 60 ticks" check out on the frozen picture (a false correction)
+        // and later took the doors found open on the re-read for toggles at that tick.
+        val t = tracker()
+        t.update(101)
+        t.setPowered(WATER, true)
+        t.update(102)
+        assertTrue((t.drainEvents().single() as BoardEvent.WaterSwitched).on)
+        t.available = false
+        for (tick in 103 .. 400) t.update(tick)
+        assertEquals(emptyList(), t.drainEvents(), "no correction while not watched")
+        assertEquals(emptyList(), t.drainNotes())
+        // Back: Gold moved, Red opened and the water runs - all of it read as it is, nothing timed.
+        t.move(GOLD, gold)
+        t.setDoor(Door.RED, false)
+        t.entry(true)
+        t.available = true
+        t.update(401)
+        val e = assertIs<BoardEvent.Resynced>(t.drainEvents().single())
+        assertEquals(401 - 103, e.gap)
+        assertEquals(Door.bitsOf("024"), e.doorsBefore)
+        assertEquals(Door.bitsOf("02"), e.doorsAfter)
+        assertEquals(GOLD.bit, e.levers)
+        assertTrue(e.waterAfter)
+        assertEquals(GOLD.bit, t.parity)
+        assertEquals(Door.bitsOf("02"), t.doors)
+        assertTrue(t.waterOn)
+        for (tick in 402 .. 500) t.update(tick)
+        assertEquals(emptyList(), t.drainEvents(), "no late correction either")
+        // From then on changes are live again.
+        t.move(COAL, coal)
+        t.update(501)
+        assertEquals(COAL, (t.drainEvents().single() as BoardEvent.LeverFlipped).lever)
+        assertEquals(1, t.resyncs)
+    }
+
+    @Test
+    fun `a dropped chunk makes the next read a resync even if no tick saw the board unreadable`() {
+        val t = tracker()
+        t.update(101)
+        t.markUnwatched()
+        t.setDoor(Door.PURPLE, false)
+        t.update(102)
+        val e = assertIs<BoardEvent.Resynced>(t.drainEvents().single())
+        assertEquals(Door.bitsOf("24"), e.doorsAfter)
+    }
+
+    @Test
+    fun `the first read is the initialisation, not a resync`() {
+        val t = BoardTracker()
+        t.available = false
+        for (tick in 1 .. 50) t.update(tick)
+        assertFalse(t.resyncing)
+        for (c in 0 until BoardGeometry.N) t.setFront(c, BoardCodes.AIR)
+        Door.entries.forEach { t.setDoor(it, false) }
+        t.available = true
+        t.update(51)
+        assertEquals(emptyList(), t.drainEvents())
+        assertEquals(0, t.resyncs)
+    }
+
+    @Test
+    fun `the water lever flipped and flipped back between two reads is no water switch`() {
+        val t = tracker()
+        t.update(101)
+        t.setPowered(WATER, true)
+        t.setPowered(WATER, false)
+        for (tick in 102 .. 200) t.update(tick)
+        assertEquals(emptyList(), t.drainEvents())
+        assertTrue(t.drainNotes().single().contains("2 times"))
+        assertFalse(t.waterOn)
+        // A real flip afterwards still switches the water.
+        t.setPowered(WATER, true)
+        t.update(201)
+        assertTrue((t.drainEvents().single() as BoardEvent.WaterSwitched).on)
     }
 
     @Test

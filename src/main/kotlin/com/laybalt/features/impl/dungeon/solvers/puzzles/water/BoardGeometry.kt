@@ -60,7 +60,10 @@ object BoardGeometry {
         intArrayOf(0, 60, - 10),  // WATER
     )
 
-    /** y of the door blocks; a door is closed while (0, DOOR_Y, Door.z) is not air (Odin's check). */
+    /**
+     * y of the door blocks: a door is closed while (0, DOOR_Y, Door.z) holds wool (3.2.3 / NoammAddons) or another solid
+     * block (Odin), open while it is air, and in transit (last state kept) while a piston moves it.
+     */
     const val DOOR_Y = 56
 
     /**

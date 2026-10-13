@@ -10,9 +10,15 @@ import com.laybalt.features.impl.dungeon.solvers.puzzles.water.BoardGeometry.N
  * - **Lever parity from the planes.** The first full read is the reference snapshot. A block lever's bit is 1 while all
  *   of its blocks are in the other plane than in the reference and 0 while all are back; anything in between is a
  *   transit. Nothing is counted, so a swap out and back, a double flick or a missed packet can never invert it.
- * - **Doors** from the door blocks, debounced for two ticks.
- * - **Water coming in** from the water lever's powered state (fast) checked against water at the entry hole (truth).
+ * - **Doors** from the door blocks, debounced for [DOOR_DEBOUNCE] ticks: a door that flickers (a piston moving it, two
+ *   toggles in a row) must have settled before it counts.
+ * - **Water coming in** from the water lever's powered state (fast; the parity of its changes, so two flips between two
+ *   ticks are no flip) checked against water at the entry hole (truth).
  * - **Water on the board** (count and last change) for drains and settled boards.
+ *
+ * Nothing runs while the board is not readable ([available] false: its chunks are unloaded and would read as air), not
+ * even the timeouts. The first readable update after such a stretch is a [BoardEvent.Resynced]: the board is taken as it
+ * is, without inventing timed flips, door toggles or water switches for what changed unseen.
  *
  * Clicks are hints only: they attribute flips to us and give the click-frame tick of a flip.
  */
@@ -33,10 +39,29 @@ class BoardTracker : BoardView {
 
     private val powered = BooleanArray(WaterLever.entries.size)
     private val poweredKnown = BooleanArray(WaterLever.entries.size)
-    private var waterPoweredEdge = - 1
+
+    /** The water lever's powered state when its last change was taken into account. */
+    private var waterPoweredRef = false
+
+    /** First tick the water lever moved since then (-1: it did not), and how often. */
+    private var waterPoweredChangeTick = - 1
+    private var waterPoweredChanges = 0
 
     /** Set by the reader every tick: room frame known and its chunks loaded. */
     var available = false
+
+    /** The board was readable at least once (that first read is the silent initialisation). */
+    private var everAvailable = false
+
+    /** The next readable update takes the reads as a fresh picture, not as live changes. */
+    private var resyncPending = false
+
+    /** First tick of the current stretch the board was not watched (NEVER while it is). */
+    private var unwatchedSince = NEVER
+
+    /** Times the board was read again after not being watched (status and trace). */
+    var resyncs = 0
+        private set
 
     /** Ping in server ticks, set by the solver; the default latency of flips we did not click ourselves. */
     var rttTicks = 0
@@ -153,10 +178,16 @@ class BoardTracker : BoardView {
     fun setPowered(lever: WaterLever, on: Boolean) {
         val i = lever.ordinal
         if (poweredKnown[i] && powered[i] == on) return
-        val edge = poweredKnown[i]
+        val known = poweredKnown[i]
         powered[i] = on
         poweredKnown[i] = true
-        if (edge && lever == WaterLever.WATER) waterPoweredEdge = now
+        if (lever != WaterLever.WATER) return
+        if (! known) {
+            waterPoweredRef = on
+            return
+        }
+        if (waterPoweredChangeTick < 0) waterPoweredChangeTick = now
+        waterPoweredChanges ++
     }
 
     /** One of our clicks on [lever] at click-frame [tick]. */
@@ -295,10 +326,83 @@ class BoardTracker : BoardView {
     /** Processes everything read since the last call; [tick] is the new server tick. */
     fun update(tick: Int) {
         now = tick
-        updateDoors()
-        if (layoutCaptured) updateLevers()
-        updateWater()
+        if (! available) {
+            // The chunks are gone (they would read as air): no door, lever or water timing runs on a picture that is no
+            // longer kept up to date, and the next readable update starts from a fresh read.
+            markUnwatched()
+            pruneClicks()
+            return
+        }
+        if (resyncPending) resync()
+        else {
+            updateDoors()
+            if (layoutCaptured) updateLevers()
+            updateWater()
+        }
+        everAvailable = true
+        resyncPending = false
+        unwatchedSince = NEVER
         pruneClicks()
+    }
+
+    /**
+     * The board stopped being watched (its chunks were unloaded, or are about to be re-sent after a teleport): what is
+     * read next is a fresh picture, not a live change.
+     */
+    fun markUnwatched() {
+        if (! everAvailable) return
+        if (unwatchedSince == NEVER) unwatchedSince = now
+        resyncPending = true
+    }
+
+    /** Whether the next readable update will be a [BoardEvent.Resynced]. */
+    val resyncing get() = resyncPending
+
+    /**
+     * Takes the reads as they are: doors, lever parity and the water are set from them without timed events, and one
+     * [BoardEvent.Resynced] says what changed while the board was not watched.
+     */
+    private fun resync() {
+        resyncs ++
+        val gap = if (unwatchedSince == NEVER) 0 else now - unwatchedSince
+        val doorsBefore = doorStable
+        if (doorsRead) {
+            doorStable = doorRaw
+            doorRawSince.fill(now)
+            initializedDoors = true
+        }
+        var levers = 0
+        if (layoutCaptured) for (l in WaterLever.blockLevers.indices) {
+            val bit = 1 shl l
+            when (val state = leverState(l)) {
+                - 1 -> {
+                    // Caught mid-swap: the transit resolves through the usual update, dated from now.
+                    firstMove[l] = now
+                    transitMask = transitMask or bit
+                }
+
+                else -> {
+                    firstMove[l] = - 1
+                    transitMask = transitMask and bit.inv()
+                    if (state != stable[l]) {
+                        stable[l] = state
+                        levers = levers or bit
+                    }
+                }
+            }
+        }
+        val waterBefore = waterOnState
+        val entryWet = entryWet()
+        waterOnState = entryWet
+        entryWetLast = entryWet
+        if (entryWet) entryWetEdge = entryChange
+        awaitBoardUntil = - 1
+        waterPoweredRef = powered[WaterLever.WATER.ordinal]
+        waterPoweredChangeTick = - 1
+        waterPoweredChanges = 0
+        lastBoardChange = now
+        waterInitialized = true
+        events += BoardEvent.Resynced(now, gap, doorsBefore, doorStable, levers, waterBefore, waterOnState)
     }
 
     /** Events since the last call, oldest first. */
@@ -334,31 +438,42 @@ class BoardTracker : BoardView {
         initializedDoors = true
     }
 
+    /** Lever [l]'s blocks: (at the reference, swapped, unreadable or moving). */
+    private fun leverCounts(l: Int): IntArray {
+        val cells = cellsOf[l]
+        val code = BoardCodes.toggle(l)
+        val counts = IntArray(3)
+        for (i in 0 until cells.size) {
+            val c = cells[i]
+            val inFront = front[c] == code
+            val inBack = back[c] == code
+            when {
+                inFront == inBack -> counts[2] ++
+                inFront == refFront[c] -> counts[0] ++
+                else -> counts[1] ++
+            }
+        }
+        return counts
+    }
+
+    /** 0: every block of lever [l] at the reference, 1: every block swapped, -1: anything in between (or no blocks). */
+    private fun leverState(l: Int): Int {
+        if (cellsOf[l].size == 0) return stable[l]
+        val (atRef, swapped, moving) = leverCounts(l)
+        return when {
+            moving == 0 && swapped == 0 -> 0
+            moving == 0 && atRef == 0 -> 1
+            else -> - 1
+        }
+    }
+
     private fun updateLevers() {
         for (l in WaterLever.blockLevers.indices) {
-            val cells = cellsOf[l]
-            if (cells.size == 0) continue
-            val code = BoardCodes.toggle(l)
-            var atRef = 0
-            var swapped = 0
-            var moving = 0
-            for (i in 0 until cells.size) {
-                val c = cells[i]
-                val inFront = front[c] == code
-                val inBack = back[c] == code
-                when {
-                    inFront == inBack -> moving ++
-                    inFront == refFront[c] -> atRef ++
-                    else -> swapped ++
-                }
-            }
+            if (cellsOf[l].size == 0) continue
             val bit = 1 shl l
-            var state = when {
-                moving == 0 && swapped == 0 -> 0
-                moving == 0 && atRef == 0 -> 1
-                else -> - 1
-            }
+            var state = leverState(l)
             if (state < 0) {
+                val (atRef, swapped, moving) = leverCounts(l)
                 if (firstMove[l] < 0) firstMove[l] = now
                 transitMask = transitMask or bit
                 if (now - firstMove[l] <= TRANSIT_LIMIT) continue
@@ -394,25 +509,36 @@ class BoardTracker : BoardView {
         recording?.flip(tick, lever, source)
     }
 
+    /** Water at the entry hole (or falling right below it): water is coming into the board. */
+    fun entryWet() = water[BoardGeometry.ENTRY_CELL] >= 0 || water[BoardGeometry.ENTRANCE_CELL] >= 8
+
     private fun updateWater() {
-        val entryWet = water[BoardGeometry.ENTRY_CELL] >= 0 || water[BoardGeometry.ENTRANCE_CELL] >= 8
+        val entryWet = entryWet()
         if (! waterInitialized) {
-            if (! available) return
             waterInitialized = true
             waterOnState = entryWet
             lastBoardChange = now
             entryWetLast = entryWet
-            waterPoweredEdge = - 1
+            waterPoweredRef = powered[WaterLever.WATER.ordinal]
+            waterPoweredChangeTick = - 1
+            waterPoweredChanges = 0
             return
         }
 
         val w = WaterLever.WATER.ordinal
-        if (waterPoweredEdge >= 0) {
-            val t = waterPoweredEdge
-            waterPoweredEdge = - 1
-            switchWater(! waterOnState, t, 1, correction = false)
-            awaitBoardUntil = t + BOARD_CONFIRM_TICKS
-            awaitBoardExpect = waterOnState
+        if (waterPoweredChanges > 0) {
+            val t = waterPoweredChangeTick
+            val changes = waterPoweredChanges
+            waterPoweredChangeTick = - 1
+            waterPoweredChanges = 0
+            if (powered[w] != waterPoweredRef) {
+                waterPoweredRef = powered[w]
+                switchWater(! waterOnState, t, 1, correction = false)
+                awaitBoardUntil = t + BOARD_CONFIRM_TICKS
+                awaitBoardExpect = waterOnState
+            }
+            // Flipped and flipped back between two reads (a double flick): the water did not change.
+            else notes += "the water lever moved $changes times between two ticks and is back where it was"
         }
 
         if (entryWet != entryWetLast) {
@@ -532,7 +658,12 @@ class BoardTracker : BoardView {
     companion object {
         const val ALL_LEVERS = 0b111111
         const val NEVER = Int.MIN_VALUE / 2
-        const val DOOR_DEBOUNCE = 2
+
+        /**
+         * Ticks a door must read the same before it counts. A sticky piston takes 2-3 ticks to move a door, and the field
+         * logs of 3.2.4 show doors that read open for 3 ticks and then closed again (23:14:11): those are not toggles.
+         */
+        const val DOOR_DEBOUNCE = 8
         const val TRANSIT_LIMIT = 20
         const val CLICK_WINDOW = 30
         const val DOUBLE_WINDOW = 10

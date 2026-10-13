@@ -25,6 +25,16 @@ import kotlin.math.max
  *   only the doors read after the drain matter. With a trusted simulator, door states that need two or three shipped
  *   plays can be opened by one static lever setting instead ([SimSupport.staticPlay]).
  *
+ * **Activation.** Hypixel only closes the three doors when the first player walks into the room; the board is usually
+ * read long before that (the map scanner finds the room at the start of the dungeon). A board with every door open that
+ * never had a closed one is not started, never solved ([Stage.READING]). The doors that close then are the puzzle (K):
+ * while no water has run yet, doors changing again re-establish it. Solved means the doors that were closed have all
+ * opened since ([solved]); that is final only once the map or the reward chest confirms it ([confirmSolved]) - doors that
+ * close again before that bring the guidance back.
+ *
+ * A board that was not watched for a while comes back as a [BoardEvent.Resynced]: nothing of what happened meanwhile is
+ * judged, a run in progress is watched like a teammate's ([Stage.FOREIGN]) and plans start from the board as it is.
+ *
  * [guidance] is total: every stage maps to labels, a headline or a status, and only [Stage.SOLVED] is silent.
  */
 class WaterSupervisor(val table: ShippedTable) {
@@ -115,8 +125,16 @@ class WaterSupervisor(val table: ShippedTable) {
     /** Water cells that stayed on the board through a whole drain (stuck water): later drains stop at this count. */
     private var residualWater = 0
 
-    /** First tick the board read with every door open before anything else happened (-1: not so far). */
-    private var allOpenSince = - 1
+    /** Doors have been read closed at least once: the puzzle has started (Hypixel closes them when someone walks in). */
+    var activated = false
+        private set
+
+    /** Water has run since the doors were last (re)established: door changes from then on are the water's doing. */
+    private var waterRan = false
+
+    /** The map or the reward chest said the puzzle is done: [Stage.SOLVED] is final. */
+    var confirmed = false
+        private set
 
     /** A static one-run play (simulator-made) failed in this room: restarts use the shipped plays from then on. */
     var staticFailed = false
@@ -175,27 +193,39 @@ class WaterSupervisor(val table: ShippedTable) {
 
     /** Processes [events] (in order) and advances to [view]'s tick. Does nothing while the board is not readable. */
     fun update(view: BoardView, events: List<BoardEvent>) {
-        if (stage == Stage.SOLVED || ! view.ready) return
+        if (confirmed || ! view.ready) return
         now = view.now
+        if (stage == Stage.SOLVED) {
+            // Doors closing again before the chest was opened (someone ran the water again): the puzzle is not done.
+            if (view.doors == 0) return
+            stage = Stage.READING
+        }
         if (stage == Stage.READING) {
             start(view)
             return
         }
         for (e in events) {
-            if (stage == Stage.SOLVED) return
+            if (stage == Stage.SOLVED || stage == Stage.READING) return
             lastBoardEvent = now
             when (e) {
                 is BoardEvent.DoorToggled -> onDoor(view, e)
                 is BoardEvent.LeverFlipped -> onLever(view, e)
                 is BoardEvent.WaterSwitched -> onWater(view, e)
+                is BoardEvent.Resynced -> onResync(view, e)
             }
         }
-        if (stage != Stage.SOLVED) tick(view)
+        if (stage != Stage.SOLVED && stage != Stage.READING) tick(view)
+    }
+
+    /** The map turned green or the reward chest opened: the puzzle is done for good. */
+    fun confirmSolved() {
+        confirmed = true
+        solved()
     }
 
     /** Throws away the plan and plans again from the board as it is now (`/lbq water replan`). */
     fun replan(view: BoardView) {
-        if (! view.ready || stage == Stage.SOLVED) return
+        if (! view.ready || confirmed) return
         now = view.now
         follower = null
         continuation = null
@@ -205,7 +235,8 @@ class WaterSupervisor(val table: ShippedTable) {
         replans = 0
         betweenPlays = false
         when {
-            view.doors == 0 -> solved()
+            view.doors == 0 -> if (activated) solved() else stage = Stage.READING
+            stage == Stage.READING || stage == Stage.SOLVED -> start(view)
             tryPlan(view, "planning again on request", "", null) -> {}
             view.waterOn -> stage = Stage.STOP_WATER
             view.boardWater > residualWater -> toDrain()
@@ -256,16 +287,24 @@ class WaterSupervisor(val table: ShippedTable) {
         incident(view, Cause.PREDICTED_FAIL, reason ?: "the water is not going to reach ${Door.names(view.doors)}")
     }
 
+    /**
+     * Takes the doors closed right now as the puzzle (activation, or a reset before any water ran). Every door open means
+     * the puzzle has not started: Hypixel closes three doors when the first player walks into the room, and a board read
+     * before that (from the start room, by the map scanner) is not solved however long it stays that way.
+     */
     private fun start(view: BoardView) {
+        follower = null
+        continuation = null
+        stepFollower = null
+        betweenPlays = false
         if (view.doors == 0) {
-            // A first read with every door open may just be a room whose doors are not shown yet (3.2.2 and other
-            // solvers wait for three closed doors): read on for a while before calling the puzzle solved.
-            if (allOpenSince < 0) allOpenSince = now
-            if (now - allOpenSince >= ALL_OPEN_CONFIRM_TICKS) solved()
+            stage = Stage.READING
             return
         }
+        activated = true
+        waterRan = view.waterOn || view.boardWater > residualWater
         when {
-            view.waterOn || view.boardWater > 0 -> toForeign()
+            waterRan -> toForeign()
             else -> {
                 newChain(view, boardReady = true)
                 normalRun = chain.size == 1 && ! chain[0].synthetic && Door.count(view.doors) == 3 && view.parityUncertain == 0
@@ -273,7 +312,54 @@ class WaterSupervisor(val table: ShippedTable) {
         }
     }
 
+    /**
+     * The board was not watched for a while and has been read again. Nothing that happened meanwhile was seen as it
+     * happened, so nothing of it is judged: a run in progress is watched like a teammate's, an idle board is planned from
+     * its doors as they are now.
+     */
+    private fun onResync(view: BoardView, e: BoardEvent.Resynced) {
+        val wet = view.waterOn || view.boardWater > residualWater
+        if (view.doors == 0) {
+            // Past READING, so the puzzle had started: the doors that were closed opened while nobody here was looking.
+            solved()
+            return
+        }
+        when (stage) {
+            Stage.PREPARE, Stage.NO_PLAN -> when {
+                wet -> {
+                    waterRan = true
+                    toForeign()
+                }
+
+                ! waterRan -> start(view)
+                e.doorsBefore != e.doorsAfter -> {
+                    chainValid = false
+                    normalRun = false
+                    newChain(view, boardReady = true)
+                }
+            }
+
+            Stage.RUNNING, Stage.AWAIT, Stage.CONTINUE, Stage.PLANNING -> {
+                listener?.runEnded("not watched", now)
+                follower = null
+                continuation = null
+                stepFollower = null
+                betweenPlays = false
+                if (wet) toForeign()
+                else {
+                    chainValid = false
+                    normalRun = false
+                    newChain(view, boardReady = true)
+                }
+            }
+
+            // These follow the board itself every tick.
+            Stage.STOP_WATER, Stage.DRAIN, Stage.FOREIGN, Stage.READING, Stage.SOLVED -> {}
+        }
+    }
+
     private fun onWater(view: BoardView, e: BoardEvent.WaterSwitched) {
+        if (e.on && ! e.correction) waterRan = true
         when (stage) {
             Stage.PREPARE -> if (e.on) startRun(view, e)
             Stage.RUNNING, Stage.AWAIT -> {
@@ -365,10 +451,17 @@ class WaterSupervisor(val table: ShippedTable) {
             }
 
             Stage.PLANNING -> replanRequest()
-            Stage.PREPARE -> if (! view.waterOn && view.boardWater <= residualWater) {
-                chainValid = false
-                normalRun = false
-                newChain(view, boardReady = true)
+            Stage.PREPARE -> when {
+                // Every door that was closed is open (the 3.2.3 rule), however that came about.
+                view.doors == 0 -> solved()
+                // No water has run since the doors were set: the doors (re)define the puzzle - Hypixel closing them
+                // when someone walks in, in one tick or over several - and the untouched display stays.
+                ! waterRan -> start(view)
+                ! view.waterOn && view.boardWater <= residualWater -> {
+                    chainValid = false
+                    normalRun = false
+                    newChain(view, boardReady = true)
+                }
             }
 
             else -> {}
@@ -380,10 +473,12 @@ class WaterSupervisor(val table: ShippedTable) {
     // ================================================================================================================
 
     private fun tick(view: BoardView) {
+        // Only reached once the puzzle started (never in READING): every door that was closed has opened.
         if (view.doors == 0) {
             solved()
             return
         }
+        if (view.waterOn || view.boardWater > residualWater) waterRan = true
         when (stage) {
             Stage.RUNNING -> {
                 val f = follower ?: return
@@ -735,7 +830,7 @@ class WaterSupervisor(val table: ShippedTable) {
     /** What to show at the view's tick. Never silent unless solved. */
     fun guidance(view: BoardView): Guidance = when (stage) {
         Stage.SOLVED -> Guidance.Solved
-        Stage.READING -> Guidance.Status("§7Water Board: reading the board…")
+        Stage.READING -> Guidance.Status(WAITING_FOR_DOORS)
         Stage.NO_PLAN -> Guidance.Status("§cWater Board: §fno solution for ${Door.names(view.doors)} §7- /lbq water status")
         Stage.FOREIGN -> Guidance.Status("§7Water Board: a run is in progress §8- §7LayBalt takes over if it fails")
         Stage.PREPARE -> prepareGuidance(view)
@@ -869,8 +964,8 @@ class WaterSupervisor(val table: ShippedTable) {
         /** Board unchanged this long (with no planned flips left): the water settled. */
         const val SETTLE_TICKS = 40
 
-        /** A first read with every door open must hold this long before the puzzle counts as solved. */
-        const val ALL_OPEN_CONFIRM_TICKS = 100
+        /** Status while no door has closed yet (the puzzle starts when someone walks into the room). */
+        const val WAITING_FOR_DOORS = "§7Water Board: waiting for the doors §8- §7they close when someone walks into the room"
 
         /** After the last planned flip: the doors must have toggled by then. */
         const val EXHAUST_TICKS = 160

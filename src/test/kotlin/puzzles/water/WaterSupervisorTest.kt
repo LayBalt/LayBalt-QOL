@@ -338,13 +338,26 @@ class WaterSupervisorTest {
     }
 
     @Test
-    fun `all doors open is solved and stays solved`() {
+    fun `all doors open is solved, final once the map or the chest confirms it`() {
+        // Changed with the 3.2.4 field fix: SOLVED from the doors alone is no longer a dead end. A door closing again
+        // before the chest was opened (someone ran the water again) means the puzzle is not done, and the guidance must
+        // come back instead of staying silent for the rest of the dungeon.
         val h = harness(0, "014")
         h.tick()
         h.tick { toggle(Door.PURPLE); toggle(Door.ORANGE); toggle(Door.RED) }
         assertEquals(Stage.SOLVED, h.sup.stage)
         h.tick { toggle(Door.BLUE) }
-        assertEquals(Guidance.Solved, h.guidance())
+        assertNotEquals(Stage.SOLVED, h.sup.stage)
+        assertFalse(h.guidance().silent)
+        assertNotEquals(Guidance.Solved, h.guidance())
+
+        val confirmed = harness(0, "014")
+        confirmed.tick()
+        confirmed.tick { toggle(Door.PURPLE); toggle(Door.ORANGE); toggle(Door.RED) }
+        confirmed.sup.confirmSolved()
+        confirmed.tick { toggle(Door.BLUE) }
+        assertEquals(Stage.SOLVED, confirmed.sup.stage)
+        assertEquals(Guidance.Solved, confirmed.guidance())
     }
 
     @Test
@@ -505,17 +518,34 @@ class WaterSupervisorTest {
     }
 
     @Test
-    fun `a first read with every door open waits for the doors before calling it solved`() {
+    fun `a board with every door open is not started, however long it stays that way`() {
+        // This used to call the board solved after 100 ticks - the 3.2.4 bug. Hypixel only closes the doors when the first
+        // player walks into the room; the map scanner finds the room (and the session reads it) at the start of the
+        // dungeon, 21-84 s earlier in the field logs. Doors that never closed are "not started", never "solved".
         val h = harness(0, "")
-        h.ticks(5)
+        h.ticks(84 * 20)
         assertEquals(Stage.READING, h.sup.stage)
-        assertIs<Guidance.Status>(h.guidance())
+        assertFalse(h.sup.activated)
+        val waiting = assertIs<Guidance.Status>(h.guidance())
+        assertTrue(waiting.headline.contains("waiting for the doors"), waiting.headline)
+        // Someone walks in: the three doors close in one tick and the untouched display shows.
         h.tick { doors = Door.bitsOf("014") }
         assertEquals(Stage.PREPARE, h.sup.stage)
+        assertEquals(listOf("014"), h.sup.chain.map { it.key })
+        assertNull((h.guidance() as Guidance.Act).headline, "the normal solution display")
+    }
 
-        val solved = harness(0, "")
-        solved.ticks(WaterSupervisor.ALL_OPEN_CONFIRM_TICKS + 2)
-        assertEquals(Stage.SOLVED, solved.sup.stage)
+    @Test
+    fun `doors closing over several ticks before any water ran set the puzzle, not a restart chain`() {
+        val h = harness(3, "")
+        h.ticks(10)
+        h.tick { toggle(Door.PURPLE) }
+        assertEquals(Stage.PREPARE, h.sup.stage)
+        h.tick { toggle(Door.ORANGE); toggle(Door.BLUE) }
+        assertEquals(Stage.PREPARE, h.sup.stage)
+        assertEquals(listOf("012"), h.sup.chain.map { it.key })
+        assertNull((h.guidance() as Guidance.Act).headline, "the normal solution display, not a fix")
+        assertEquals(emptyList(), h.messages)
     }
 
     @Test
