@@ -95,7 +95,8 @@ object WaterFixtures {
         return Run(
             file, json.get("variant").asInt, json.get("layoutFile")?.takeUnless { it.isJsonNull }?.asString,
             json.get("startTick").asInt, json.get("endTick").asInt, json.int("maskAtStart"),
-            rows("levelsAtStart").isEmpty(),
+            // Dry = no water on the board itself; the shaft above it (y > 79) may hold the source.
+            rows("levelsAtStart").none { it[1].asInt <= BoardGeometry.DRY_MAX_Y },
             rows("cells").map { intArrayOf(it[0].asInt, BoardGeometry.cell(it[1].asInt, it[2].asInt), it[3].asInt) },
             rows("flips").mapNotNull { r -> WaterLever.fromKey(r[1].asString)?.let { intArrayOf(r[0].asInt, it.ordinal) } },
             rows("doors").map { intArrayOf(it[0].asInt, it[1].asInt, if (it[2].asBoolean) 1 else 0) },

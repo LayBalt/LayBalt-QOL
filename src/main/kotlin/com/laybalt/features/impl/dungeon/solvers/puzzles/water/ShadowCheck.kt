@@ -93,7 +93,11 @@ class ShadowCheck(
 
     private fun compare(s: BoardState, observed: ByteArray, t: Int) {
         var diff = 0
-        for (c in 0 until layout.size) if (s.level[c] != observed[c] && (s.level[c] >= 0 || observed[c] >= 0)) diff ++
+        for (c in 0 until layout.size) {
+            // Only cells the simulation can hold water in: not the shaft above the board, not a block in the way.
+            if (layout.solid(c, s.mask)) continue
+            if (falling(s.level[c]) != falling(observed[c])) diff ++
+        }
         ticksCompared ++
         totalDiff += diff
         if (diff > maxDiff) maxDiff = diff
@@ -103,6 +107,12 @@ class ShadowCheck(
         }
         else badStreak = 0
     }
+
+    /**
+     * Falling water counts as one level: its exact value (8..15 in 1.8, always 8 on modern servers) never changes how the
+     * water moves, so comparing it would only measure the server version.
+     */
+    private fun falling(level: Byte): Int = if (level >= 8) 8 else level.toInt()
 
     /** One line for `selfcheck.jsonl`. */
     fun summaryJson(variant: Int, key: String?, rulesText: String): String =

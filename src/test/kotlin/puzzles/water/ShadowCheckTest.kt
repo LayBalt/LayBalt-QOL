@@ -78,6 +78,18 @@ class ShadowCheckTest {
     }
 
     @Test
+    fun `water the simulation cannot hold (above the board, inside blocks) is not counted`() {
+        val shadow = ShadowCheck(layout, rules)
+        shadow.start(0, 0)
+        val levels = ByteArray(layout.size) { - 1 }
+        val wall = (0 until layout.size).first { layout.wall[it] }
+        levels[wall] = 8
+        for (t in 1 .. 40) shadow.tick(t, levels)
+        assertTrue(shadow.ticksCompared > 0)
+        assertEquals(0, shadow.maxDiff)
+    }
+
+    @Test
     fun `the summary line is one JSON object`() {
         val line = shadowRun(rules).summaryJson(2, "024", rules.describe())
         assertTrue(line.startsWith("{") && line.endsWith("}") && "\n" !in line)

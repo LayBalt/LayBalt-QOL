@@ -213,7 +213,7 @@ class WaterSupervisor(val table: ShippedTable) {
         checkFails = 0
         checkTick = now
         stage = Stage.CONTINUE
-        outbox += "§cWater Board went wrong: §f$planText$planHint§7. §fFix: §a${plan.summary}§7."
+        outbox += "${messagePrefix()}$planText$planHint§7. §fFix: §a${plan.summary}§7."
     }
 
     /** The planner's answer to [CheckNeeded] [id]: [ok] = the rest of the plan still works, else why not. */
@@ -586,8 +586,12 @@ class WaterSupervisor(val table: ShippedTable) {
 
     private fun announce(view: BoardView, text: String, hint: String) {
         val fix = if (view.waterOn) "turn the water §cOFF§f, let the board drain" else "let the board drain"
-        outbox += "§cWater Board went wrong: §f$text$hint§7. §fFix: $fix, then follow the new markers."
+        outbox += "${messagePrefix()}$text$hint§7. §fFix: $fix, then follow the new markers."
     }
+
+    /** A run the simulation says will fail has not gone wrong yet: it is off track. */
+    private fun messagePrefix() =
+        if (lastIncident?.cause == Cause.PREDICTED_FAIL) "§eWater Board off track: §f" else "§cWater Board went wrong: §f"
 
     private fun stopWater(view: BoardView) {
         follower = null

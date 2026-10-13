@@ -77,21 +77,39 @@ object WaterBoardSolver: PuzzleSolver {
 
     override fun onTick() {
         serverTicks ++
-        session?.tick(serverTicks)
+        guarded("tick") { session?.tick(serverTicks) }
     }
 
     override fun onInteract(event: PlayerInteractEvent.RIGHT_CLICK.BLOCK) {
-        session?.onClick(event.pos, serverTicks)
+        guarded("click") { session?.onClick(event.pos, serverTicks) }
     }
 
     fun onBlockChange(event: BlockChangeEvent) {
-        session?.onBlockChange(event)
+        guarded("block change") { session?.onBlockChange(event) }
     }
 
     /** Chunk data replaces whole sections without single block changes: the session reads the board again at once. */
     fun onPacketPost(packet: Packet<*>) {
         val s = session ?: return
-        if (packet is ClientboundLevelChunkWithLightPacket) s.onChunkLoaded(packet.x, packet.z)
+        if (packet is ClientboundLevelChunkWithLightPacket) guarded("chunk") { s.onChunkLoaded(packet.x, packet.z) }
+    }
+
+    private var errorLogged = false
+
+    /**
+     * A bug in the Water Board must not take the other puzzle solvers down with it (they share one tick listener): it is
+     * logged once and the solver carries on with the next tick.
+     */
+    private inline fun guarded(what: String, block: () -> Unit) {
+        try {
+            block()
+        }
+        catch (e: Exception) {
+            if (! errorLogged) {
+                errorLogged = true
+                LayBaltQOL.logger.error("[WaterBoard] $what failed", e)
+            }
+        }
     }
 
     override fun reset() {
@@ -114,7 +132,9 @@ object WaterBoardSolver: PuzzleSolver {
     // Rendering
     // ================================================================================================================
 
-    override fun onRenderWorld(ctx: RenderContext) {
+    override fun onRenderWorld(ctx: RenderContext) = guarded("render") { render(ctx) }
+
+    private fun render(ctx: RenderContext) {
         val s = session ?: return
         val frame = s.frame ?: return
         val g = s.displayed() as? Guidance.Act ?: return

@@ -38,6 +38,7 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
     private var cached: Guidance = Guidance.Status("§7Water Board: reading the board…")
     private var solvedByMap = false
     private var layoutLogged = false
+    private var dumpPending = false
 
     /** File name of the layout dump of this room, once written (the recorder links runs to it). */
     var layoutFile: String? = null
@@ -55,7 +56,7 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
 
     fun tick(tick: Int) {
         now = tick
-        val f = frame ?: room.rotation?.let { RoomFrame(room.centerPos, 360 - it) }?.also { frame = it }
+        val f = frame ?: room.rotation?.let { RoomFrame(room.centerPos, (360 - it) % 360) }?.also { frame = it }
         if (f == null) {
             cached = Guidance.Status("§7Water Board: waiting for the room scan…")
             return
@@ -69,6 +70,10 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
         if (available && ! tracker.layoutCaptured && tracker.captureLayout()) onLayoutCaptured()
 
         tracker.update(tick)
+        if (dumpPending) {
+            dumpPending = false
+            WaterBoardRecorder.dumpLayout(this, "auto")
+        }
         val events = tracker.drainEvents()
         tracker.drainNotes().forEach { LayBaltQOL.logger.info("[WaterBoard] $it") }
         recordRun(events)
@@ -84,7 +89,9 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
                 LayBaltQOL.logger.info("[WaterBoard] ${message.removeFormatting()}")
             }
         }
-        if (available && tracker.layoutCaptured) sim.tick(tick, supervisor?.silentFailures ?: 0)
+        if (available && tracker.layoutCaptured) {
+            sim.tick(tick, supervisor?.silentFailures ?: 0, solved = solvedByMap || supervisor?.stage == WaterSupervisor.Stage.SOLVED)
+        }
         cached = compute()
     }
 
@@ -103,7 +110,8 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
                     "untouched state from ${tracker.startSource}, ${tracker.toggleLever.count { it >= 0 }} toggle blocks"
             )
         }
-        if (WaterBoardRecorder.enabled) WaterBoardRecorder.dumpLayout(this, "auto")
+        // The dump waits for the first update, so it carries the doors and the water as the tracker sees them.
+        if (WaterBoardRecorder.enabled) dumpPending = true
         sim.onLayoutCaptured(table)
         if (table == null) return
         supervisor = WaterSupervisor(table).also {

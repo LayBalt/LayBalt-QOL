@@ -125,6 +125,8 @@ class WaterSimBridge(
      * otherwise (for example resetting the doors when the water is pulled again).
      */
     private fun checkDoorHadWater(e: BoardEvent.DoorToggled) {
+        // The outlet-to-door mapping is only known once the gate fitted it on shipped plays that work.
+        if (! trust.simulates) return
         val l = layout ?: return
         val perm = calibration.outletToDoor ?: return
         val o = perm.indexOf(e.door.digit)
@@ -151,11 +153,11 @@ class WaterSimBridge(
     }
 
     /** [silentFailures]: plays in a row that failed although every flip was on time (see [WaterSupervisor.silentFailures]). */
-    fun tick(now: Int, silentFailures: Int = 0) {
+    fun tick(now: Int, silentFailures: Int = 0, solved: Boolean = false) {
         while (recentFlips.isNotEmpty() && recentFlips.first()[1] < now - 10) recentFlips.removeFirst()
         val sh = shadow
         if (sh != null) {
-            if (tracker.waterOn || tracker.boardWater > 0) {
+            if (! solved && (tracker.waterOn || tracker.boardWater > 0)) {
                 val wasDemoted = sh.demoted
                 sh.tick(now, tracker.water)
                 if (sh.demoted && ! wasDemoted) {
@@ -344,7 +346,7 @@ class WaterSimBridge(
         val lines = ArrayList<String>()
         val c = calibration
         lines += "§7Simulator: §f$trust §7- ${c.summary}"
-        c.outletToDoor?.let { perm ->
+        c.outletToDoor?.takeIf { trust.simulates }?.let { perm ->
             val l = layout
             val text = perm.indices.joinToString(", ") { o ->
                 val x = l?.let { BoardGeometry.x(it.outlets[o]) } ?: o

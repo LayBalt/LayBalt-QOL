@@ -388,7 +388,7 @@ object Planner {
     private fun repairs(req: PlanRequest, remaining: List<PlanStep>): List<Pair<List<PlanStep>, String>> {
         val out = ArrayList<Pair<List<PlanStep>, String>>()
         val base = retime(req.human, req.startAt, remaining)
-        out += base to "keep following the timers"
+        out += base to if (base == remaining) "keep following the timers" else "follow the updated timers"
         val lever = req.fault?.lever ?: return out
         val first = remaining.indexOfFirst { it.lever == lever }
         val withoutFirst = if (first >= 0) remaining.filterIndexed { i, _ -> i != first } else null
@@ -449,9 +449,11 @@ object Planner {
         return parts.joinToString(", ") + if (steps.none { it.lever == WaterLever.WATER } && waterOn) " - the water does the rest" else ""
     }
 
-    private fun timedSummary(steps: List<PlanStep>): String =
-        steps.take(3).joinToString(", ") { "${if (it.lever == WaterLever.WATER) "water" else it.lever.displayName}" } +
-            (if (steps.size > 3) ", …" else "") + " on the timers"
+    private fun timedSummary(steps: List<PlanStep>): String {
+        val names = steps.map { if (it.lever == WaterLever.WATER) "the water" else it.lever.displayName }
+        val listed = if (names.size <= 1) names.joinToString() else names.dropLast(1).joinToString(", ") + " and " + names.last()
+        return "flip $listed on the timers"
+    }
 
     /** Distance between two plans' clicks (for tests and logs). */
     fun distance(a: List<PlanStep>, b: List<PlanStep>): Int =
