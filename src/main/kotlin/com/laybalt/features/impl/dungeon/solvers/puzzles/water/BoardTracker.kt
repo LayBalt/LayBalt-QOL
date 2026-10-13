@@ -81,6 +81,9 @@ class BoardTracker : BoardView {
     /** Tick of the last change of each board-plane water cell (appeared, vanished or changed level). */
     val cellChangeTick = IntArray(N) { NEVER }
 
+    /** Tick each board-plane cell last went from dry to wet. */
+    val wetSince = IntArray(N) { NEVER }
+
     /** A running counter stamped on every water cell change: the order of same-tick changes (for the simulator). */
     val cellChangeSeq = IntArray(N)
     private var changeSeq = 0
@@ -121,6 +124,7 @@ class BoardTracker : BoardView {
         water[cell] = lvl
         cellChangeTick[cell] = now
         cellChangeSeq[cell] = ++ changeSeq
+        if (! wasWet && lvl >= 0) wetSince[cell] = now
         if (BoardGeometry.y(cell) <= BoardGeometry.DRY_MAX_Y) {
             if (wasWet != (lvl >= 0)) boardWaterCount += if (lvl >= 0) 1 else - 1
             lastBoardChange = now
@@ -464,6 +468,14 @@ class BoardTracker : BoardView {
         q.addLast(value)
         if (q.size > 9) q.removeFirst()
     }
+
+    /** Our clicks of the last [maxAge] ticks that the board has not shown yet (lever, click tick), oldest first. */
+    fun unmatchedClicks(maxAge: Int): List<Pair<WaterLever, Int>> = WaterLever.entries
+        .flatMap { lever -> clicks[lever.ordinal].filter { it[1] == 0 && now - it[0] <= maxAge }.map { lever to it[0] } }
+        .sortedBy { it.second }
+
+    /** Whether [lag] of [kind] comes from our own clicks (otherwise it is a default). */
+    fun measured(kind: Int) = lagSamples[kind].isNotEmpty()
 
     /** Typical ticks from a click to the board showing it: [kind] 0 block levers, 1 water lever state, 2 entry hole. */
     fun lag(kind: Int): Int {
