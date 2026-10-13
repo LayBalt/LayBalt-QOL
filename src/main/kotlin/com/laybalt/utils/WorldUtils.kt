@@ -11,6 +11,9 @@ import net.minecraft.world.phys.Vec3
 object WorldUtils {
     fun getStateAt(pos: BlockPos) = getLoadedChunk(pos.x shr 4, pos.z shr 4)?.getBlockState(pos) ?: Blocks.AIR.defaultBlockState()
     fun getStateAt(x: Int, y: Int, z: Int) = this.getStateAt(BlockPos(x, y, z))
+
+    /** The block at [pos], or null when its chunk is not loaded ([getStateAt] would say air there). */
+    fun getStateIfLoaded(pos: BlockPos): BlockState? = getLoadedChunk(pos.x shr 4, pos.z shr 4)?.getBlockState(pos)
     fun getBlockAt(pos: BlockPos) = getStateAt(pos).block
     fun getBlockAt(vec3: Vec3) = getBlockAt(BlockPos(vec3.x.toInt(), vec3.y.toInt(), vec3.z.toInt()))
     fun getBlockAt(x: Number, y: Number, z: Number) = getBlockAt(BlockPos(x.toInt(), y.toInt(), z.toInt()))

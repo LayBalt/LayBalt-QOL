@@ -3,6 +3,7 @@ package com.laybalt.features.impl.dungeon.solvers.puzzles
 import com.laybalt.LayBaltQOL
 import com.laybalt.event.impl.BlockChangeEvent
 import com.laybalt.event.impl.DungeonEvent
+import com.laybalt.event.impl.MainThreadPacketReceivedEvent
 import com.laybalt.event.impl.PlayerInteractEvent
 import com.laybalt.features.impl.dungeon.solvers.PuzzleSolvers
 import com.laybalt.features.impl.dungeon.solvers.puzzles.water.*
@@ -19,14 +20,18 @@ import com.laybalt.utils.render.world.Render3D.renderString
 import com.laybalt.utils.render.world.Render3D.renderTracer
 import com.laybalt.utils.render.world.RenderContext
 import net.minecraft.network.protocol.Packet
+import net.minecraft.network.protocol.game.ClientboundBlockEventPacket
+import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket
+import net.minecraft.world.level.block.Blocks
 
 /**
- * Water Board solver. It reads the real board every server tick - the doors, the water and both planes of the lever
- * blocks - instead of counting clicks, so a run that goes wrong is noticed from what the board does, and the guidance
- * always starts from the board as it is: the shipped timed solution on an untouched board, otherwise "turn the water
- * off, let the board drain, flip the marked levers, pull the water" with the plays that open the doors that are still
- * closed ([WaterSupervisor]).
+ * Water Board solver. The baseline is the 3.2.3 display: once the doors close (Hypixel closes three when the first
+ * player walks into the room), the shipped timed solution for the doors closed right now, with countdown and CLICK
+ * labels above the levers and a tracer to the next one. On top of it the solver reads the real board every server tick -
+ * the doors, the water and both planes of the lever blocks - so a run that goes wrong is noticed from what the board
+ * does, and the guidance starts from the board as it is ([WaterSupervisor]); that guidance replaces the baseline only
+ * while what it reads agrees with the door blocks ([WaterRoomCore]).
  *
  * The [WaterRoomSession] lives for the whole dungeon: leaving the room keeps it, coming back continues from the board.
  */
@@ -34,6 +39,10 @@ object WaterBoardSolver: PuzzleSolver {
     override val enabled get() = PuzzleSolvers.water.value
 
     const val ROOM_NAME = "Water Board"
+
+    /** The reward chest behind the doors, relative to the room centre (Odin's chest at corner (15, 56, 22)). */
+    private const val REWARD_CHEST_Y = 56
+    private const val REWARD_CHEST_Z = 7
 
     /** Every shipped play by variant (Odin's solutions, BSD-3); null when the bundled data failed to load. */
     private val tables: Map<Int, ShippedTable>? by lazy {
@@ -72,7 +81,21 @@ object WaterBoardSolver: PuzzleSolver {
     override fun onRoomExit() {}
 
     override fun onStateChange(event: DungeonEvent.RoomEvent.onStateChange) {
-        if (event.room.name == ROOM_NAME && event.newState == RoomState.GREEN) session?.markSolved()
+        if (event.room.name == ROOM_NAME && event.newState == RoomState.GREEN) session?.markSolved("the map shows the room done")
+    }
+
+    /**
+     * The reward chest opening (Odin: a CHERRY_LOG block event at the chest) means every door is open and the puzzle is
+     * done. Only the chest of this room counts: (0, 56, 7) from the room centre, give or take a block.
+     */
+    override fun onPacket(event: MainThreadPacketReceivedEvent.Pre) {
+        val packet = event.packet as? ClientboundBlockEventPacket ?: return
+        if (packet.block != Blocks.CHERRY_LOG) return
+        val s = session ?: return
+        val frame = s.frame ?: return
+        val chest = frame.world(0, REWARD_CHEST_Y, REWARD_CHEST_Z)
+        if (packet.pos.distManhattan(chest) > 2) return
+        guarded("chest") { s.markSolved("the reward chest opened") }
     }
 
     override fun onTick() {
@@ -88,10 +111,16 @@ object WaterBoardSolver: PuzzleSolver {
         guarded("block change") { session?.onBlockChange(event) }
     }
 
-    /** Chunk data replaces whole sections without single block changes: the session reads the board again at once. */
+    /**
+     * Chunk data replaces whole sections without single block changes: the session reads the board again at once. A
+     * dropped chunk stops all reading until it is back (it would read as air: "dry board, every door open").
+     */
     fun onPacketPost(packet: Packet<*>) {
         val s = session ?: return
-        if (packet is ClientboundLevelChunkWithLightPacket) guarded("chunk") { s.onChunkLoaded(packet.x, packet.z) }
+        when (packet) {
+            is ClientboundLevelChunkWithLightPacket -> guarded("chunk") { s.onChunkLoaded(packet.x, packet.z) }
+            is ClientboundForgetLevelChunkPacket -> guarded("chunk") { s.onChunkUnloaded(packet.pos().x(), packet.pos().z()) }
+        }
     }
 
     private var errorLogged = false

@@ -121,6 +121,48 @@ class NeverSilentPropertyTest {
     }
 
     @Test
+    fun `the room as a whole - raw reads, unloaded chunks, flickers and teammates - is never silent and never solved early`() {
+        val random = Random(20261015)
+        repeat(300) { stream ->
+            val b = FieldBoard(random.nextInt(4))
+            val table = WaterTestData.tables.getValue(b.variant)
+            val key = table.plays.values.random(random).key
+            val activation = random.nextInt(0, 600)
+            var everClosed = false
+            var everClosedRead = false
+            repeat(900) { i ->
+                // FieldBoard.tick itself checks that the display is never silent unless solved.
+                b.tick {
+                    if (i == activation) closeDoors(key)
+                    when (random.nextInt(60)) {
+                        0 -> available = ! available
+                        1 -> doorsLoaded = ! doorsLoaded
+                        2 -> if (i > activation) doors = doors xor Door.entries.random(random).bit
+                        3 -> flip(WaterLever.blockLevers.random(random))
+                        4 -> click(WaterLever.entries.random(random))
+                        5 -> {
+                            flip(WaterLever.WATER)
+                            entry(powered[WaterLever.WATER.ordinal])
+                        }
+
+                        6 -> boardWater(random.nextInt(0, 10))
+                        7 -> doorsMoving = if (doorsMoving == 0) Door.entries.random(random).bit else 0
+                        8 -> if (random.nextInt(40) == 0) core.markSolved("the map")
+                        else -> {}
+                    }
+                    if (doors != 0) {
+                        everClosed = true
+                        if (doorsLoaded) everClosedRead = true
+                    }
+                }
+                val g = b.display
+                if (g == Guidance.Solved) assertTrue(b.core.confirmedSolved || everClosedRead, "stream $stream tick $i: solved before any door was read closed")
+                if (! everClosed && ! b.core.confirmedSolved) assertNotEquals(Guidance.Solved, g, "stream $stream tick $i: solved before the doors closed")
+            }
+        }
+    }
+
+    @Test
     fun `nothing is drawn while the player is away from the room`() {
         val samples = listOf(
             Guidance.Solved,

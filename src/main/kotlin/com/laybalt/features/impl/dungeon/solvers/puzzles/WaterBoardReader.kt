@@ -4,11 +4,13 @@ import com.laybalt.features.impl.dungeon.solvers.puzzles.water.BoardCodes
 import com.laybalt.features.impl.dungeon.solvers.puzzles.water.BoardGeometry
 import com.laybalt.features.impl.dungeon.solvers.puzzles.water.BoardTracker
 import com.laybalt.features.impl.dungeon.solvers.puzzles.water.Door
+import com.laybalt.features.impl.dungeon.solvers.puzzles.water.GateRead
 import com.laybalt.features.impl.dungeon.solvers.puzzles.water.WaterLever
 import com.laybalt.utils.WorldUtils
 import com.laybalt.utils.dungeons.map.utils.ScanUtils
 import net.minecraft.core.BlockPos
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.tags.BlockTags
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.level.block.LeverBlock
 import net.minecraft.world.level.block.LiquidBlock
@@ -84,23 +86,89 @@ object WaterBoardReader {
 
     fun waterLevel(state: BlockState): Int = if (state.block == Blocks.WATER) state.getValue(LiquidBlock.LEVEL) else - 1
 
+    /** What a door block says about its door. */
+    enum class DoorBlock { OPEN, CLOSED, MOVING }
+
+    /**
+     * Hypixel's doors are wool blocks moved by sticky pistons. Wool (or any other solid block, Odin's rule) is a closed
+     * door, air an open one; a piston, its head or a block being moved is a door in transit, which keeps its last state.
+     */
+    fun doorBlock(state: BlockState): DoorBlock = when {
+        state.isAir -> DoorBlock.OPEN
+        state.block in PISTONS -> DoorBlock.MOVING
+        state.`is`(BlockTags.WOOL) || state.blocksMotion() -> DoorBlock.CLOSED
+        else -> DoorBlock.OPEN
+    }
+
     /** All chunks of the room are loaded (an unloaded chunk reads as air: "dry board, all doors open"). */
     fun loaded(frame: RoomFrame) = frame.chunks.all { (cx, cz) -> WorldUtils.isChunkLoaded(cx shl 4, cz shl 4) }
 
-    /** Reads everything; the tracker turns differences to its last picture into events. */
+    /**
+     * Reads everything; the tracker turns differences to its last picture into events. A position whose chunk is not
+     * loaded is skipped (its last read stays): it would read as air, "dry board, every door open".
+     */
     fun readAll(frame: RoomFrame, tracker: BoardTracker) {
         for (cell in 0 until BoardGeometry.N) {
             val x = BoardGeometry.x(cell)
             val y = BoardGeometry.y(cell)
-            val front = WorldUtils.getStateAt(frame.world(x, y, BoardGeometry.BOARD_Z))
-            tracker.setFront(cell, code(front))
-            tracker.setWater(cell, waterLevel(front))
-            tracker.setBack(cell, code(WorldUtils.getStateAt(frame.world(x, y, BoardGeometry.HIDDEN_Z))))
+            WorldUtils.getStateIfLoaded(frame.world(x, y, BoardGeometry.BOARD_Z))?.let { front ->
+                tracker.setFront(cell, code(front))
+                tracker.setWater(cell, waterLevel(front))
+            }
+            WorldUtils.getStateIfLoaded(frame.world(x, y, BoardGeometry.HIDDEN_Z))?.let { tracker.setBack(cell, code(it)) }
         }
-        for (door in Door.entries) tracker.setDoor(door, ! WorldUtils.getStateAt(frame.door(door)).isAir)
+        for (door in Door.entries) WorldUtils.getStateIfLoaded(frame.door(door))?.let { setDoor(tracker, door, it) }
         for (lever in WaterLever.entries) {
-            val state = WorldUtils.getStateAt(frame.lever(lever))
+            val state = WorldUtils.getStateIfLoaded(frame.lever(lever)) ?: continue
             if (state.block is LeverBlock) tracker.setPowered(lever, state.getValue(LeverBlock.POWERED))
+        }
+    }
+
+    private fun setDoor(tracker: BoardTracker, door: Door, state: BlockState) {
+        when (doorBlock(state)) {
+            DoorBlock.OPEN -> tracker.setDoor(door, false)
+            DoorBlock.CLOSED -> tracker.setDoor(door, true)
+            DoorBlock.MOVING -> {}
+        }
+    }
+
+    /**
+     * The door blocks read on their own, for the classic display: null when a door's chunk is not loaded (nothing can
+     * be concluded then), otherwise the closed doors and the doors a piston is moving right now.
+     */
+    fun readGates(frame: RoomFrame): GateRead? {
+        var closed = 0
+        var moving = 0
+        for (door in Door.entries) {
+            val state = WorldUtils.getStateIfLoaded(frame.door(door)) ?: return null
+            when (doorBlock(state)) {
+                DoorBlock.CLOSED -> closed = closed or door.bit
+                DoorBlock.MOVING -> moving = moving or door.bit
+                DoorBlock.OPEN -> {}
+            }
+        }
+        return GateRead(closed, moving)
+    }
+
+    /**
+     * The layout variant from Odin's indicator blocks, in either plane (so a flipped lever does not hide it): null when
+     * a chunk is not loaded, -1 when no indicator matches.
+     */
+    fun readVariant(frame: RoomFrame): Int? {
+        for ((i, indicator) in BoardGeometry.INDICATORS.withIndex()) {
+            val (x, y, lever) = indicator
+            for (z in intArrayOf(BoardGeometry.HIDDEN_Z, BoardGeometry.BOARD_Z)) {
+                val state = WorldUtils.getStateIfLoaded(frame.world(x, y, z)) ?: return null
+                if (TOGGLES[state.block] == lever) return i
+            }
+        }
+        return - 1
+    }
+
+    /** The blocks of every door's column (y 55..58), for the trace: "Purple white_wool/wool/air/air, ...". */
+    fun doorColumns(frame: RoomFrame): String = Door.entries.joinToString(", ") { door ->
+        door.displayName + " " + (BoardGeometry.DOOR_Y - 1 .. BoardGeometry.DOOR_Y + 2).joinToString("/") { y ->
+            WorldUtils.getStateIfLoaded(frame.world(0, y, door.z))?.let { BuiltInRegistries.BLOCK.getKey(it.block).path } ?: "unloaded"
         }
     }
 
@@ -120,7 +188,7 @@ object WaterBoardReader {
             return true
         }
         if (x == 0 && y == BoardGeometry.DOOR_Y) Door.entries.firstOrNull { it.z == z }?.let {
-            tracker.setDoor(it, ! state.isAir)
+            setDoor(tracker, it, state)
             return true
         }
         for (lever in WaterLever.entries) {
@@ -143,7 +211,8 @@ object WaterBoardReader {
             val cell = BoardGeometry.cell(x, y)
             if (! BoardCodes.passable(tracker.front[cell])) continue
             if (tracker.toggleLever[cell] >= 0) continue
-            val front = code(WorldUtils.getStateAt(frame.world(x, y, BoardGeometry.FRONT_Z)))
+            // An unloaded chunk is no leak (it would read as air): only blocks really read count.
+            val front = WorldUtils.getStateIfLoaded(frame.world(x, y, BoardGeometry.FRONT_Z))?.let(::code) ?: continue
             if (BoardCodes.passable(front) || BoardCodes.passable(tracker.back[cell])) leaks ++
         }
         return leaks
