@@ -22,6 +22,8 @@ data class WaterRules(
     val sourceDelay: Int = 2,
     /** Ticks from water reaching an outlet to its door toggling. */
     val doorDelay: Int = 2,
+    /** Whether a lone 1.8 drip falling through an outlet toggles its door like real water (unknown; fitted by calibration). */
+    val dripArrivals: Boolean = true,
 ) {
     val plusXFirst: Boolean get() = BoardRotation.plusXFirst(rotation)
 
@@ -34,4 +36,7 @@ data class WaterRules(
     init {
         require(tickDelay in 1 .. 7 && externalDelay in 1 .. 7) { "delays must fit the 8-slot tick wheel" }
     }
+
+    /** Short description for logs and /lbq water status. */
+    fun describe() = "lever +$leverDelay, water +$sourceDelay, wake +$externalDelay" + (if (dripArrivals) "" else ", drips ignored")
 }

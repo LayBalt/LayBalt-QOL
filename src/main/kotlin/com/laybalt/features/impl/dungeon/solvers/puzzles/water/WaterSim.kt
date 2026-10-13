@@ -4,6 +4,9 @@ package com.laybalt.features.impl.dungeon.solvers.puzzles.water
 interface SimListener {
     fun placed(cell: Int, level: Int, tick: Int) {}
     fun removed(cell: Int, tick: Int) {}
+
+    /** A cell that already held water changed its level. */
+    fun changed(cell: Int, level: Int, tick: Int) {}
     fun arrival(outlet: Int, tick: Int) {}
 }
 
@@ -123,6 +126,7 @@ object WaterSim {
                     s.lastChange = t
                     s.schedule(c, t + s.rules.tickDelay)
                     notify(s, c, t + s.rules.tickDelay)
+                    listener?.changed(c, next, t)
                 }
             }
         }
@@ -131,7 +135,7 @@ object WaterSim {
         val below = layout.neighbour(c, Dir.DOWN)
         if (canFlowInto(s, below)) {
             if (i < 0 && ! s.rules.dripQuirk) return
-            place(s, below, if (i >= 8) i else i + 8, t, listener)
+            place(s, below, if (i >= 8) i else i + 8, t, listener, drip = i < 0)
         }
         else if (i >= 0 && (i == 0 || s.solid(below))) {
             val dirs = flowDirections(s, c)
@@ -179,7 +183,7 @@ object WaterSim {
 
     private fun canFlowInto(s: BoardState, cell: Int) = cell >= 0 && s.level[cell] < 0 && ! s.solid(cell)
 
-    private fun place(s: BoardState, cell: Int, lvl: Int, t: Int, listener: SimListener?) {
+    private fun place(s: BoardState, cell: Int, lvl: Int, t: Int, listener: SimListener?, drip: Boolean = false) {
         s.level[cell] = lvl.toByte()
         s.dynamic[cell] = true
         s.lastChange = t
@@ -187,7 +191,7 @@ object WaterSim {
         notify(s, cell, t + s.rules.tickDelay)
         listener?.placed(cell, lvl, t)
         val outlet = s.layout.outletOf(cell)
-        if (outlet >= 0) {
+        if (outlet >= 0 && (! drip || s.rules.dripArrivals)) {
             s.arrivals[outlet] ++
             if (s.firstArrival[outlet] < 0) s.firstArrival[outlet] = t
             s.lastArrival[outlet] = t
