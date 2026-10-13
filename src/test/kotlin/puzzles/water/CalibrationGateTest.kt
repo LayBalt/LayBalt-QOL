@@ -83,6 +83,14 @@ class CalibrationGateTest {
     }
 
     @Test
+    fun `with every lever in doubt the gate still finds the one untouched state that makes the plays work`() {
+        val table = syntheticTable(planted, plantedPerm)
+        val fixed = Calibration.calibrate(CalibrationInput(layout, table, WaterRules(), startOffset = F.bit or C.bit, uncertain = 0b111111))
+        assertEquals(SimTrust.TRUSTED, fixed.trust, fixed.summary)
+        assertEquals(0, fixed.startOffset)
+    }
+
+    @Test
     fun `a board the simulator cannot reproduce stays untrusted`() {
         val table = syntheticTable(planted, plantedPerm)
         // Same plays, but the doors scrambled per play: no single mapping and timing explains them.

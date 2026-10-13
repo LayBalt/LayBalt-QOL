@@ -41,6 +41,7 @@ class WaterSimBridge(
     private var shadow: ShadowCheck? = null
     private var demotions = 0
     private var recalibrated = false
+    private var startRechecked = false
     private var lastSwitch: BoardEvent.WaterSwitched? = null
     private val recentFlips = ArrayDeque<IntArray>()
     private val doorToggled = IntArray(Door.entries.size) { BoardTracker.NEVER }
@@ -75,11 +76,11 @@ class WaterSimBridge(
         LayBaltQOL.logger.info("[WaterBoard] simulator not used: $why")
     }
 
-    private fun runGate(measured: Int?) {
+    private fun runGate(measured: Int?, uncertain: Int = tracker.parityUncertain) {
         val layout = layout ?: return
         val table = table ?: return
         val f = frame() ?: return
-        val input = CalibrationInput(layout, table, WaterRules(rotation = f.rot), tracker.startOffset, tracker.parityUncertain, measured)
+        val input = CalibrationInput(layout, table, WaterRules(rotation = f.rot), tracker.startOffset, uncertain, measured)
         WaterPlannerExecutor.submit(WaterPlannerExecutor.Kind.CALIBRATION, sessionId, { Calibration.calibrate(input, it) }) { apply(it) }
     }
 
@@ -149,7 +150,8 @@ class WaterSimBridge(
         return pending
     }
 
-    fun tick(now: Int) {
+    /** [silentFailures]: plays in a row that failed although every flip was on time (see [WaterSupervisor.silentFailures]). */
+    fun tick(now: Int, silentFailures: Int = 0) {
         while (recentFlips.isNotEmpty() && recentFlips.first()[1] < now - 10) recentFlips.removeFirst()
         val sh = shadow
         if (sh != null) {
@@ -176,6 +178,13 @@ class WaterSimBridge(
         ) {
             recalibrated = true
             runGate(tracker.lag(2) - tracker.lag(0))
+        }
+        // Runs that fail with every flip on time point at a wrong guess of the untouched levers: let the gate try every
+        // lever state against the shipped solutions once (it adopts one only if it alone makes them work).
+        if (! startRechecked && silentFailures >= 2 && zLeaks == 0 && table != null && trust != SimTrust.PENDING) {
+            startRechecked = true
+            LayBaltQOL.logger.info("[WaterBoard] runs fail with every flip on time: checking every untouched lever state against the shipped solutions")
+            runGate(if (tracker.measured(0) && tracker.measured(2)) tracker.lag(2) - tracker.lag(0) else null, uncertain = BoardTracker.ALL_LEVERS)
         }
     }
 

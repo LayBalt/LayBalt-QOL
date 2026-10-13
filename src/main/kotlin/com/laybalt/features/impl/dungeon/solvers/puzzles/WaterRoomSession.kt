@@ -84,7 +84,7 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
                 LayBaltQOL.logger.info("[WaterBoard] ${message.removeFormatting()}")
             }
         }
-        if (available && tracker.layoutCaptured) sim.tick(tick)
+        if (available && tracker.layoutCaptured) sim.tick(tick, supervisor?.silentFailures ?: 0)
         cached = compute()
     }
 
