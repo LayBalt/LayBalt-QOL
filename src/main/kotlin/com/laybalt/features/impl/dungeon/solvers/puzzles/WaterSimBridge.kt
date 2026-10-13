@@ -45,6 +45,7 @@ class WaterSimBridge(
     private val recentFlips = ArrayDeque<IntArray>()
     private val doorToggled = IntArray(Door.entries.size) { BoardTracker.NEVER }
     private var lastPlanNote = ""
+    private var doorsWithoutWater = 0
 
     // ================================================================================================================
     // Layout and calibration
@@ -97,7 +98,10 @@ class WaterSimBridge(
                 shadow?.onFlip(e.lever.ordinal, e.tick)
             }
 
-            is BoardEvent.DoorToggled -> doorToggled[e.door.digit] = e.tick
+            is BoardEvent.DoorToggled -> {
+                doorToggled[e.door.digit] = e.tick
+                checkDoorHadWater(e)
+            }
 
             is BoardEvent.WaterSwitched -> {
                 lastSwitch = e
@@ -108,6 +112,22 @@ class WaterSimBridge(
             }
 
         }
+    }
+
+    /**
+     * The whole recovery rests on doors toggling only when water reaches their outlet (and keeping their state when the
+     * board drains). A door that changes without water at its outlet is logged, so recordings can show if Hypixel does
+     * otherwise (for example resetting the doors when the water is pulled again).
+     */
+    private fun checkDoorHadWater(e: BoardEvent.DoorToggled) {
+        val l = layout ?: return
+        val perm = calibration.outletToDoor ?: return
+        val o = perm.indexOf(e.door.digit)
+        if (o < 0) return
+        val cell = l.outlets[o]
+        if (tracker.water[cell] >= 0 || e.tick - tracker.wetSince[cell] <= DOOR_WATER_WINDOW) return
+        doorsWithoutWater ++
+        LayBaltQOL.logger.info("[WaterBoard] the ${e.door.displayName} door ${if (e.closed) "closed" else "opened"} at ${e.tick} without water at its outlet (x=${BoardGeometry.x(cell)})")
     }
 
     /** Doors whose outlet just got water but which have not toggled since (their toggle is on its way). */
@@ -311,6 +331,7 @@ class WaterSimBridge(
         }
         shadow?.let { lines += "§7Shadow check: §f${it.ticksCompared} §7ticks, mean §f${"%.1f".format(it.meanDiff)} §7max §f${it.maxDiff} §7cells off" }
         if (demotions > 0) lines += "§7Shadow demotions: §f$demotions"
+        if (doorsWithoutWater > 0) lines += "§7Doors that changed without water at their outlet: §f$doorsWithoutWater §7(see the log)"
         if (lastPlanNote.isNotEmpty()) lines += "§7Last plan: §f$lastPlanNote"
         return lines
     }
@@ -352,5 +373,8 @@ class WaterSimBridge(
 
         /** Water that reached an outlet this recently may still be on its way to toggling the door. */
         const val PENDING_DOOR_TICKS = 10
+
+        /** A door toggling this long after its outlet last got water is logged as toggling without water. */
+        const val DOOR_WATER_WINDOW = 40
     }
 }

@@ -34,6 +34,9 @@ object WaterPlannerExecutor {
 
     private val failureLogged = AtomicBoolean(false)
 
+    /** Hands a result to the client thread (tests run it in place). */
+    @Volatile var deliver: (Runnable) -> Unit = { LayBaltQOL.mc.execute(it) }
+
     /** A new id for a room session (also makes everything still running for the old one stale). */
     fun newSession(): Long = sessionIds.incrementAndGet().also { currentSession = it }
 
@@ -52,9 +55,9 @@ object WaterPlannerExecutor {
                 token.check()
                 val result = job(token)
                 token.check()
-                LayBaltQOL.mc.execute {
+                deliver(Runnable {
                     if (counter.get() == gen && currentSession == session) onResult(result)
-                }
+                })
             }
             catch (_: CancellationException) {
             }

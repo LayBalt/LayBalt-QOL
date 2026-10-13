@@ -84,6 +84,8 @@ object WaterBoardRecorder {
         json.addProperty("untouchedFrom", tracker.startSource)
         json.addProperty("parity", tracker.parity)
         json.addProperty("parityUncertain", tracker.parityUncertain)
+        // Lever parity of the dumped planes relative to the session's reference snapshot (runs record theirs the same way).
+        json.addProperty("maskAtDump", tracker.mask)
         json.addProperty("boardWater", tracker.boardWater)
 
         // Board planes: one row per y (84 down to 56), x -12..12.
