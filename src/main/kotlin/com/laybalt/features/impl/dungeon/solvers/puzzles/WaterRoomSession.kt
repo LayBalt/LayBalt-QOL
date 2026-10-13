@@ -18,6 +18,7 @@ import kotlin.math.hypot
  *
  * Every server tick it reads the board ([WaterBoardReader] into the [BoardTracker]), hands the board's events to the
  * [WaterSupervisor] and caches the resulting [Guidance], which the solver draws while the player is in or near the room.
+ * The simulator side (calibration, plans, checks, shadowing) lives in [WaterSimBridge].
  */
 class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, ShippedTable>?) : WaterSupervisor.RunListener {
     var frame: RoomFrame? = null
@@ -25,6 +26,7 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
     val tracker = BoardTracker()
     var supervisor: WaterSupervisor? = null
         private set
+    val sim = WaterSimBridge(tracker) { frame }
 
     /** Room frame known and every chunk of the board loaded. */
     var available = false
@@ -70,16 +72,19 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
         val events = tracker.drainEvents()
         tracker.drainNotes().forEach { LayBaltQOL.logger.info("[WaterBoard] $it") }
         recordRun(events)
+        sim.onEvents(events)
 
         supervisor?.let { sup ->
             sup.recovery = PuzzleSolvers.waterRecovery.value
             sup.toleranceTicks = (PuzzleSolvers.waterTolerance.value.toDouble() * 20).toInt()
             sup.update(tracker, events)
+            sim.handle(sup.drainRequests(), sup, tick)
             for (message in sup.drainMessages()) {
                 if (sup.recovery && PuzzleSolvers.waterFailMessage.value) ChatUtils.modMessage(message)
                 LayBaltQOL.logger.info("[WaterBoard] ${message.removeFormatting()}")
             }
         }
+        if (available && tracker.layoutCaptured) sim.tick(tick)
         cached = compute()
     }
 
@@ -99,8 +104,12 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
             )
         }
         if (WaterBoardRecorder.enabled) WaterBoardRecorder.dumpLayout(this, "auto")
+        sim.onLayoutCaptured(table)
         if (table == null) return
-        supervisor = WaterSupervisor(table).also { it.listener = this }
+        supervisor = WaterSupervisor(table).also {
+            it.listener = this
+            it.sim = sim
+        }
     }
 
     private fun compute(): Guidance {
@@ -145,7 +154,10 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
 
     /** `/lbq water replan`: forget the plan and plan again from the board as it is. */
     fun replan() {
-        supervisor?.replan(tracker)
+        supervisor?.let { sup ->
+            sup.replan(tracker)
+            sim.handle(sup.drainRequests(), sup, now)
+        }
         cached = compute()
     }
 
@@ -202,6 +214,7 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
         lines += "§7Untouched state from: §f${tracker.startSource}"
         lines += "§7Water: §f${if (tracker.waterOn) "on" else "off"}§7, §f${tracker.boardWater} §7cells on the board"
         lines += "§7Latency: §f${tracker.lag(0)} §7ticks (levers), ping §f${tracker.rttTicks} §7ticks"
+        lines += sim.status()
         supervisor?.let { sup ->
             lines += "§7Stage: §f${sup.stage}" + (sup.play?.let { " §7- play §f${it.key}" } ?: "") +
                 (if (sup.chain.size > 1) " §7(${sup.chainIndex + 1}/${sup.chain.size}: ${sup.chain.joinToString(" ") { it.key }})" else "")

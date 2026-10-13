@@ -2,27 +2,33 @@ package com.laybalt.features.impl.dungeon.solvers.puzzles.water
 
 import com.laybalt.features.impl.dungeon.solvers.puzzles.water.PlanFollower.Kind
 import java.util.Locale
+import kotlin.math.max
 
 /**
  * Drives the Water Board from the real board state. Pure: it reads a [BoardView], reacts to [BoardEvent]s and answers
- * with [Guidance] and chat messages.
+ * with [Guidance], chat messages and requests for the planner thread.
  *
  * Plan: the shipped plays whose door sets XOR to the doors that are closed right now ([DoorAlgebra]); one play for an
  * untouched board. Each play: flip the levers whose parity differs from the play's start ([Stage.PREPARE]), pull the
  * water, follow the timed flips ([Stage.RUNNING]), then wait for the water to reach the play's doors ([Stage.AWAIT]).
  *
  * A run goes wrong when the board says so - a door outside the play toggles, the water settles or the planned time
- * runs out with doors still missing - or when an observed flip leaves the play's timing (tolerance as in 3.2.2). Then:
- * turn the water off ([Stage.STOP_WATER]), wait for the board to drain ([Stage.DRAIN]), read the doors again and plan
- * new plays from them. Doors keep their state when the board drains, so only the doors read after the drain matter.
+ * runs out with doors still missing - or when an observed flip leaves the play's timing (tolerance as in 3.2.2), or
+ * (with a trusted simulator, [sim]) when simulating the rest of the run from the board says it will miss. Then:
+ * - with simulator support, it asks the planner ([requests]) for a way to finish from the board as it is
+ *   ([Stage.PLANNING]) and follows that plan's clicks ([Stage.CONTINUE]);
+ * - otherwise, or when no plan beats a restart: turn the water off ([Stage.STOP_WATER]), wait for the board to drain
+ *   ([Stage.DRAIN]), read the doors again and plan new plays from them. Doors keep their state when the board drains, so
+ *   only the doors read after the drain matter. With a trusted simulator, door states that need two or three shipped
+ *   plays can be opened by one static lever setting instead ([SimSupport.staticPlay]).
  *
  * [guidance] is total: every stage maps to labels, a headline or a status, and only [Stage.SOLVED] is silent.
  */
 class WaterSupervisor(val table: ShippedTable) {
 
-    enum class Stage { READING, NO_PLAN, PREPARE, RUNNING, AWAIT, STOP_WATER, DRAIN, FOREIGN, SOLVED }
+    enum class Stage { READING, NO_PLAN, PREPARE, RUNNING, AWAIT, PLANNING, CONTINUE, STOP_WATER, DRAIN, FOREIGN, SOLVED }
 
-    enum class Cause { DIVERGENCE, WRONG_CHANNEL, SETTLED_UNSOLVED, EXHAUSTED, FOREIGN_FAILED, WATER_UNCLEAR }
+    enum class Cause { DIVERGENCE, WRONG_CHANNEL, SETTLED_UNSOLVED, EXHAUSTED, FOREIGN_FAILED, WATER_UNCLEAR, PREDICTED_FAIL }
 
     data class Incident(val serial: Int, val cause: Cause, val text: String, val tick: Int, val divergence: PlanFollower.Divergence? = null)
 
@@ -32,10 +38,34 @@ class WaterSupervisor(val table: ShippedTable) {
         fun runEnded(reason: String, tick: Int) {}
     }
 
+    /** What the simulator side offers right now (set by the session once the calibration gate has run). */
+    interface SimSupport {
+        /** Plans from the live board may be requested. */
+        fun continuationsAllowed(): Boolean
+
+        /** The run may be checked against the simulation. */
+        fun checksAllowed(): Boolean
+
+        /** One static lever setting (as a synthetic play) that opens exactly [closed] from a dry board, or null. */
+        fun staticPlay(closed: Int, parity: Int): ShippedPlay?
+    }
+
+    /** Work for the planner thread. Answers come back through [onPlanResult] / [onCheckResult] with the same [id]. */
+    sealed interface Request {
+        val id: Int
+    }
+
+    /** Find a way to finish from the board as it is. [remaining]: clicks of the plan being followed (click frame). */
+    data class PlanNeeded(override val id: Int, val remaining: List<PlanStep>?, val fault: PlanFault?) : Request
+
+    /** Does the rest of the current plan still open every closed door? */
+    data class CheckNeeded(override val id: Int, val remaining: List<PlanStep>) : Request
+
     /** False: the 3.2.2 legacy display - follow the first play, never stop the water or restart. */
     var recovery = true
     var toleranceTicks = 20
     var listener: RunListener? = null
+    var sim: SimSupport? = null
 
     var stage = Stage.READING
         private set
@@ -51,6 +81,10 @@ class WaterSupervisor(val table: ShippedTable) {
     var lastIncident: Incident? = null
         private set
     var drainEta: Int? = null
+        private set
+
+    /** The plan being followed in [Stage.CONTINUE]. */
+    var continuation: ContinuationPlan? = null
         private set
 
     /** Failed plays in a row although no flip left the timing (a sign the levers did not start where we think). */
@@ -78,13 +112,36 @@ class WaterSupervisor(val table: ShippedTable) {
     /** Water cells that stayed on the board through a whole drain (stuck water): later drains stop at this count. */
     private var residualWater = 0
 
+    // planning and continuation
+    private var planId = 0
+    private var planSince = - 1
+    private var planText = ""
+    private var planHint = ""
+    private var replans = 0
+    private var stepFollower: StepFollower? = null
+    private var contToggled = 0
+    private var contStart = - 1
+    private var checkId = 0
+    private var checkTick = Int.MIN_VALUE / 2
+    private var checkFails = 0
+    private var lastBoardEvent = Int.MIN_VALUE / 2
+
     private val outbox = ArrayList<String>()
+    private val requests = ArrayList<Request>()
 
     /** Chat messages produced since the last call. */
     fun drainMessages(): List<String> {
         if (outbox.isEmpty()) return emptyList()
         val out = outbox.toList()
         outbox.clear()
+        return out
+    }
+
+    /** Planner work produced since the last call. */
+    fun drainRequests(): List<Request> {
+        if (requests.isEmpty()) return emptyList()
+        val out = requests.toList()
+        requests.clear()
         return out
     }
 
@@ -102,6 +159,7 @@ class WaterSupervisor(val table: ShippedTable) {
         }
         for (e in events) {
             if (stage == Stage.SOLVED) return
+            lastBoardEvent = now
             when (e) {
                 is BoardEvent.DoorToggled -> onDoor(view, e)
                 is BoardEvent.LeverFlipped -> onLever(view, e)
@@ -116,14 +174,54 @@ class WaterSupervisor(val table: ShippedTable) {
         if (! view.ready || stage == Stage.SOLVED) return
         now = view.now
         follower = null
+        continuation = null
+        stepFollower = null
         chainValid = false
         normalRun = false
+        replans = 0
         when {
             view.doors == 0 -> solved()
+            tryPlan(view, "planning again on request", "", null) -> {}
             view.waterOn -> stage = Stage.STOP_WATER
-            view.boardWater > 0 -> toDrain()
+            view.boardWater > residualWater -> toDrain()
             else -> newChain(view, boardReady = true)
         }
+    }
+
+    /** The planner's answer to [PlanNeeded] [id] (null: nothing beats a restart). */
+    fun onPlanResult(id: Int, plan: ContinuationPlan?, view: BoardView) {
+        if (stage != Stage.PLANNING || id != planId || ! view.ready) return
+        now = view.now
+        val first = plan?.steps?.firstOrNull()
+        if (plan == null || first != null && first.clickTick < now - LATE_START_TICKS) {
+            fallback(view)
+            return
+        }
+        continuation = plan
+        stepFollower = StepFollower(plan.steps, toleranceTicks)
+        contToggled = 0
+        contStart = now
+        follower = null
+        checkFails = 0
+        checkTick = now
+        stage = Stage.CONTINUE
+        outbox += "§cWater Board went wrong: §f$planText$planHint§7. §fFix: §a${plan.summary}§7."
+    }
+
+    /** The planner's answer to [CheckNeeded] [id]: [ok] = the rest of the plan still works, else why not. */
+    fun onCheckResult(id: Int, ok: Boolean, reason: String?, view: BoardView) {
+        if (id != checkId || ! view.ready) return
+        if (stage != Stage.RUNNING && stage != Stage.AWAIT && stage != Stage.CONTINUE) return
+        // A flip or door change since the check was asked for: the board it simulated is gone.
+        if (lastBoardEvent > checkTick) return
+        now = view.now
+        if (ok) {
+            checkFails = 0
+            return
+        }
+        if (++ checkFails < CHECK_FAILS_NEEDED) return
+        checkFails = 0
+        incident(view, Cause.PREDICTED_FAIL, reason ?: "the water is not going to reach ${Door.names(view.doors)}")
     }
 
     private fun start(view: BoardView) {
@@ -132,7 +230,7 @@ class WaterSupervisor(val table: ShippedTable) {
             view.waterOn || view.boardWater > 0 -> toForeign()
             else -> {
                 newChain(view, boardReady = true)
-                normalRun = chain.size == 1 && Door.count(view.doors) == 3 && view.parityUncertain == 0
+                normalRun = chain.size == 1 && ! chain[0].synthetic && Door.count(view.doors) == 3 && view.parityUncertain == 0
             }
         }
     }
@@ -151,6 +249,16 @@ class WaterSupervisor(val table: ShippedTable) {
                 divergence(view, div)
             }
 
+            Stage.CONTINUE -> {
+                if (e.correction) {
+                    incident(view, Cause.WATER_UNCLEAR, "the water lever and the board disagree about the water")
+                    return
+                }
+                val f = stepFollower ?: return
+                f.onFlip(WaterLever.WATER, e.clickTick, e.source)?.let { divergence(view, it) }
+            }
+
+            Stage.PLANNING -> replanRequest()
             Stage.STOP_WATER -> if (! e.on) toDrain()
             Stage.DRAIN -> if (e.on) stage = Stage.STOP_WATER
             else -> {}
@@ -158,13 +266,24 @@ class WaterSupervisor(val table: ShippedTable) {
     }
 
     private fun onLever(view: BoardView, e: BoardEvent.LeverFlipped) {
-        if (stage != Stage.RUNNING && stage != Stage.AWAIT) return
-        // A lever that was already moving when the water started belongs to the start state.
-        if (e.tick < runStart) return
-        val f = follower ?: return
-        val div = f.onFlip(e.lever, e.clickTick, e.source) ?: return
-        if (! recovery) f.forceConsume(e.lever)
-        divergence(view, div)
+        when (stage) {
+            Stage.RUNNING, Stage.AWAIT -> {
+                // A lever that was already moving when the water started belongs to the start state.
+                if (e.tick < runStart) return
+                val f = follower ?: return
+                val div = f.onFlip(e.lever, e.clickTick, e.source) ?: return
+                if (! recovery) f.forceConsume(e.lever)
+                divergence(view, div)
+            }
+
+            Stage.CONTINUE -> {
+                val f = stepFollower ?: return
+                f.onFlip(e.lever, e.clickTick, e.source)?.let { divergence(view, it) }
+            }
+
+            Stage.PLANNING -> replanRequest()
+            else -> {}
+        }
     }
 
     private fun onDoor(view: BoardView, e: BoardEvent.DoorToggled) {
@@ -184,7 +303,17 @@ class WaterSupervisor(val table: ShippedTable) {
                 }
             }
 
-            Stage.PREPARE -> if (! view.waterOn && view.boardWater == 0) {
+            Stage.CONTINUE -> {
+                val plan = continuation ?: return
+                if (plan.doors and e.door.bit != 0 && contToggled and e.door.bit == 0) {
+                    contToggled = contToggled or e.door.bit
+                    replans = 0
+                }
+                else incident(view, Cause.WRONG_CHANNEL, "water reached the ${e.door.colored}§f channel, which had to stay dry")
+            }
+
+            Stage.PLANNING -> replanRequest()
+            Stage.PREPARE -> if (! view.waterOn && view.boardWater <= residualWater) {
                 chainValid = false
                 normalRun = false
                 newChain(view, boardReady = true)
@@ -216,26 +345,50 @@ class WaterSupervisor(val table: ShippedTable) {
                     stage = Stage.AWAIT
                     awaitSince = now
                 }
+                else maybeCheck()
             }
 
             Stage.AWAIT -> if (recovery) {
                 val f = follower ?: return
                 val play = play ?: return
                 val missing = Door.names(play.doors and runToggled.inv())
+                val deadline = f.anchor + max(play.lastClickTick, play.expectedTicks ?: 0) + EXHAUST_TICKS
                 when {
                     now - view.lastWaterChange >= SETTLE_TICKS && now - awaitSince >= SETTLE_TICKS / 2 ->
                         incident(view, Cause.SETTLED_UNSOLVED, "the water stopped before reaching $missing")
 
-                    now - f.lastPlannedTick > EXHAUST_TICKS ->
-                        incident(view, Cause.EXHAUSTED, "all flips are done but the water did not reach $missing")
+                    now > deadline -> incident(view, Cause.EXHAUSTED, "all flips are done but the water did not reach $missing")
+                    else -> maybeCheck()
                 }
             }
 
+            Stage.PLANNING -> if (now - planSince > PLAN_WAIT_TICKS) fallback(view)
+            Stage.CONTINUE -> tickContinue(view)
             Stage.STOP_WATER -> if (! view.waterOn) toDrain()
             Stage.DRAIN -> tickDrain(view)
             Stage.FOREIGN -> tickForeign(view)
             Stage.PREPARE -> if (view.boardWater > residualWater && ! view.waterOn) toDrain()
             else -> {}
+        }
+    }
+
+    private fun tickContinue(view: BoardView) {
+        val plan = continuation ?: return fallback(view)
+        val f = stepFollower ?: return fallback(view)
+        f.toleranceTicks = toleranceTicks
+        f.onTick(now - view.flipLag)?.let {
+            divergence(view, it)
+            return
+        }
+        val deadline = max(plan.predictedEnd, (f.lastClick ?: contStart) + view.flipLag) + CONTINUE_GRACE
+        when {
+            f.finished && now > deadline ->
+                incident(view, Cause.EXHAUSTED, "the fix ran out of time with ${Door.names(view.doors)} still closed")
+
+            f.finished && now - view.lastWaterChange >= SETTLE_TICKS && now - contStart >= SETTLE_TICKS ->
+                incident(view, Cause.SETTLED_UNSOLVED, "the water stopped before reaching ${Door.names(view.doors)}")
+
+            else -> maybeCheck()
         }
     }
 
@@ -276,13 +429,71 @@ class WaterSupervisor(val table: ShippedTable) {
     }
 
     // ================================================================================================================
+    // Planning
+    // ================================================================================================================
+
+    /** The clicks still to come in the current plan (click frame). */
+    private fun currentRemaining(): List<PlanStep> = when (stage) {
+        Stage.CONTINUE -> stepFollower?.remaining().orEmpty()
+        Stage.RUNNING, Stage.AWAIT -> follower?.let { f -> f.pending().map { PlanStep(it.lever, f.anchor + it.tick) } }.orEmpty()
+        else -> emptyList()
+    }
+
+    /** Asks the planner for a way to finish from the board as it is; false when that is not possible here. */
+    private fun tryPlan(view: BoardView, text: String, hint: String, fault: PlanFault?): Boolean {
+        val s = sim ?: return false
+        if (! recovery || ! s.continuationsAllowed()) return false
+        // Nothing moving on the board: there is nothing to steer, a restart it is.
+        if (! view.waterOn && view.boardWater <= residualWater) return false
+        if (replans >= MAX_REPLANS) return false
+        replans ++
+        val remaining = currentRemaining()
+        follower = null
+        continuation = null
+        stepFollower = null
+        stage = Stage.PLANNING
+        planSince = now
+        planText = text
+        planHint = hint
+        planId ++
+        requests += PlanNeeded(planId, remaining, fault)
+        return true
+    }
+
+    /** The board changed while the planner was working: ask again for the board as it is now. */
+    private fun replanRequest() {
+        planId ++
+        requests += PlanNeeded(planId, null, null)
+    }
+
+    /** No plan (or none in time): turn the water off, drain and restart. */
+    private fun fallback(view: BoardView) {
+        continuation = null
+        stepFollower = null
+        announce(view, planText.ifEmpty { "the run went off track" }, planHint)
+        stopWater(view)
+    }
+
+    private fun maybeCheck() {
+        val s = sim ?: return
+        if (! recovery || ! s.checksAllowed()) return
+        if (now - checkTick < CHECK_INTERVAL) return
+        checkTick = now
+        checkId ++
+        requests += CheckNeeded(checkId, currentRemaining())
+    }
+
+    // ================================================================================================================
     // Transitions
     // ================================================================================================================
 
     private fun newChain(view: BoardView, boardReady: Boolean) {
-        chain = DoorAlgebra.best(view.doors, table, view.parity, boardReady)
+        val static = if (recovery && Door.count(view.doors) != 3) sim?.staticPlay(view.doors, view.parity) else null
+        chain = if (static != null) listOf(static) else DoorAlgebra.best(view.doors, table, view.parity, boardReady)
         chainIndex = 0
         chainValid = chain.isNotEmpty()
+        continuation = null
+        stepFollower = null
         if (chain.isEmpty()) {
             stage = if (view.doors == 0) Stage.SOLVED else Stage.NO_PLAN
             return
@@ -322,12 +533,15 @@ class WaterSupervisor(val table: ShippedTable) {
         toggles.fill(0)
         runStart = e.tick
         diverged = false
+        checkTick = now
+        checkFails = 0
         listener?.runStarted(play, e.tick)
     }
 
     private fun playDone(view: BoardView) {
         listener?.runEnded("doors", now)
         silentFailures = 0
+        replans = 0
         follower = null
         if (view.doors == 0) {
             solved()
@@ -355,14 +569,21 @@ class WaterSupervisor(val table: ShippedTable) {
             " §7(every flip was on time - ${WaterLever.names(view.parityUncertain)} may not have started in their default position)"
         }
         else ""
+        listener?.runEnded(cause.name.lowercase(Locale.ROOT), now)
+        if (tryPlan(view, text, hint, div?.let { PlanFault(it.lever, it.kind) })) return
+        announce(view, text, hint)
+        stopWater(view)
+    }
+
+    private fun announce(view: BoardView, text: String, hint: String) {
         val fix = if (view.waterOn) "turn the water §cOFF§f, let the board drain" else "let the board drain"
         outbox += "§cWater Board went wrong: §f$text$hint§7. §fFix: $fix, then follow the new markers."
-        listener?.runEnded(cause.name.lowercase(Locale.ROOT), now)
-        stopWater(view)
     }
 
     private fun stopWater(view: BoardView) {
         follower = null
+        continuation = null
+        stepFollower = null
         if (view.waterOn) stage = Stage.STOP_WATER else toDrain()
     }
 
@@ -385,6 +606,7 @@ class WaterSupervisor(val table: ShippedTable) {
 
     private fun drained(view: BoardView, stalled: Boolean) {
         if (stalled) residualWater = view.boardWater
+        replans = 0
         if (view.doors == 0) {
             solved()
             return
@@ -395,9 +617,11 @@ class WaterSupervisor(val table: ShippedTable) {
     }
 
     private fun solved() {
-        if (stage == Stage.RUNNING || stage == Stage.AWAIT) listener?.runEnded("solved", now)
+        if (stage == Stage.RUNNING || stage == Stage.AWAIT || stage == Stage.CONTINUE) listener?.runEnded("solved", now)
         stage = Stage.SOLVED
         follower = null
+        continuation = null
+        stepFollower = null
     }
 
     // ================================================================================================================
@@ -417,6 +641,8 @@ class WaterSupervisor(val table: ShippedTable) {
             Guidance.Act(emptyList(), null, null, "§bWater Board: §fwaiting for the water to reach $missing")
         }
 
+        Stage.PLANNING -> Guidance.Status("§eWater Board: §fworking out a fix from the board…")
+        Stage.CONTINUE -> continueGuidance(view)
         Stage.STOP_WATER ->
             if (view.waterClickPending) Guidance.Status("§7Water Board: turning the water off…")
             else Guidance.Act(
@@ -449,6 +675,7 @@ class WaterSupervisor(val table: ShippedTable) {
             if (lever == WaterLever.WATER && fixes == 0) labels += when {
                 normalRun -> LeverLabel(lever, "§a§lCLICK", LabelStyle.SOLUTION, stack ++)
                 n > 1 -> LeverLabel(lever, "§lPULL (${chainIndex + 1}/$n)", LabelStyle.FIX)
+                play.synthetic -> LeverLabel(lever, "§lPULL", LabelStyle.FIX)
                 else -> LeverLabel(lever, "§lPULL TO RESTART", LabelStyle.FIX)
             }
             // Preview of the timed flips that follow the water.
@@ -466,6 +693,9 @@ class WaterSupervisor(val table: ShippedTable) {
         val headline = when {
             normalRun && flipBack != 0 -> "§dFlip back ${WaterLever.names(flipBack, "§7, §d")} §7before pulling the water"
             normalRun -> null
+            play.synthetic -> "§d" + (if (fixes != 0) "Flip the marked levers, then pull the water" else "Pull the water") +
+                " §7- one run opens ${Door.names(play.doors)}"
+
             n > 1 -> "§dRun ${chainIndex + 1}/$n §7(${Door.names(play.doors)}§7)§f: " +
                 (if (fixes != 0) "flip the marked levers, then pull the water" else "pull the water") +
                 (if (reclosed != 0) " §7- it closes ${Door.names(reclosed)} §7again, that's expected" else "")
@@ -500,6 +730,27 @@ class WaterSupervisor(val table: ShippedTable) {
         return Guidance.Act(labels, tracer, line, headline)
     }
 
+    private fun continueGuidance(view: BoardView): Guidance {
+        val plan = continuation ?: return Guidance.Status("§eWater Board: §fworking out a fix from the board…")
+        val f = stepFollower ?: return Guidance.Status("§eWater Board: §fworking out a fix from the board…")
+        val remaining = f.remaining()
+        val labels = ArrayList<LeverLabel>()
+        val stack = IntArray(WaterLever.entries.size)
+        for (lever in WaterLever.entries) stack[lever.ordinal] = f.consumed(lever)
+        for (step in remaining) {
+            val left = step.clickTick - view.now
+            val text = if (left > 0) timeColor(left) + "${seconds(left)}s" else "§a§lCLICK"
+            labels += LeverLabel(step.lever, text, LabelStyle.SOLUTION, stack[step.lever.ordinal] ++)
+        }
+        val tracer = remaining.firstOrNull()?.lever
+        val second = remaining.firstOrNull { it.lever != tracer }?.lever
+        val line = if (tracer != null && second != null) tracer to second else null
+        val missing = Door.names(plan.doors and contToggled.inv())
+        val headline = if (remaining.isEmpty()) "§bWater Board: §fwaiting for the water to reach $missing"
+        else "§eFixing the run: §f${plan.summary}"
+        return Guidance.Act(labels, tracer, line, headline)
+    }
+
     companion object {
         /** Board unchanged this long (with no planned flips left): the water settled. */
         const val SETTLE_TICKS = 40
@@ -515,6 +766,24 @@ class WaterSupervisor(val table: ShippedTable) {
 
         /** Drain without progress for this long: go on anyway (3.2.2 value). */
         const val STALLED_DRAIN_TICKS = 300
+
+        /** The planner gets this long before the drain-and-restart fallback is shown instead. */
+        const val PLAN_WAIT_TICKS = 20
+
+        /** A plan whose first click is this far in the past when it arrives is not used. */
+        const val LATE_START_TICKS = 4
+
+        /** Plans in a row without a door opening before the fallback is used for good. */
+        const val MAX_REPLANS = 3
+
+        /** A computed plan's doors must have opened this long after its predicted end. */
+        const val CONTINUE_GRACE = 60
+
+        /** Ticks between two checks of the run against the simulation. */
+        const val CHECK_INTERVAL = 10
+
+        /** Failed checks in a row before the run is called off. */
+        const val CHECK_FAILS_NEEDED = 2
 
         fun seconds(ticks: Int): String = String.format(Locale.ROOT, "%.1f", ticks / 20.0)
 

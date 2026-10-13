@@ -109,6 +109,12 @@ object PuzzleSolvers: Feature() {
     val waterFailMessage by ToggleSetting("Water Failure Message", true)
         .withDescription("Prints a chat message explaining what went wrong and how it will be fixed.")
         .showIf { water.value && waterRecovery.value }
+    val waterQuickFixes by ToggleSetting("Water Quick Fixes", true)
+        .withDescription("When the simulator reproduces every shipped solution of the board in front of you, a run that goes wrong is finished from where it is (flip these levers now / on these timers) instead of draining and restarting, and door states that need several restarts are opened in one run. Off: always drain and restart.")
+        .showIf { water.value && waterRecovery.value }
+    val waterPingCompensation by ToggleSetting("Water Ping Compensation", true)
+        .withDescription("Shows the CLICK of computed fixes earlier by your ping, so the flip reaches the server on time.")
+        .showIf { water.value && waterRecovery.value && waterQuickFixes.value }
     val waterRecorder by ToggleSetting("Water Board Recorder", false)
         .withDescription("Saves the Water Board room and every run to config/LayBaltQOL/waterboard (also /lbq water record on). The files help to test the solver.")
         .showIf { water.value && waterRecovery.value }

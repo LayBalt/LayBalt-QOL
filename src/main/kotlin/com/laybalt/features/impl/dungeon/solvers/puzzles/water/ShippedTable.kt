@@ -14,7 +14,15 @@ data class TimedClick(val lever: WaterLever, val tick: Int)
  * the water lever's first `0.0` is the start itself and a later water entry turns the water off again (12 of the 40
  * entries do that and keep steering the remaining water with further flips).
  */
-class ShippedPlay(val variant: Int, val key: String, val times: Map<WaterLever, List<Double>>) {
+class ShippedPlay(
+    val variant: Int,
+    val key: String,
+    val times: Map<WaterLever, List<Double>>,
+    /** Made by LayBalt (a static lever setting checked in the simulator), not one of the shipped solutions. */
+    val synthetic: Boolean = false,
+    /** Ticks after the water click by which the simulator expects the last door to open (synthetic plays). */
+    val expectedTicks: Int? = null,
+) {
     /** Doors this play toggles. */
     val doors: Int = Door.bitsOf(key)
 
@@ -45,10 +53,18 @@ class ShippedPlay(val variant: Int, val key: String, val times: Map<WaterLever, 
     /** Lever parity (relative to the untouched board) after the play: the start parity plus every timed block flip. */
     val endParity: Int = timedClicks.filter { it.lever.isBlockLever }.fold(startParity) { acc, c -> acc xor c.lever.bit }
 
-    override fun toString() = "v$variant/$key"
+    override fun toString() = (if (synthetic) "static " else "") + "v$variant/$key"
 
     companion object {
         fun ticks(seconds: Double) = (seconds * 20).roundToInt()
+
+        /** One run with the block levers set to [parity] (relative to the untouched board) and no timed flips. */
+        fun static(variant: Int, doors: Int, parity: Int, expectedTicks: Int?): ShippedPlay {
+            val times = HashMap<WaterLever, List<Double>>()
+            times[WaterLever.WATER] = listOf(0.0)
+            for (lever in WaterLever.inMask(parity)) times[lever] = listOf(0.0)
+            return ShippedPlay(variant, Door.keyOf(doors), times, synthetic = true, expectedTicks = expectedTicks)
+        }
     }
 }
 

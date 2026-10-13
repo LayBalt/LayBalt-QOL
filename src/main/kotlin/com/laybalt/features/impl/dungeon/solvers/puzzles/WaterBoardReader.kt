@@ -133,6 +133,22 @@ object WaterBoardReader {
         return false
     }
 
+    /**
+     * Open cells of the playable board whose neighbour in front (z 10) or behind (z 12) lets water through. The simulator
+     * models the board as a flat plane; with such leaks it would be wrong, so it is not used on that board.
+     */
+    fun zLeaks(frame: RoomFrame, tracker: BoardTracker): Int {
+        var leaks = 0
+        for (y in BoardGeometry.TOGGLE_MIN_Y + 1 .. BoardGeometry.TOGGLE_MAX_Y) for (x in BoardGeometry.PLAY_MIN_X .. BoardGeometry.PLAY_MAX_X) {
+            val cell = BoardGeometry.cell(x, y)
+            if (! BoardCodes.passable(tracker.front[cell])) continue
+            if (tracker.toggleLever[cell] >= 0) continue
+            val front = code(WorldUtils.getStateAt(frame.world(x, y, BoardGeometry.FRONT_Z)))
+            if (BoardCodes.passable(front) || BoardCodes.passable(tracker.back[cell])) leaks ++
+        }
+        return leaks
+    }
+
     /** One plane of the room (x -12..12, y 84..56) as text rows for dumps; see the recorder legend. */
     fun planeRows(frame: RoomFrame, z: Int): List<String> = (BoardGeometry.MAX_Y downTo BoardGeometry.MIN_Y).map { y ->
         buildString {
