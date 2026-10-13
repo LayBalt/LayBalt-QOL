@@ -1,7 +1,14 @@
 <!-- markdownlint-disable-file MD001 MD033 -->
 <h2 align="center">LayBalt Repository</h2>
-<h2 align="center">Version 3.2.3</h2>
+<h2 align="center">Version 3.2.4</h2>
 <h4 align="center">LayBaltQOL (LBQ) is a feature-rich Fabric mod for Hypixel Skyblock on Minecraft 26.2.</h4>
+
+---
+
+<h3 align="center">3.2.4: Water Board from the board state</h3>
+
+- **Water Board.** The solver now reads the board itself (water, doors, both lever planes and the real lever states, including levers your teammates flip) instead of only your own clicks. A messed-up run is recognised from where the water went, and the solver shows how to finish from the current state: a quick fix with countdowns when the simulator, checked against the shipped solutions on that board, finds one; otherwise turn the water off, let it drain and run the plays for the doors that are still closed. It never goes silent while the puzzle is unsolved. Fixed: the 3.2.2 restart could close a door that was already open. Teammates' runs are no longer flagged as failures. New options: <b>Water Quick Fixes</b>, <b>Water Ping Compensation</b>, <b>Water Board Recorder</b> and <b>Reset Water</b>. New command: <code>/lbq water status|dump|record on|off|replan|reset</code> (also <code>/lbwater</code>).
+- **Auto Enchanting.** A chat message tells you when Chronomatron hands a round back to you. A timer status that arrives late no longer throws the solver off.
 
 ---
 
@@ -308,6 +315,7 @@ Every command is under <code>/lbq</code> (or <code>/laybalt</code>), so you neve
 - `/lbq t1`..`t5` - Join a Kuudra tier (Basic, Hot, Burning, Fiery, Infernal).
 - `/lbq leaporder <name|class> <player1> [player2] [player3] [player4]` - Custom leap menu order.
 - `/lbq leap <class>` - Leap to the teammate playing that class.
+- `/lbq water [status|dump|record on|off|replan|reset]` (also `/lbwater`) - Water Board solver: what it reads from the board, save the room, record runs, plan again, reset.
 
 #### Sacks
 
