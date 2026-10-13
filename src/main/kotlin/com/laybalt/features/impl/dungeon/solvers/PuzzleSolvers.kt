@@ -101,7 +101,7 @@ object PuzzleSolvers: Feature() {
         .withDescription("Watches the real board (doors, water, lever blocks) and, when the run goes wrong - water in the wrong channel, water that stops short, flips off the timing, levers moved by teammates - shows how to finish from where the board is: a quick fix when one is known to work, otherwise turn the water off, let it drain and run the solutions that open the doors still closed. Off: the plain 3.2.2 timer display.")
         .showIf { water.value }
     val waterTolerance by SliderSetting("Water Timing Tolerance", 1.0, 0.2, 3.0, 0.1, "s")
-        .withDescription("How far a flip may be from its planned time before the solver re-checks the run.")
+        .withDescription("How far a flip may be from its planned time. Beyond it the run counts as off track: a quick fix from the board when one is known to work, otherwise turn the water off, drain and restart. Flips by teammates playing their own timings are not judged.")
         .showIf { water.value && waterRecovery.value }
     val waterFixColor by ColorSetting("Water Fix Color", Color(255, 85, 255))
         .withDescription("Colour of the recovery markers (levers to flip, the water lever to turn off or pull again).")
@@ -191,7 +191,8 @@ object PuzzleSolvers: Feature() {
 
         hudElement(
             name = "Water Board Recovery",
-            enabled = { water.value },
+            // Off with the recovery: the plain 3.2.2 display shows the timers on the levers only.
+            enabled = { water.value && waterRecovery.value },
             shouldDraw = { WaterBoardSolver.hudText != null },
             centered = { true }
         ) { ctx, example ->

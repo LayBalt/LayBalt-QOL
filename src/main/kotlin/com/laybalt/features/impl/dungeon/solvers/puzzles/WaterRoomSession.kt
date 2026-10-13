@@ -84,8 +84,11 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
             sup.toleranceTicks = (PuzzleSolvers.waterTolerance.value.toDouble() * 20).toInt()
             sup.update(tracker, events)
             sim.handle(sup.drainRequests(), sup, tick)
+            // Only to players at the board: the session lives for the whole dungeon, and someone clearing another room
+            // has nothing to turn off.
+            val near = nearRoom()
             for (message in sup.drainMessages()) {
-                if (sup.recovery && PuzzleSolvers.waterFailMessage.value) ChatUtils.modMessage(message)
+                if (sup.recovery && PuzzleSolvers.waterFailMessage.value && near) ChatUtils.modMessage(message)
                 LayBaltQOL.logger.info("[WaterBoard] ${message.removeFormatting()}")
             }
         }
@@ -129,13 +132,14 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
         return sup.guidance(tracker)
     }
 
-    /** The guidance to draw: nothing while the player is away from the room, nothing once solved. */
-    fun displayed(): Guidance? {
-        val player = LayBaltQOL.mc.player ?: return null
-        val inRoom = ScanUtils.currentRoom === room
-        val distance = hypot(player.x - room.centerPos.x, player.z - room.centerPos.z)
-        return GuidanceGate.forDisplay(cached, inRoom, distance)?.takeUnless { it == Guidance.Solved }
+    /** The player is in the room or close to it. */
+    private fun nearRoom(): Boolean {
+        val player = LayBaltQOL.mc.player ?: return false
+        return GuidanceGate.visible(ScanUtils.currentRoom === room, hypot(player.x - room.centerPos.x, player.z - room.centerPos.z))
     }
+
+    /** The guidance to draw: nothing while the player is away from the room, nothing once solved. */
+    fun displayed(): Guidance? = cached.takeIf { nearRoom() && it != Guidance.Solved }
 
     fun onClick(pos: BlockPos, tick: Int) {
         val f = frame ?: return

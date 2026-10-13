@@ -248,4 +248,61 @@ class SupervisorPlanningTest {
         assertEquals(listOf("014"), h.sup.chain.map { it.key })
         assertFalse(h.sup.chain.single().synthetic)
     }
+
+    // ---- Review fixes ----------------------------------------------------------------------------------------------
+
+    @Test
+    fun `a static play that failed is not offered again after the drain`() {
+        val static = ShippedPlay.static(0, Door.bitsOf("24"), GOLD.bit or EMERALD.bit, 220)
+        val h = harness("24", FakeSim(continuations = false, checks = false, static = static))
+        h.tick()
+        assertEquals(listOf(static), h.sup.chain)
+        h.tick { flip(GOLD) }
+        h.tick { flip(EMERALD) }
+        h.tick { water(true) }
+        // The simulator's prediction was wrong: the water keeps going but no door opens.
+        while (h.sup.stage == Stage.RUNNING || h.sup.stage == Stage.AWAIT) h.tick { flowing() }
+        assertEquals(Cause.EXHAUSTED, h.sup.lastIncident?.cause)
+        assertTrue(h.sup.staticFailed)
+        h.stopAndDrain()
+        assertEquals(Stage.PREPARE, h.sup.stage)
+        assertTrue(h.sup.chain.none { it.synthetic }, "the shipped plays (known to work) from now on: ${h.sup.chain}")
+        assertEquals(Door.bitsOf("24"), h.sup.chain.fold(0) { acc, p -> acc xor p.doors })
+    }
+
+    @Test
+    fun `a board change while planning asks again with the same plan and fault`() {
+        val h = harness()
+        val first = h.strayCoal()
+        h.tick { toggle(Door.PURPLE); flowing() }
+        val second = h.requests().filterIsInstance<WaterSupervisor.PlanNeeded>().single()
+        assertTrue(second.id > first.id)
+        assertEquals(first.remaining, second.remaining)
+        assertEquals(first.fault, second.fault)
+    }
+
+    @Test
+    fun `the late click of a missed flip while planning settles the fault and its step`() {
+        val h = harness(sim = FakeSim(checks = false))
+        h.tick()
+        h.tick { water(true) }
+        // Clay is due at 3.2 s; past the tolerance it is missed.
+        while (h.sup.stage == Stage.RUNNING) h.tick { flowing() }
+        val first = h.requests().filterIsInstance<WaterSupervisor.PlanNeeded>().single()
+        assertEquals(PlanFault(CLAY, PlanFollower.Kind.MISSED), first.fault)
+        assertTrue(first.remaining!!.any { it.lever == CLAY })
+        // The player's late click lands while the planner works.
+        h.tick { flip(CLAY); flowing() }
+        val second = h.requests().filterIsInstance<WaterSupervisor.PlanNeeded>().single()
+        assertNull(second.fault)
+        assertTrue(second.remaining!!.none { it.lever == CLAY }, "${second.remaining}")
+        assertEquals(first.remaining!!.size - 1, second.remaining!!.size)
+        // A click on time for a later step of the plan counts as done too.
+        val gold = second.remaining!!.first { it.lever == GOLD }
+        while (h.board.now < gold.clickTick) h.tick { flowing() }
+        h.requests()
+        h.tick { flip(GOLD, clickTick = gold.clickTick); flowing() }
+        val third = h.requests().filterIsInstance<WaterSupervisor.PlanNeeded>().single()
+        assertTrue(third.remaining!!.none { it.lever == GOLD }, "${third.remaining}")
+    }
 }

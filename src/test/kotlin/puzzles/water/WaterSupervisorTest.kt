@@ -199,13 +199,18 @@ class WaterSupervisorTest {
     }
 
     @Test
-    fun `a teammate's flip is named as such`() {
+    fun `a teammate's flip off our schedule hands the run to them, without a failure message`() {
         val h = harness(0, "014")
         h.tick()
         h.tick { water(true) }
         h.ticks(10) { flowing() }
         h.tick { flip(COAL, FlipSource.OTHER) }
-        assertTrue(h.messages.single().contains("by a teammate"), h.messages.single())
+        assertEquals(Stage.FOREIGN, h.sup.stage)
+        assertEquals(emptyList(), h.messages)
+        assertTrue(h.labelTexts(WATER).none { it.contains("WATER OFF") })
+        // If their run then stalls, it is taken over like any other run.
+        h.ticks(WaterSupervisor.FOREIGN_SETTLE_TICKS + 5) { boardWater = 40 }
+        assertEquals(Cause.FOREIGN_FAILED, h.sup.lastIncident?.cause)
     }
 
     @Test
@@ -449,5 +454,107 @@ class WaterSupervisorTest {
         h.playPerfectly(play, lag = 25, flipOverride = { it.lever != CLAY }, doorAt = { 100_000 }, until = WaterTestData.ticks(3.2) + 60)
         assertEquals(Cause.DIVERGENCE, h.sup.lastIncident?.cause)
         assertTrue(h.messages.single().contains("Clay§f was not flipped in time"), h.messages.single())
+    }
+
+    // ---- Review fixes ----------------------------------------------------------------------------------------------
+
+    @Test
+    fun `a teammate's run on other timings from our start state is left to them`() {
+        // Like Odin's optimised v0 solutions: the same levers before the water, other flips at other times.
+        val h = harness(0, "014")
+        h.tick()
+        h.tick { water(true, FlipSource.OTHER) }
+        assertEquals(Stage.RUNNING, h.sup.stage, "the timers are shown for whoever flips")
+        h.ticks(40) { flowing() }
+        h.tick { flip(DIAMOND, FlipSource.OTHER); flowing() } // ours is at 10 s: early by our schedule, fine by theirs
+        assertEquals(Stage.FOREIGN, h.sup.stage)
+        h.ticks(60) { flowing() }
+        h.tick { flip(COAL, FlipSource.OTHER); flowing() }
+        h.ticks(40) { flowing() }
+        h.tick { toggle(Door.PURPLE); flowing() }
+        h.tick { toggle(Door.ORANGE); flowing() }
+        h.tick { toggle(Door.RED) }
+        assertEquals(Stage.SOLVED, h.sup.stage)
+        assertEquals(emptyList(), h.messages)
+        assertEquals(0, h.sup.restarts)
+    }
+
+    @Test
+    fun `in a run a teammate started, flips nobody makes on our schedule are theirs to skip`() {
+        val h = harness(0, "014")
+        h.tick()
+        h.tick { water(true, FlipSource.OTHER) }
+        h.ticks(WaterTestData.ticks(3.2) + 25) { flowing() } // Clay (3.2 s) never flipped by anyone
+        assertEquals(Stage.FOREIGN, h.sup.stage)
+        assertEquals(emptyList(), h.messages)
+    }
+
+    @Test
+    fun `our own missed flip in a run a teammate started is still caught`() {
+        val h = harness(0, "014")
+        h.tick()
+        val start = h.board.now + 1
+        h.tick { water(true, FlipSource.OTHER) }
+        h.ticks(WaterTestData.ticks(3.2) - 1) { flowing() }
+        h.tick { flip(CLAY); flowing() } // ours, on time: we take part in this run
+        assertEquals(Stage.RUNNING, h.sup.stage)
+        while (h.board.now < start + WaterTestData.ticks(4.7) + 25 && h.sup.stage == Stage.RUNNING) h.tick { flowing() }
+        assertEquals(Cause.DIVERGENCE, h.sup.lastIncident?.cause)
+        assertEquals(PlanFollower.Kind.MISSED, h.sup.lastIncident?.divergence?.kind)
+        assertTrue(h.messages.single().contains("Gold"), h.messages.single())
+    }
+
+    @Test
+    fun `a first read with every door open waits for the doors before calling it solved`() {
+        val h = harness(0, "")
+        h.ticks(5)
+        assertEquals(Stage.READING, h.sup.stage)
+        assertIs<Guidance.Status>(h.guidance())
+        h.tick { doors = Door.bitsOf("014") }
+        assertEquals(Stage.PREPARE, h.sup.stage)
+
+        val solved = harness(0, "")
+        solved.ticks(WaterSupervisor.ALL_OPEN_CONFIRM_TICKS + 2)
+        assertEquals(Stage.SOLVED, solved.sup.stage)
+    }
+
+    @Test
+    fun `legacy display still runs every play of a chain`() {
+        val h = harness(0, "24")
+        h.sup.recovery = false
+        h.tick()
+        val chain = h.sup.chain
+        assertEquals(2, chain.size)
+        h.playPerfectly(chain[0])
+        assertEquals(chain[1].doors, h.board.doors)
+        if (h.board.waterOn) {
+            assertEquals(Stage.STOP_WATER, h.sup.stage)
+            val headline = (h.guidance() as Guidance.Act).headline!!
+            assertTrue(headline.contains("Run 1/2 done"), headline)
+            h.stopAndDrain()
+        }
+        else h.ticks(20) { boardWater = 0 }
+        assertEquals(Stage.PREPARE, h.sup.stage)
+        assertEquals(1, h.sup.chainIndex)
+        h.playPerfectly(chain[1])
+        assertEquals(Stage.SOLVED, h.sup.stage)
+        assertEquals(emptyList(), h.messages)
+    }
+
+    @Test
+    fun `legacy display says when a run is over instead of waiting for no door`() {
+        val play = WaterTestData.play(0, "014")
+        val h = harness(0, "014")
+        h.sup.recovery = false
+        h.tick()
+        h.playPerfectly(play, doorAt = { 100_000 }, until = play.lastClickTick + 1)
+        assertEquals(Stage.AWAIT, h.sup.stage)
+        assertTrue((h.guidance() as Guidance.Act).headline!!.contains("Purple"))
+        h.ticks(WaterSupervisor.EXHAUST_TICKS + 10) { flowing() }
+        val g = h.guidance()
+        assertIs<Guidance.Status>(g)
+        assertTrue(g.headline.contains("run ended"), g.headline)
+        assertFalse(g.headline.contains("none"))
+        assertEquals(emptyList(), h.messages)
     }
 }
