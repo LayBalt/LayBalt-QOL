@@ -81,12 +81,16 @@ object WaterSim {
                 s.sourceOn = change.on
                 val src = s.layout.source
                 if (src < 0) return
+                // Both directions mean "at the entry hole, at t": water appears there at t, or the entry loses its feed at
+                // t and reacts in the same tick (it dries, leaving the 1.8 drip). The slug a run sends in is therefore
+                // exactly off - on ticks long; when the real lever cuts the feed sooner than it restores it, the producer
+                // moves the off earlier ([WaterRules.sourceTick]).
                 if (change.on) {
                     if (s.level[src] < 0 && ! s.solid(src)) place(s, src, 8, t, listener)
                 }
-                else if (s.level[src] >= 0 && ! s.dynamic[src]) {
+                else if (s.level[src] >= 0) {
                     s.dynamic[src] = true
-                    s.schedule(src, wake)
+                    update(s, src, t, listener)
                 }
             }
         }

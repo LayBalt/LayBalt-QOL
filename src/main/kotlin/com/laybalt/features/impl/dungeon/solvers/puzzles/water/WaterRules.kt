@@ -18,8 +18,14 @@ data class WaterRules(
     val externalDelay: Int = 4,
     /** Ticks from a click on a block lever to the blocks moving. */
     val leverDelay: Int = 1,
-    /** Ticks from a click on the water lever to water entering (or no longer entering) the board. */
+    /** Ticks from a click on the water lever to water reaching the entry hole (the entry dries as long after an off click, minus [sourceOffLead]). */
     val sourceDelay: Int = 2,
+    /**
+     * Ticks by which the entry dries sooner after an off click than it gets wet after an on click: 0 when the change of the
+     * feed travels down the shaft at the same speed both ways (the slug at the entry is exactly off click - on click), about
+     * one water tick if the lever plugs the shaft right above the entry (fitted by calibration, measured live).
+     */
+    val sourceOffLead: Int = 0,
     /** Ticks from water reaching an outlet to its door toggling. */
     val doorDelay: Int = 2,
     /** Whether a lone 1.8 drip falling through an outlet toggles its door like real water (unknown; fitted by calibration). */
@@ -37,6 +43,10 @@ data class WaterRules(
         require(tickDelay in 1 .. 7 && externalDelay in 1 .. 7) { "delays must fit the 8-slot tick wheel" }
     }
 
+    /** Simulator tick at which the water reaches (on) or stops reaching (off) the entry hole after a water click at [click]. */
+    fun sourceTick(click: Int, on: Boolean) = click + sourceDelay - if (on) 0 else sourceOffLead
+
     /** Short description for logs and /lbq water status. */
-    fun describe() = "lever +$leverDelay, water +$sourceDelay, wake +$externalDelay" + (if (dripArrivals) "" else ", drips ignored")
+    fun describe() = "lever +$leverDelay, water +$sourceDelay, wake +$externalDelay" +
+        (if (sourceOffLead != 0) ", off -$sourceOffLead" else "") + (if (dripArrivals) "" else ", drips ignored")
 }

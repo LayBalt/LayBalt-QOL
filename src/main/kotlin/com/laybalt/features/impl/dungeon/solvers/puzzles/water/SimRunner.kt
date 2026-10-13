@@ -57,7 +57,7 @@ class RunOutcome(
 
 /**
  * Runs the simulator for calibration and planning. Times are in the simulator's frame: block levers move at
- * click + [WaterRules.leverDelay], water reaches (or stops reaching) the entry hole at click + [WaterRules.sourceDelay].
+ * click + [WaterRules.leverDelay], water reaches (or stops reaching) the entry hole at [WaterRules.sourceTick].
  */
 object SimRunner {
     /** First tick of a run that starts from a dry board (the tick wheel needs a little room before it). */
@@ -78,12 +78,15 @@ object SimRunner {
     /** The lever and source changes of [play] when its water click is at [waterClick]. */
     fun playExternals(play: ShippedPlay, rules: WaterRules, waterClick: Int): List<External> {
         val out = ArrayList<External>()
-        out += External.Source(waterClick + rules.sourceDelay, true)
+        var sourceAt = rules.sourceTick(waterClick, true)
+        out += External.Source(sourceAt, true)
         var on = true
         for (c in play.timedClicks) {
             if (c.lever == WaterLever.WATER) {
                 on = ! on
-                out += External.Source(waterClick + c.tick + rules.sourceDelay, on)
+                // On and off each with their own delay ([WaterRules.sourceTick]), in the order they were clicked.
+                sourceAt = maxOf(rules.sourceTick(waterClick + c.tick, on), sourceAt + 1)
+                out += External.Source(sourceAt, on)
             }
             else out += External.Flip(waterClick + c.tick + rules.leverDelay, c.lever.ordinal)
         }

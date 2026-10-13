@@ -50,7 +50,8 @@ class WaterSimRulesTest {
         s.addExternals(listOf(External.Source(1, true), External.Source(21, false)))
         WaterSim.run(s, 60, stopWhenSettled = false)
         val wetRows = (0 until shaft.height).filter { s.wet(shaft.at(it, 1)) }
-        // Front: row r wet from 1 + 5r. Tail: the entry dries at 25 (21 + 4), then one row every 5 ticks.
+        // Front: row r wet from 1 + 5r. Tail: the entry dries at 21 (the off, like the on, is the entry's own change),
+        // then one row every 5 ticks.
         assertEquals((8 .. 11).toList(), wetRows)
         WaterSim.run(s, 200)
         assertEquals(0, s.waterCount(), "the slug lands and vanishes")
@@ -294,5 +295,37 @@ class WaterSimRulesTest {
         assertContentEquals(s.level, copy.level)
         assertEquals(s.tick, copy.tick)
         assertEquals(s.lastChange, copy.lastChange)
+    }
+
+    @Test
+    fun `the slug at the entry and every row below it is exactly off minus on ticks long`() {
+        val s = state(shaft)
+        s.addExternals(listOf(External.Source(1, true), External.Source(21, false)))
+        val rec = Recorder()
+        WaterSim.run(s, 120, rec, stopWhenSettled = false)
+        for (row in 0 .. 8) {
+            val cell = shaft.at(row, 1)
+            val wet = rec.placed.first { it.first == cell }.third
+            val dry = rec.removed.first { it.first == cell }.second
+            assertEquals(20, dry - wet, "row $row: wet at $wet, dry at $dry")
+        }
+    }
+
+    @Test
+    fun `a water off click is played its own lead earlier than an on click, never before it`() {
+        val play = ShippedPlay(1, "123", WaterTestData.waterOff)
+        val offClick = WaterTestData.ticks(6.9)
+        val sources = { rules: WaterRules -> SimRunner.playExternals(play, rules, 100).filterIsInstance<External.Source>() }
+
+        val same = sources(WaterRules(sourceDelay = 7))
+        assertEquals(listOf(External.Source(107, true), External.Source(107 + offClick, false)), same)
+
+        val lead = sources(WaterRules(sourceDelay = 7, sourceOffLead = 5))
+        assertEquals(listOf(External.Source(107, true), External.Source(102 + offClick, false)), lead)
+        assertEquals(offClick - 5, lead[1].tick - lead[0].tick, "the slug is 5 ticks shorter")
+
+        val tiny = ShippedPlay(1, "123", WaterTestData.waterOff + (WaterLever.WATER to listOf(0.0, 0.1)))
+        val clamped = SimRunner.playExternals(tiny, WaterRules(sourceDelay = 3, sourceOffLead = 5), 100).filterIsInstance<External.Source>()
+        assertTrue(clamped[1].tick > clamped[0].tick, "$clamped")
     }
 }

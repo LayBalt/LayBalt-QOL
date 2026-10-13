@@ -62,12 +62,15 @@ class CalibrationInput(
     val uncertain: Int,
     /** Measured (water entry delay - lever delay) from our own clicks, if known: narrows the timing grid. */
     val measuredWaterMinusLever: Int? = null,
+    /** Measured (on delay - off delay) at the entry hole from our own clicks, if known: narrows [WaterRules.sourceOffLead]. */
+    val measuredOffLead: Int? = null,
 )
 
 /**
  * The calibration gate: the simulator is only trusted on a board if it reproduces the shipped solutions of that board.
  * It replays every shipped play of the variant on the live layout over a grid of the unknown timings (lever delay,
- * water delay, the delay of the updates a lever change wakes) and fits the outlet-to-door mapping (120 permutations).
+ * water delay, how much sooner the water stops than starts, the delay of the updates a lever change wakes) and fits the
+ * outlet-to-door mapping (120 permutations).
  * Every play must toggle exactly its own doors, each once.
  */
 object Calibration {
@@ -78,6 +81,12 @@ object Calibration {
     private val LEVER_DELAYS = intArrayOf(1)
     private val WAKE_DELAYS = intArrayOf(4, 5)
     private const val WATER_SPAN = 36
+
+    /**
+     * How much sooner the entry dries after an off click than it gets wet after an on click: 0 if the feed change travels
+     * down the shaft at the same speed both ways, one water tick if the lever plugs the shaft right above the entry.
+     */
+    private val OFF_LEADS = intArrayOf(0, 5)
 
     /** A play counts as reproduced only if its last door opens within this long after its last click. */
     const val COMPLETION_SLACK = 200
@@ -128,7 +137,9 @@ object Calibration {
             }
             if (alt != null && ! tie) {
                 // Fit the timing again from scratch for the corrected start (the first fit was made for the wrong one).
-                val refit = calibrate(CalibrationInput(layout, input.table, input.base, alt.first, 0, input.measuredWaterMinusLever), cancel)
+                val refit = calibrate(
+                    CalibrationInput(layout, input.table, input.base, alt.first, 0, input.measuredWaterMinusLever, input.measuredOffLead), cancel,
+                )
                 if (refit.passes >= alt.second.passes) {
                     return CalibrationResult(
                         refit.trust, refit.rules, refit.outletToDoor, alt.first, true, refit.passes, refit.total, refit.checks,
@@ -208,13 +219,14 @@ object Calibration {
     private fun grid(input: CalibrationInput, drips: Boolean): List<WaterRules> {
         val out = ArrayList<WaterRules>()
         val measured = input.measuredWaterMinusLever
-        for (lever in LEVER_DELAYS) for (wake in WAKE_DELAYS) {
+        val leads = input.measuredOffLead?.let { m -> OFF_LEADS.filter { abs(it - m) <= 2 }.ifEmpty { null } } ?: OFF_LEADS.toList()
+        for (lead in leads) for (lever in LEVER_DELAYS) for (wake in WAKE_DELAYS) {
             val waters = (0 .. WATER_SPAN).map { lever + it }.let { all ->
                 if (measured == null) all
                 else all.filter { abs(it - lever - measured) <= 3 }.ifEmpty { all }
             }
             for (water in waters) {
-                out += input.base.copy(leverDelay = lever, sourceDelay = water, externalDelay = wake, dripArrivals = drips)
+                out += input.base.copy(leverDelay = lever, sourceDelay = water, sourceOffLead = lead, externalDelay = wake, dripArrivals = drips)
             }
         }
         return out
@@ -222,9 +234,10 @@ object Calibration {
 
     /** Of several fully passing timings, the one in the middle of the widest run (most room for error either way). */
     private fun middle(fits: List<Fit>): Fit {
-        val byKey = fits.groupBy { Triple(it.rules.leverDelay, it.rules.externalDelay, it.rules.dripArrivals) }
+        val byKey = fits.groupBy { it.rules.copy(sourceDelay = 0) }
         var bestRun: List<Fit> = emptyList()
-        for ((_, group) in byKey.entries.sortedWith(compareBy({ it.key.first }, { it.key.second }, { ! it.key.third }))) {
+        val order = compareBy<WaterRules>({ it.sourceOffLead }, { it.leverDelay }, { it.externalDelay }, { ! it.dripArrivals })
+        for ((_, group) in byKey.entries.sortedWith(compareBy(order) { it.key })) {
             val sorted = group.sortedBy { it.rules.sourceDelay }
             var run = ArrayList<Fit>()
             for (f in sorted) {

@@ -45,13 +45,15 @@ class ContinuationPlan(
 data class HumanModel(
     /** Ticks from a click on a block lever to its blocks moving on the board. */
     val flipLag: Int,
-    /** Ticks from a click on the water lever to the water reaching (or leaving) the entry hole. */
+    /** Ticks from a click on the water lever to the water reaching the entry hole. */
     val waterLag: Int,
     /** From the plan appearing to the first click. */
     val reaction: Int = 10,
     /** Room-relative (x, z) of the player when the plan is made, null if unknown. */
     val playerX: Double? = null,
     val playerZ: Double? = null,
+    /** Ticks from a click that turns the water off to the entry hole drying (measured apart from [waterLag]). */
+    val waterOffLag: Int = waterLag,
     /** Blocks per tick (walking is about 0.22, sprinting 0.28). */
     val speed: Double = 0.25,
     /** Levers can be clicked from about this far. */
@@ -81,8 +83,12 @@ data class HumanModel(
         return max(fixed, walk((pa[0] - pb[0]).toDouble(), (pa[2] - pb[2]).toDouble()))
     }
 
-    /** Observed tick at which a click on [lever] at [click] shows on the board. */
-    fun observed(lever: WaterLever, click: Int) = click + if (lever == WaterLever.WATER) waterLag else flipLag
+    /** Observed tick at which a click on [lever] at [click] shows on the board ([on]: the water state it switches to). */
+    fun observed(lever: WaterLever, click: Int, on: Boolean = true) = click + when {
+        lever != WaterLever.WATER -> flipLag
+        on -> waterLag
+        else -> waterOffLag
+    }
 }
 
 /** Search limits of one planning request. */
@@ -305,7 +311,7 @@ object Planner {
         val s = req.state.copy()
         var on = currentWater(s)
         for (step in steps.sortedBy { it.clickTick }) {
-            val at = max(req.human.observed(step.lever, step.clickTick), s.tick + 1)
+            val at = max(req.human.observed(step.lever, step.clickTick, ! on), s.tick + 1)
             if (step.lever == WaterLever.WATER) {
                 on = ! on
                 s.addExternal(External.Source(at, on))

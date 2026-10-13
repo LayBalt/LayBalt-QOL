@@ -178,4 +178,42 @@ class PlannerTest {
         assertEquals(listOf(C, B, A, D), Planner.nearestFirst(h, listOf(A, B, C, D)))
         assertEquals(listOf(E), Planner.nearestFirst(h, listOf(E)))
     }
+
+    @Test
+    fun `a click that turns the water off shows after the off lag, one that turns it on after the on lag`() {
+        val h = HumanModel(flipLag = 3, waterLag = 15, waterOffLag = 9)
+        assertEquals(115, h.observed(WaterLever.WATER, 100, on = true))
+        assertEquals(109, h.observed(WaterLever.WATER, 100, on = false))
+        assertEquals(103, h.observed(WaterLever.GOLD, 100, on = false))
+        assertEquals(15, HumanModel(flipLag = 3, waterLag = 15).waterOffLag, "the off lag defaults to the on lag")
+    }
+
+    @Test
+    fun `the planner plays a water off click with the off lag`() {
+        // Water on, every hole closed; the plan turns the water off, then opens C. Whether water is left to fall into C
+        // depends on when the water stopped coming in.
+        val s = board(0, 60, External.Source(16, true))
+        val c = door(C)
+        val outletC = ToyBoards.outletOfLever(C.ordinal)
+        fun planner(offLag: Int, cClick: Int): Boolean {
+            val req = PlanRequest(
+                layout, rules, s.copy(), s.tick, c, perm, HumanModel(flipLag = 1, waterLag = 15, waterOffLag = offLag, reaction = 8),
+                null, null, s.tick + 2000, SearchBudget(wallClockMs = 0),
+            )
+            return Planner.evaluate(req, listOf(PlanStep(WaterLever.WATER, 70), PlanStep(C, cClick))).solved
+        }
+        fun byHand(offLag: Int, cClick: Int): Boolean {
+            val sim = s.copy()
+            sim.addExternals(listOf(External.Source(70 + offLag, false), External.Flip(cClick + 1, C.ordinal)))
+            val outcome = SimRunner.run(sim, s.tick + SearchBudget().horizon)
+            return outcome.arrived == 1 shl outletC && outcome.arrivals[outletC] == 1
+        }
+        var differs = false
+        for (k in 72 .. 130) {
+            assertEquals(byHand(15, k), planner(15, k), "off lag 15, C at $k")
+            assertEquals(byHand(6, k), planner(6, k), "off lag 6, C at $k")
+            if (planner(15, k) != planner(6, k)) differs = true
+        }
+        assertTrue(differs, "the off lag changes what the plan does")
+    }
 }

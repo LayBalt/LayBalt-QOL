@@ -131,4 +131,44 @@ class CalibrationGateTest {
             Calibration.calibrate(CalibrationInput(layout, table, WaterRules(), 0, 0), CancelToken { ++ calls > 3 })
         }
     }
+
+    /**
+     * Plays that turn the water off and then open holes: what the slug still reaches depends on how much sooner the
+     * water stops than it starts. Kept: those whose doors differ between [WaterRules.sourceOffLead] 0 and 5.
+     */
+    private fun slugPlays(truth: WaterRules, other: WaterRules, taken: Set<Int>): List<ShippedPlay> {
+        val out = ArrayList<ShippedPlay>()
+        val used = HashSet(taken)
+        // Turn the water off, open one hole, then a second one: a longer slug still reaches the second hole.
+        val holes = listOf(A, B, C, D, E)
+        for (off in listOf(0.75, 1.0, 1.25, 1.5)) for (first in holes) for (second in holes) for (gap in 0 .. 15) for (d in listOf(0.25, 0.5, 1.0)) {
+            if (first == second) continue
+            val at = off + gap * 0.1
+            val times = mapOf(WaterLever.WATER to listOf(0.0, off), first to listOf(at), second to listOf(at + d))
+            val probe = ShippedPlay(0, "probe", times)
+            val real = SimRunner.runPlay(layout, truth, probe, 0)
+            val alt = SimRunner.runPlay(layout, other, probe, 0)
+            if (real.rewet || real.arrived == 0 || real.arrivals.contentEquals(alt.arrivals)) continue
+            val doors = CalibrationResult.mapDoors(real.arrived, plantedPerm)
+            if (! used.add(doors)) continue
+            out += ShippedPlay(0, Door.keyOf(doors), times)
+        }
+        return out
+    }
+
+    @Test
+    fun `the gate fits how much sooner the water stops than it starts`() {
+        val truth = planted.copy(sourceOffLead = 5)
+        val base = syntheticTable(truth, plantedPerm)
+        val slug = slugPlays(truth, truth.copy(sourceOffLead = 0), base.plays.keys)
+        assertTrue(slug.isNotEmpty(), "no play on the comb depends on the length of the slug")
+        val table = ShippedTable(0, base.plays.values + slug)
+        val result = Calibration.calibrate(CalibrationInput(layout, table, WaterRules(), 0, 0))
+        assertEquals(SimTrust.TRUSTED, result.trust, result.summary)
+        assertEquals(5, result.rules.sourceOffLead, result.summary)
+
+        // Measured on our own clicks, the lead narrows the grid; a wrong measurement cannot reproduce the slug plays.
+        val wrong = Calibration.calibrate(CalibrationInput(layout, table, WaterRules(), 0, 0, measuredOffLead = 0))
+        assertTrue(wrong.passes < table.plays.size, wrong.summary)
+    }
 }

@@ -68,13 +68,12 @@ class ShadowCheck(
             val t = s.tick + 1
             for (f in flips) if (f[1] == t) s.addExternal(External.Flip(t, f[0]))
             if (src >= 0) {
-                // Water appearing at the entry: the source is on from then. Water leaving it: the feed stopped
-                // [WaterRules.externalDelay] ticks before (that is when the simulator's entry starts to drain).
+                // The source changes are the entry's own: water appearing there turns the source on at that tick, the
+                // entry drying turns it off at that tick (the simulator's Source means "at the entry hole" both ways).
                 val nowWet = levelAt(t, src) >= 0
                 val wasWet = levelAt(t - 1, src) >= 0
                 if (nowWet && ! wasWet && ! s.sourceOn) s.addExternal(External.Source(t, true))
-                val dryAt = t + rules.externalDelay
-                if (dryAt <= now && levelAt(dryAt, src) < 0 && levelAt(dryAt - 1, src) >= 0 && s.sourceOn) s.addExternal(External.Source(t, false))
+                if (! nowWet && wasWet && s.sourceOn) s.addExternal(External.Source(t, false))
             }
             WaterSim.step(s)
             val observed = history.firstOrNull { it.first == t }?.second ?: continue

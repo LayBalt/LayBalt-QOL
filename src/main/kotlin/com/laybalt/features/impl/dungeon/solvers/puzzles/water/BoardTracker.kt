@@ -69,6 +69,12 @@ class BoardTracker : BoardView {
     private var waterOnState = false
     private var entryWetLast = false
     private var entryChange = 0
+
+    /** Tick the entry cell itself last went dry (NEVER while it is wet): when an off click shows at the entry. */
+    private var entryDryTick = NEVER
+
+    /** Tick the entry last turned wet (entry cell, or falling water just below it). */
+    private var entryWetEdge = NEVER
     private var awaitBoardUntil = - 1
     private var awaitBoardExpect = false
     private var waterInitialized = false
@@ -92,7 +98,9 @@ class BoardTracker : BoardView {
     private val clicks = Array(WaterLever.entries.size) { ArrayDeque<IntArray>() } // [tick, matched]
     private val lastFlipTick = IntArray(WaterLever.entries.size) { Int.MIN_VALUE / 2 }
     private val lastFlipClick = IntArray(WaterLever.entries.size) { - 1 }
-    private val lagSamples = Array(3) { ArrayDeque<Int>() } // 0 block levers, 1 water (powered), 2 water (board)
+    // 0 block levers, 1 water lever (powered state), 2 water on at the entry, 3 water off at the entry. On and off are kept
+    // apart: the entry dries on its own schedule, and the cell below it keeps falling for one more water tick.
+    private val lagSamples = Array(4) { ArrayDeque<Int>() }
 
     private val events = ArrayList<BoardEvent>()
     private val notes = ArrayList<String>()
@@ -130,6 +138,7 @@ class BoardTracker : BoardView {
             lastBoardChange = now
         }
         if (cell == BoardGeometry.ENTRY_CELL || cell == BoardGeometry.ENTRANCE_CELL) entryChange = now
+        if (cell == BoardGeometry.ENTRY_CELL) entryDryTick = if (lvl >= 0) NEVER else now
         recording?.cell(now, cell, lvl.toInt())
     }
 
@@ -408,13 +417,16 @@ class BoardTracker : BoardView {
 
         if (entryWet != entryWetLast) {
             entryWetLast = entryWet
+            if (entryWet) entryWetEdge = entryChange
+            val edge = entryEdge(entryWet)
+            val kind = if (entryWet) 2 else 3
             when {
                 awaitBoardUntil >= 0 && entryWet == awaitBoardExpect -> {
                     awaitBoardUntil = - 1
-                    if (lastFlipClick[w] >= 0) sample(2, entryChange - lastFlipClick[w])
+                    if (lastFlipClick[w] >= 0) sample(kind, edge - lastFlipClick[w])
                 }
 
-                awaitBoardUntil < 0 && entryWet != waterOnState -> switchWater(entryWet, entryChange, 2, correction = false)
+                awaitBoardUntil < 0 && entryWet != waterOnState -> switchWater(entryWet, edge, kind, correction = false)
             }
         }
 
@@ -429,10 +441,17 @@ class BoardTracker : BoardView {
         else if (awaitBoardUntil in 0 until now) awaitBoardUntil = - 1
     }
 
-    /** [kind]: 1 = seen on the water lever's powered state, 2 = seen at the entry hole (later than the click). */
+    /**
+     * Tick a water change shows at the entry: getting wet is the last change there; drying is when the entry cell itself
+     * dried (the falling water below it vanishes one water tick later), if it did since it was last wet.
+     */
+    private fun entryEdge(wet: Boolean): Int =
+        if (wet || entryDryTick == NEVER || entryDryTick < entryWetEdge) entryChange else entryDryTick
+
+    /** [kind]: 1 = seen on the water lever's powered state, 2 / 3 = seen at the entry hole turning wet / dry (later than the click). */
     private fun switchWater(on: Boolean, tick: Int, kind: Int, correction: Boolean) {
         val w = WaterLever.WATER.ordinal
-        val window = if (kind == 1) CLICK_WINDOW else CLICK_WINDOW + lag(2)
+        val window = if (kind == 1) CLICK_WINDOW else CLICK_WINDOW + lag(kind)
         val click = matchClick(w, tick, window)
         val (source, clickTick) = when {
             click >= 0 -> FlipSource.OWN to click
@@ -477,9 +496,13 @@ class BoardTracker : BoardView {
     /** Whether [lag] of [kind] comes from our own clicks (otherwise it is a default). */
     fun measured(kind: Int) = lagSamples[kind].isNotEmpty()
 
-    /** Typical ticks from a click to the board showing it: [kind] 0 block levers, 1 water lever state, 2 entry hole. */
+    /**
+     * Typical ticks from a click to the board showing it: [kind] 0 block levers, 1 water lever state, 2 / 3 the entry hole
+     * getting wet / drying. An unmeasured off lag is taken to equal the on lag.
+     */
     fun lag(kind: Int): Int {
         val q = lagSamples[kind]
+        if (q.isEmpty() && kind == 3) return lag(2)
         if (q.isEmpty()) return rttTicks + if (kind == 2) DEFAULT_ENTRY_LAG else 1
         return q.sorted()[q.size / 2]
     }

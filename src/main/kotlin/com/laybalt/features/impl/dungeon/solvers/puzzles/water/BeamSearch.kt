@@ -105,13 +105,12 @@ object BeamSearch {
         var lastLever = node.lastLever
         var lastClick = node.lastClick
         if (lever != null) {
-            val at = max(req.human.observed(lever, t), s.tick + 1)
             if (lever == WaterLever.WATER) {
                 var on = s.sourceOn
                 for (i in s.nextExternal until s.externals.size) (s.externals[i] as? External.Source)?.let { on = it.on }
-                s.addExternal(External.Source(at, ! on))
+                s.addExternal(External.Source(max(req.human.observed(lever, t, ! on), s.tick + 1), ! on))
             }
-            else s.addExternal(External.Flip(at, lever.ordinal))
+            else s.addExternal(External.Flip(max(req.human.observed(lever, t), s.tick + 1), lever.ordinal))
             steps = steps + PlanStep(lever, t)
             lastLever = lever
             lastClick = t

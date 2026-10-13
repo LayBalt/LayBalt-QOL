@@ -298,4 +298,49 @@ class BoardTrackerTest {
         assertTrue(layout.extended(gold[0], 0))
         assertFalse(layout.extended(gold[0], t.mask))
     }
+
+    @Test
+    fun `water on and water off at the entry are measured apart, off from the entry cell drying`() {
+        val t = tracker()
+        t.ownClick(WATER, 100)
+        t.update(101)
+        t.setPowered(WATER, true)
+        t.update(102)
+        t.update(112)
+        t.entry(true) // seen at 112
+        t.update(113)
+        assertEquals(12, t.lag(2))
+        assertFalse(t.measured(3))
+        assertEquals(12, t.lag(3), "unmeasured off lag defaults to the on lag")
+
+        t.ownClick(WATER, 200)
+        t.update(201)
+        t.setPowered(WATER, false)
+        t.update(202)
+        t.update(209)
+        t.setWater(BoardGeometry.ENTRY_CELL, - 1) // the entry dries at 209 ...
+        t.update(214)
+        t.setWater(BoardGeometry.ENTRANCE_CELL, - 1) // ... the falling water below it one water tick later
+        t.update(215)
+        assertTrue(t.measured(3))
+        assertEquals(9, t.lag(3), "off lag from the entry cell, not from the cell below it")
+        assertEquals(12, t.lag(2), "on samples are not mixed with off samples")
+    }
+
+    @Test
+    fun `without lever updates a water off is dated when the entry cell dried`() {
+        val t = tracker()
+        t.update(101)
+        t.entry(true)
+        t.update(102)
+        assertTrue((t.drainEvents().single() as BoardEvent.WaterSwitched).on)
+        t.update(150)
+        t.setWater(BoardGeometry.ENTRY_CELL, - 1)
+        t.update(155)
+        t.setWater(BoardGeometry.ENTRANCE_CELL, - 1)
+        t.update(156)
+        val off = t.drainEvents().single() as BoardEvent.WaterSwitched
+        assertFalse(off.on)
+        assertEquals(150, off.tick)
+    }
 }
