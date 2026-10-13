@@ -29,6 +29,13 @@ class IntList(capacity: Int = 16) {
     }
 
     fun copy() = IntList(maxOf(16, size)).also { other -> for (i in 0 until size) other.add(data[i]) }
+
+    /** Makes this list equal to [other], reusing its array when it is big enough. */
+    fun copyFrom(other: IntList) {
+        if (data.size < other.size) data = IntArray(maxOf(16, other.size))
+        other.data.copyInto(data, 0, 0, other.size)
+        size = other.size
+    }
 }
 
 /**
@@ -97,23 +104,55 @@ class BoardState(val layout: BoardLayout, val rules: WaterRules) {
 
     fun hasPendingTick(cell: Int) = due[cell] != NONE
 
-    fun copy(): BoardState {
-        val o = BoardState(layout, rules)
+    fun copy(): BoardState = BoardState(layout, rules).also(::copyInto)
+
+    /** Makes [o] (a state of the same layout) an exact copy of this one, reusing its arrays (no allocation in the hot path). */
+    fun copyInto(o: BoardState) {
+        require(o.layout === layout) { "copyInto needs a state of the same layout" }
         o.tick = tick
         o.mask = mask
         o.sourceOn = sourceOn
         level.copyInto(o.level)
         dynamic.copyInto(o.dynamic)
         due.copyInto(o.due)
-        for (i in 0 until WHEEL) o.wheel[i] = wheel[i].copy()
+        for (i in 0 until WHEEL) o.wheel[i].copyFrom(wheel[i])
         o.pending = pending
+        o.externals.clear()
         o.externals.addAll(externals)
         o.nextExternal = nextExternal
         arrivals.copyInto(o.arrivals)
         firstArrival.copyInto(o.firstArrival)
         lastArrival.copyInto(o.lastArrival)
         o.lastChange = lastChange
-        return o
+    }
+
+    /**
+     * Hash of everything that decides how this state evolves: levels, still/flowing cells and the offset of each pending
+     * update, lever parity, the source, the changes still queued, and the arrivals so far. Equal states (up to the time
+     * they are at) hash equal; used to drop duplicates in the timed search.
+     */
+    fun key(): Long {
+        var h = - 0x340d631b7bdddcdbL
+        fun mix(v: Long) {
+            h = (h xor v) * 0x100000001b3L
+        }
+        for (c in 0 until layout.size) {
+            val l = level[c].toInt()
+            if (l < 0 && due[c] == NONE) continue
+            mix(c.toLong())
+            mix(l.toLong())
+            mix(if (dynamic[c]) 1 else 0)
+            mix(if (due[c] == NONE) - 1 else (due[c] - tick).toLong())
+        }
+        mix(mask.toLong())
+        mix(if (sourceOn) 1 else 0)
+        for (i in nextExternal until externals.size) {
+            val e = externals[i]
+            mix((e.tick - tick).toLong())
+            mix(if (e is External.Flip) e.lever.toLong() else if ((e as External.Source).on) 100 else 101)
+        }
+        for (a in arrivals) mix(a.toLong())
+        return h
     }
 
     companion object {
