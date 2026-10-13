@@ -10,6 +10,9 @@ sealed interface PuzzleSolver {
     fun onRoomExit() = reset()
     fun onStateChange(event: DungeonEvent.RoomEvent.onStateChange) {}
     fun onRoomEnter(event: DungeonEvent.RoomEvent.onEnter) {}
+
+    /** The map scanner found a room's rotation (possibly before anyone entered the room). */
+    fun onRotationFound(event: DungeonEvent.RoomEvent.RotationFound) {}
     fun onTick() {}
     fun onClientTick() {}
     fun onPacket(event: MainThreadPacketReceivedEvent.Pre) {}

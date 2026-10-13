@@ -98,17 +98,29 @@ object PuzzleSolvers: Feature() {
     val currentClickColor by ColorSetting("Click Color", Color.GREEN).showIf { water.value }
     val nextColor by ColorSetting("Next Click Color", Color.YELLOW).showIf { water.value }
     val waterRecovery by ToggleSetting("Water Recovery Guidance", true)
-        .withDescription("Notices when the Water Board run goes wrong (wrong lever, extra flip, flip too early or too late) and shows how to fix it: undo wrong flips before the water starts, otherwise turn the water off, wait for the board to drain, flip the marked levers back and restart.")
+        .withDescription("Watches the real board (doors, water, lever blocks) and, when the run goes wrong - water in the wrong channel, water that stops short, flips off the timing, levers moved by teammates - shows how to finish from where the board is: a quick fix when one is known to work, otherwise turn the water off, let it drain and run the solutions that open the doors still closed. Off: the plain 3.2.2 timer display.")
         .showIf { water.value }
     val waterTolerance by SliderSetting("Water Timing Tolerance", 1.0, 0.2, 3.0, 0.1, "s")
-        .withDescription("How early or late a lever may be flipped before the run counts as failed.")
+        .withDescription("How far a flip may be from its planned time. Beyond it the run counts as off track: a quick fix from the board when one is known to work, otherwise turn the water off, drain and restart. Flips by teammates playing their own timings are not judged.")
         .showIf { water.value && waterRecovery.value }
     val waterFixColor by ColorSetting("Water Fix Color", Color(255, 85, 255))
-        .withDescription("Colour of the recovery markers (levers to flip back, the water lever to turn off or restart).")
+        .withDescription("Colour of the recovery markers (levers to flip, the water lever to turn off or pull again).")
         .showIf { water.value && waterRecovery.value }
     val waterFailMessage by ToggleSetting("Water Failure Message", true)
-        .withDescription("Prints a chat message explaining what went wrong when the Water Board run fails.")
+        .withDescription("Prints a chat message explaining what went wrong and how it will be fixed.")
         .showIf { water.value && waterRecovery.value }
+    val waterQuickFixes by ToggleSetting("Water Quick Fixes", true)
+        .withDescription("When the simulator reproduces every shipped solution of the board in front of you, a run that goes wrong is finished from where it is (flip these levers now / on these timers) instead of draining and restarting, and door states that need several restarts are opened in one run. Off: always drain and restart.")
+        .showIf { water.value && waterRecovery.value }
+    val waterPingCompensation by ToggleSetting("Water Ping Compensation", true)
+        .withDescription("Shows the CLICK of computed fixes earlier by your ping, so the flip reaches the server on time.")
+        .showIf { water.value && waterRecovery.value && waterQuickFixes.value }
+    val waterRecorder by ToggleSetting("Water Board Recorder", false)
+        .withDescription("Saves the Water Board room and every run to config/LayBaltQOL/waterboard (also /lbq water record on). The files help to test the solver.")
+        .showIf { water.value && waterRecovery.value }
+    val waterReset by ButtonSetting("Reset Water") { WaterBoardSolver.resetSession() }
+        .withDescription("Forgets everything about the Water Board room and reads the board again.")
+        .showIf { water.value }
 
     val icefill by ToggleSetting("Enabled        ").section("Ice Fill Solver")
     val icefillColor by ColorSetting("Click Color", Color.GREEN).showIf { icefill.value }
@@ -179,11 +191,12 @@ object PuzzleSolvers: Feature() {
 
         hudElement(
             name = "Water Board Recovery",
+            // Off with the recovery: the plain 3.2.2 display shows the timers on the levers only.
             enabled = { water.value && waterRecovery.value },
             shouldDraw = { WaterBoardSolver.hudText != null },
             centered = { true }
         ) { ctx, example ->
-            val text = if (example) "§cWater Board failed §7- §fturn the water §cOFF" else WaterBoardSolver.hudText ?: ""
+            val text = if (example) "§cWater Board off track §7- §fturn the water §cOFF" else WaterBoardSolver.hudText ?: ""
             ctx.drawCenteredString(text, 0f, 0f)
             return@hudElement text.width().toFloat() to 9f
         } defaults {
@@ -196,6 +209,9 @@ object PuzzleSolvers: Feature() {
         register<PlayerInteractEvent.RIGHT_CLICK.BLOCK> { puzzles.forEach { if (it.enabled) it.onInteract(event) } }
         register<MainThreadPacketReceivedEvent.Pre> { puzzles.forEach { if (it.enabled) it.onPacket(event) } }
         register<DungeonEvent.RoomEvent.onEnter> { puzzles.forEach { if (it.enabled && ! inBoss) it.onRoomEnter(event) } }
+        register<DungeonEvent.RoomEvent.RotationFound> { puzzles.forEach { if (it.enabled && ! inBoss) it.onRotationFound(event) } }
+        register<BlockChangeEvent> { if (water.value) WaterBoardSolver.onBlockChange(event) }
+        register<MainThreadPacketReceivedEvent.Post> { if (water.value) WaterBoardSolver.onPacketPost(event.packet) }
         register<RenderWorldEvent> { puzzles.forEach { if (it.enabled) it.onRenderWorld(event.ctx) } }
         register<DungeonEvent.RoomEvent.onExit> { puzzles.forEach { if (it.enabled) it.onRoomExit() } }
         register<ChatMessageEvent> { puzzles.forEach { if (it.enabled) it.onChat(event) } }
@@ -242,6 +258,11 @@ object PuzzleSolvers: Feature() {
             )
         }
 
-        register<WorldChangeEvent> { puzzleTimersMap.clear() }
+        register<WorldChangeEvent> {
+            puzzleTimersMap.clear()
+            // The Water Board session lives for the whole dungeon; it must not survive into the next one even when the solver is off.
+            WaterBoardSolver.reset()
+        }
+        register<DungeonEvent.BossEnterEvent> { WaterBoardSolver.reset() }
     }
 }

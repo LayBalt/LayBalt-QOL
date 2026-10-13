@@ -20,6 +20,7 @@ LayBaltQOL contains code and ideas from the projects listed below. This file lis
   - Dungeon run tools: Map Info HUDs and portal highlight (in Score Calculator), Secrets Counter, Positional Messages (with /lbq posmsg), Puzzle HUD, Room Clear, Dungeon Queue, Inactive Waypoints, Extra Stats, Run Splits personal bests, Kuudra splits and current split HUD, and the Odin dungeon waypoint pack import.
   - Chat waypoints (Waypoints, with /lbq waypoint and /lbq wp), No Cursor Reset, Hide Players and Player Size, including the mixins `MixinMouseHandlerNoCursorReset` and `MixinAvatarRendererPlayerSize`.
   - Settings import: `/lbq import odin` maps these Odin modules to their LayBaltQOL features, and `/lbq dwp importodin` imports Odin dungeon waypoint packs.
+  - Water Board solver data: the solution timings in `data/waterSolutions.json` (Odin's non-optimised set), and the lever, door and pattern-indicator block positions of the Water Board room. The board reader, water simulator, door algebra and recovery planner are LayBaltQOL's own.
 
 ## OdinClient
 
@@ -32,6 +33,7 @@ LayBaltQOL contains code and ideas from the projects listed below. This file lis
 - Projects: [Skyblocker](https://github.com/SkyblockerMod/Skyblocker) and [ThunderHack-Recode](https://github.com/Pan4ur/ThunderHack-Recode)
 - No code, assets or data from these projects is included. The features below were re-implemented for LayBaltQOL from descriptions of how the original features behave, without copying code.
   - After Skyblocker: Salvage Overlay and Chest Profit (Croesus) helpers, Sellable Items Highlighter, Star Mob Highlight options, Secret Waypoints.
+  - Water Board: Skyblocker's water board solver and Dungeons Guide's water puzzle solver were read as descriptions of the puzzle's mechanics only; no code, data or board layouts from them are included.
   - After ThunderHack-Recode: the Render category (Aspect Ratio, Block ESP, Bread Crumbs, Damage Tint, FOV, Fullbright, Hit Bubbles, Hit Particles, Item ESP, Jump Circle, Kill Effect, No Bob, No Render, Skeleton, Sound ESP, Storage ESP, Tracers, Trails, World Tweaks), Smooth Zoom (in Camera Helper) and extra options in Animations and Nametag Tweaks.
 
 ## Inter (SIL OFL 1.1, Copyright 2020 The Inter Project Authors)
