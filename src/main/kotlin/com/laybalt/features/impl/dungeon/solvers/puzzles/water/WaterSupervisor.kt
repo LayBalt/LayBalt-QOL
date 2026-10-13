@@ -75,6 +75,9 @@ class WaterSupervisor(val table: ShippedTable) {
     private var lastDrainProgress = - 1
     private var foreignDry = 0
 
+    /** Water cells that stayed on the board through a whole drain (stuck water): later drains stop at this count. */
+    private var residualWater = 0
+
     private val outbox = ArrayList<String>()
 
     /** Chat messages produced since the last call. */
@@ -204,7 +207,8 @@ class WaterSupervisor(val table: ShippedTable) {
             Stage.RUNNING -> {
                 val f = follower ?: return
                 f.toleranceTicks = toleranceTicks
-                if (recovery) f.onTick(now)?.let {
+                // Our clicks show on the board [BoardView.flipLag] ticks later: judge the plan only up to the clicks we can see.
+                if (recovery) f.onTick(now - view.flipLag)?.let {
                     divergence(view, it)
                     return
                 }
@@ -230,7 +234,7 @@ class WaterSupervisor(val table: ShippedTable) {
             Stage.STOP_WATER -> if (! view.waterOn) toDrain()
             Stage.DRAIN -> tickDrain(view)
             Stage.FOREIGN -> tickForeign(view)
-            Stage.PREPARE -> if (view.boardWater > 0 && ! view.waterOn) toDrain()
+            Stage.PREPARE -> if (view.boardWater > residualWater && ! view.waterOn) toDrain()
             else -> {}
         }
     }
@@ -241,7 +245,8 @@ class WaterSupervisor(val table: ShippedTable) {
             return
         }
         val w = view.boardWater
-        if (w == 0) {
+        if (w == 0) residualWater = 0
+        if (w <= residualWater) {
             drainEta = 0
             if (++ dryTicks >= DRY_TICKS) drained(view, stalled = false)
             return
@@ -258,7 +263,7 @@ class WaterSupervisor(val table: ShippedTable) {
     }
 
     private fun tickForeign(view: BoardView) {
-        if (! view.waterOn && view.boardWater == 0) {
+        if (! view.waterOn && view.boardWater <= residualWater) {
             if (++ foreignDry >= DRY_TICKS) newChain(view, boardReady = true)
             return
         }
@@ -379,6 +384,7 @@ class WaterSupervisor(val table: ShippedTable) {
     }
 
     private fun drained(view: BoardView, stalled: Boolean) {
+        if (stalled) residualWater = view.boardWater
         if (view.doors == 0) {
             solved()
             return

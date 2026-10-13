@@ -56,4 +56,7 @@ interface BoardView {
 
     /** Last tick a water cell on the board appeared, vanished or changed level. */
     val lastWaterChange: Int
+
+    /** Typical ticks between a click on a lever and the board showing it (ping plus the server's delay). */
+    val flipLag: Int
 }

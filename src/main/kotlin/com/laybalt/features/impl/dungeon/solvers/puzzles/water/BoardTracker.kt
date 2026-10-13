@@ -78,6 +78,13 @@ class BoardTracker : BoardView {
     private var boardWaterCount = 0
     private var lastBoardChange = 0
 
+    /** Tick of the last change of each board-plane water cell (appeared, vanished or changed level). */
+    val cellChangeTick = IntArray(N) { NEVER }
+
+    /** A running counter stamped on every water cell change: the order of same-tick changes (for the simulator). */
+    val cellChangeSeq = IntArray(N)
+    private var changeSeq = 0
+
     // ---- clicks and attribution ------------------------------------------------------------------------------------
     private val clicks = Array(WaterLever.entries.size) { ArrayDeque<IntArray>() } // [tick, matched]
     private val lastFlipTick = IntArray(WaterLever.entries.size) { Int.MIN_VALUE / 2 }
@@ -112,6 +119,8 @@ class BoardTracker : BoardView {
         if (water[cell] == lvl) return
         val wasWet = water[cell] >= 0
         water[cell] = lvl
+        cellChangeTick[cell] = now
+        cellChangeSeq[cell] = ++ changeSeq
         if (BoardGeometry.y(cell) <= BoardGeometry.DRY_MAX_Y) {
             if (wasWet != (lvl >= 0)) boardWaterCount += if (lvl >= 0) 1 else - 1
             lastBoardChange = now
@@ -475,6 +484,7 @@ class BoardTracker : BoardView {
     override val waterOn get() = waterOnState
     override val boardWater get() = boardWaterCount
     override val lastWaterChange get() = lastBoardChange
+    override val flipLag get() = lag(0)
     override val waterClickPending: Boolean
         get() {
             val q = clicks[WaterLever.WATER.ordinal]
@@ -486,6 +496,7 @@ class BoardTracker : BoardView {
 
     companion object {
         const val ALL_LEVERS = 0b111111
+        const val NEVER = Int.MIN_VALUE / 2
         const val DOOR_DEBOUNCE = 2
         const val TRANSIT_LIMIT = 20
         const val CLICK_WINDOW = 30

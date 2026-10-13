@@ -14,6 +14,7 @@ class FakeBoard : BoardView {
     override var waterClickPending = false
     override var boardWater = 0
     override var lastWaterChange = 0
+    override var flipLag = 0
 
     val events = ArrayList<BoardEvent>()
 
@@ -81,16 +82,24 @@ class Harness(val table: ShippedTable, doors: String, parity: Int = 0) {
         until: Int? = null,
         flow: (Int) -> Boolean = { true },
         flipOverride: ((TimedClick) -> Boolean)? = null,
+        /** Ticks between a click and the board showing it (ping plus the server's lever delay). */
+        lag: Int = 0,
     ) {
         for (lever in WaterLever.blockLevers) if ((board.parity xor play.startParity) and lever.bit != 0) tick { flip(lever) }
-        tick { water(true) }
-        val start = board.now
-        val clicks = play.timedClicks.withIndex().groupBy({ (i, c) -> start + c.tick + jitter(i) }, { it.value })
+        val start = board.now + 1
+        if (lag == 0) tick { water(true) }
+        else {
+            ticks(lag)
+            tick { water(true, clickTick = start) }
+        }
+        val clicks = play.timedClicks.withIndex()
+            .map { (i, c) -> c to start + c.tick + jitter(i) }
+            .groupBy { (_, clickTick) -> clickTick + lag }
         val doors = Door.of(play.doors)
-        val doorTicks = doors.indices.associateBy { start + doorAt(it) }
-        val end = start + (until ?: (maxOf(play.lastClickTick, doors.indices.maxOf(doorAt)) + 60))
+        val doorTicks = doors.indices.associateBy { start + lag + doorAt(it) }
+        val end = start + lag + (until ?: (maxOf(play.lastClickTick, doors.indices.maxOf(doorAt)) + 60))
         while (board.now < end && sup.stage != WaterSupervisor.Stage.SOLVED) tick {
-            clicks[now]?.forEach { c -> if (flipOverride?.invoke(c) != false) flip(c.lever) }
+            clicks[now]?.forEach { (c, clickTick) -> if (flipOverride?.invoke(c) != false) flip(c.lever, clickTick = clickTick) }
             doorTicks[now]?.let { toggle(doors[it]) }
             if (flow(now - start) && (waterOn || now < start + play.lastClickTick + 40)) flowing() else boardWater = maxOf(boardWater, 1)
         }

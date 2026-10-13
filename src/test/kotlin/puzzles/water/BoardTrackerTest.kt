@@ -173,6 +173,23 @@ class BoardTrackerTest {
     }
 
     @Test
+    fun `at high ping a flip seen long after our click is still ours and dated at the click`() {
+        val t = tracker()
+        t.rttTicks = 10
+        t.ownClick(GOLD, 100)
+        for (tick in 101 .. 111) t.update(tick)
+        assertEquals(emptyList(), t.flips())
+        t.move(GOLD, gold)
+        t.update(112)
+        val flip = t.flips().single()
+        assertEquals(FlipSource.OWN, flip.source)
+        assertEquals(100, flip.clickTick)
+        assertEquals(111, flip.tick)
+        assertEquals(11, t.lag(0))
+        assertEquals(11, t.flipLag)
+    }
+
+    @Test
     fun `doors are debounced`() {
         val t = tracker()
         t.update(101)

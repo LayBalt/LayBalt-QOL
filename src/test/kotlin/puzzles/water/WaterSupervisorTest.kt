@@ -350,4 +350,104 @@ class WaterSupervisorTest {
         assertEquals(Stage.READING, h.sup.stage)
         assertIs<Guidance.Status>(h.guidance())
     }
+
+    // ---- Scenarios of the 3.2.2 WaterBoardTrackerTest, now driven by the board ----------------------------------------
+
+    @Test
+    fun `restart after a run that already flipped timed levers lists exactly the changed levers`() {
+        val play = WaterTestData.play(0, "014") // Clay at 3.2 s and Gold at 4.7 s come first
+        val h = harness(0, "014")
+        h.tick()
+        h.playPerfectly(play, doorAt = { 100_000 }, until = WaterTestData.ticks(5.0))
+        h.tick { flip(COAL) }
+        assertEquals(Stage.STOP_WATER, h.sup.stage)
+        h.stopAndDrain()
+        assertEquals(Stage.PREPARE, h.sup.stage)
+        assertEquals(listOf("014"), h.sup.chain.map { it.key })
+        val fixes = h.labels().filter { it.style == LabelStyle.FIX && it.lever != WATER }.map { it.lever }.toSet()
+        assertEquals(setOf(CLAY, GOLD, COAL), fixes)
+        assertTrue(h.labelTexts(WATER).none { it.contains("PULL") }, "the water waits until the levers are back")
+    }
+
+    @Test
+    fun `turning the water off early goes straight to draining`() {
+        val h = harness(0, "014")
+        h.tick()
+        h.tick { water(true) }
+        h.ticks(30) { flowing() }
+        h.tick { water(false) }
+        assertEquals(Cause.DIVERGENCE, h.sup.lastIncident?.cause)
+        assertEquals(Stage.DRAIN, h.sup.stage)
+        assertFalse(Stage.STOP_WATER in h.stages)
+        assertTrue(h.labelTexts(WATER).single().startsWith("§lDRAINING"))
+    }
+
+    @Test
+    fun `a solution that turns the water off itself and then fails goes straight to draining`() {
+        val play = WaterTestData.play(1, "123") // the water goes off at 6.9 s as part of the solution
+        val h = harness(1, "123")
+        h.tick()
+        h.playPerfectly(play, doorAt = { 100_000 }, until = WaterTestData.ticks(7.5))
+        assertFalse(h.board.waterOn)
+        assertEquals(emptyList(), h.messages)
+        h.tick { flip(COAL) }
+        assertEquals(Stage.DRAIN, h.sup.stage)
+        assertFalse(Stage.STOP_WATER in h.stages)
+    }
+
+    @Test
+    fun `pulling the water before the levers are fixed stops the run again`() {
+        val h = harness(0, "014")
+        h.tick()
+        h.tick { water(true) }
+        h.ticks(10) { flowing() }
+        h.tick { flip(COAL) }
+        h.stopAndDrain()
+        assertEquals(Stage.PREPARE, h.sup.stage)
+        assertEquals(listOf("§lFLIP"), h.labelTexts(COAL))
+        h.tick { water(true) }
+        assertEquals(Stage.STOP_WATER, h.sup.stage)
+        assertTrue(h.messages.last().contains("wrong position"), h.messages.last())
+    }
+
+    @Test
+    fun `a drain that stops making progress does not block the recovery, and the stuck water is not drained again`() {
+        val h = harness(0, "014")
+        h.tick()
+        h.tick { water(true) }
+        h.ticks(10) { flowing() }
+        h.tick { flip(COAL) }
+        h.tick { water(false) }
+        assertEquals(Stage.DRAIN, h.sup.stage)
+        h.ticks(WaterSupervisor.STALLED_DRAIN_TICKS + 5) { boardWater = 12 }
+        assertEquals(Stage.PREPARE, h.sup.stage)
+        h.ticks(50) { boardWater = 12 }
+        assertEquals(Stage.PREPARE, h.sup.stage, "12 stuck cells do not send the board back to draining")
+        h.tick { boardWater = 30 }
+        assertEquals(Stage.DRAIN, h.sup.stage, "new water does")
+    }
+
+    @Test
+    fun `flips seen long after their clicks are judged by their click times`() {
+        for (lag in listOf(0, 10, 25)) {
+            val play = WaterTestData.play(0, "014")
+            val h = harness(0, "014")
+            h.board.flipLag = lag
+            h.tick()
+            h.playPerfectly(play, lag = lag)
+            assertEquals(Stage.SOLVED, h.sup.stage, "lag $lag")
+            assertEquals(emptyList(), h.messages, "lag $lag")
+        }
+    }
+
+    @Test
+    fun `a flip that is really missing is still caught at high ping`() {
+        val play = WaterTestData.play(0, "014")
+        val h = harness(0, "014")
+        h.board.flipLag = 25
+        h.tick()
+        h.playPerfectly(play, lag = 25, flipOverride = { it.lever != CLAY }, doorAt = { 100_000 }, until = WaterTestData.ticks(3.2) + 60)
+        assertEquals(Cause.DIVERGENCE, h.sup.lastIncident?.cause)
+        assertTrue(h.messages.single().contains("Clay§f was not flipped in time"), h.messages.single())
+    }
 }
