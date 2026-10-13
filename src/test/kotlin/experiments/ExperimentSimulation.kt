@@ -106,10 +106,12 @@ class SimResult(
     val ignoredClicks: Int,
     val humanClicks: Int,
     val blockedHumanClicks: Int,
+    /** Rounds the solver announced as left to the player ([ExperimentHost.onRoundSkipped]). */
+    val skippedRounds: Int,
     val log: List<String>
 ) {
     override fun toString() = "rounds=$roundsCompleted failure=$failure stoppedAt=$stoppedAt clicks=${clicks.size} ignored=$ignoredClicks " +
-        "human=$humanClicks blockedHuman=$blockedHumanClicks"
+        "human=$humanClicks blockedHuman=$blockedHumanClicks skipped=$skippedRounds"
     fun dump(lastLines: Int = 120) = log.takeLast(lastLines).joinToString("\n")
 }
 
@@ -152,6 +154,7 @@ class ExperimentSimulation(
     private var humanNextAt = 0L
     private var humanClicks = 0
     private var blockedHumanClicks = 0
+    private var skippedRounds = 0
     private var remembers = 0
     private var lastClientStatus = ""
     private val pendingClicks = ArrayList<Int>()
@@ -166,6 +169,11 @@ class ExperimentSimulation(
         override fun onTargetReached(size: Int) {
             log += "[${now}ms] target reached at $size, closing"
             stoppedAt = size
+        }
+
+        override fun onRoundSkipped(game: ExperimentGame) {
+            log += "[${now}ms] CHAT: round left to the player"
+            skippedRounds ++
         }
     }
 
@@ -225,7 +233,7 @@ class ExperimentSimulation(
                 is Event.Click -> pendingClicks += event.slot
             }
         }
-        return SimResult(server.roundsCompleted, server.failure, stoppedAt, clicks, server.ignoredClicks, humanClicks, blockedHumanClicks, log)
+        return SimResult(server.roundsCompleted, server.failure, stoppedAt, clicks, server.ignoredClicks, humanClicks, blockedHumanClicks, skippedRounds, log)
     }
 
     private fun serverTick(tick: Int) {

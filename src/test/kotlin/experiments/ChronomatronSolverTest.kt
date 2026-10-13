@@ -1,11 +1,15 @@
 package experiments
 
 import com.laybalt.features.impl.general.experiments.ChronomatronSolver
+import com.laybalt.features.impl.general.experiments.ExperimentDriver
+import com.laybalt.features.impl.general.experiments.ExperimentGame
 import com.laybalt.features.impl.general.experiments.ExperimentHost
 import com.laybalt.features.impl.general.experiments.ExperimentSolver
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
 
@@ -152,6 +156,50 @@ class ChronomatronSolverTest {
         assertAllSolved(12, seeds = 1L .. 5L) { layout, seed -> run(layout, userSettings.copy(seed = seed), listOf(0, 1, 1, 2, 2, 2, 0, 0, 1, 1, 1, 1), overlapping) }
     }
 
+    /**
+     * Slot 49 turns into the timer [ticks] server ticks after the new note lit up: the client takes the new note for one
+     * more replayed note, and from ~8 ticks on it is often dark again when the timer arrives.
+     */
+    private fun lateTimer(ticks: IntRange) = ChronomatronTiming(timerStatusDelay = ticks)
+
+    @Test
+    fun `timer status 8 ticks late`() {
+        assertAllSolved(12) { layout, seed -> run(layout, userSettings.copy(seed = seed), timing = lateTimer(8 .. 8)) }
+    }
+
+    @Test
+    fun `timer status 12 ticks late`() {
+        assertAllSolved(12) { layout, seed -> run(layout, userSettings.copy(seed = seed), timing = lateTimer(12 .. 12)) }
+    }
+
+    @Test
+    fun `late timer status with any packet order, repeated notes and a join at a round start`() {
+        assertAllSolved(12) { layout, seed -> run(layout, userSettings.copy(seed = seed), timing = lateTimer(0 .. 12)) }
+        for (ticks in listOf(8 .. 8, 12 .. 12)) {
+            for (order in PacketOrder.entries) assertAllSolved(12, seeds = 1L .. 10L) { layout, seed ->
+                run(layout, userSettings.copy(seed = seed, packetOrder = order), timing = lateTimer(ticks))
+            }
+            assertAllSolved(12, seeds = 1L .. 8L) { layout, seed ->
+                run(layout, userSettings.copy(seed = seed), listOf(0, 0, 0, 1, 1, 0, 0, 2, 2, 2, 2, 1), lateTimer(ticks))
+            }
+            // The first note, still glowing from the last click, shows no edge; with one colour throughout the replay then
+            // looks like the bare chain, so the late note is only taken once no other note lit up after the timer.
+            val glowing = ChronomatronTiming(firstShow = 12 .. 14, glow = 15 .. 18, timerStatusDelay = ticks)
+            assertAllSolved(12, seeds = 1L .. 8L) { layout, seed -> run(layout, userSettings.copy(seed = seed), timing = glowing) }
+            assertAllSolved(12, seeds = 1L .. 8L) { layout, seed -> run(layout, userSettings.copy(seed = seed), List(12) { 3 }, glowing) }
+            // Joined at round 4: no known chain, the replay (with the new note in it) is checked against the timer.
+            assertAllSolved(12, seeds = 1L .. 10L, extra = { result ->
+                when {
+                    result.humanClicks != 6 -> "the player had to click ${result.humanClicks} times instead of 6"
+                    result.skippedRounds > 0 -> "a round was left to the player"
+                    else -> handover(result)
+                }
+            }) { layout, seed ->
+                run(layout, userSettings.copy(seed = seed, attachAtRemember = 4, manualPlayer = true), timing = lateTimer(ticks))
+            }
+        }
+    }
+
     /** Settings of the user: Chronomatron Rounds 10 - 3 serums = 7, so the experiment is closed after the 8th round. */
     @Test
     fun `stop rule closes after the target round`() {
@@ -163,16 +211,60 @@ class ChronomatronSolverTest {
             result.humanClicks == 0 -> "the player never had to answer"
             result.blockedHumanClicks > 0 -> "the player was blocked while the solver was not answering"
             result.clicks.isEmpty() -> "the solver never took over"
+            result.skippedRounds > 1 -> "the player was told ${result.skippedRounds} times to finish a round"
             else -> null
         }
     }
 
-    /** Enabled mid-game: watches (without blocking the player) while the chain is unknown, then takes over. */
+    /**
+     * Enabled mid-game: watches (without blocking the player) while the chain is unknown, then takes over. A round it
+     * joined during the replay is left to the player with one chat message.
+     */
     @Test
     fun `joining mid-experiment watches and then takes over`() {
-        for (order in PacketOrder.entries) assertAllSolved(12, seeds = 1L .. 10L, extra = handover) { layout, seed ->
+        var announced = 0
+        for (order in PacketOrder.entries) assertAllSolved(12, seeds = 1L .. 10L, extra = { result ->
+            if (result.skippedRounds > 0) announced ++
+            handover(result)
+        }) { layout, seed ->
             val attach = 9_000L + Random(seed).nextLong(0, 4_000)
             run(layout, userSettings.copy(seed = seed, packetOrder = order, attachAtMs = attach, manualPlayer = true))
+        }
+        assertTrue(announced > 0, "no run joined during a replay and left that round to the player")
+    }
+
+    /** No new note after the timer started: the round goes to the player, who is told so once per round, not per tick. */
+    @Test
+    fun `a round left to the player is announced once`() {
+        var announced = 0
+        val host = object: ExperimentHost {
+            override fun debug(msg: String) = Unit
+            override fun reachedTarget(game: ExperimentGame, size: Int) = false
+            override fun onTargetReached(size: Int) = Unit
+            override fun onRoundSkipped(game: ExperimentGame) {
+                announced ++
+            }
+        }
+        val solver = ChronomatronSolver(host, attachedAtStart = true)
+        val driver = ExperimentDriver(solver, host, { 460L }, 0L, 460L)
+        val board = SimBoard()
+        var now = 0L
+        fun show(status: String, ms: Long) {
+            board.slots[49] = SimItem.status(status)
+            val end = now + ms
+            while (now < end) {
+                assertNull(driver.tick(board, now), "clicked at ${now}ms")
+                now += 50
+            }
+        }
+        for (round in 1 .. 2) {
+            show("Remember the pattern!", 1_000)
+            show("Timer: ${round + 2}s", 1_000)
+            assertEquals(round - 1, announced, "round $round: announced before the new note timed out")
+            assertTrue(solver.blocksInput, "round $round: the player is not blocked while the solver waits")
+            show("Timer: ${round + 1}s", 2_000)
+            assertEquals(round, announced, "round $round")
+            assertFalse(solver.blocksInput, "round $round: the player is still blocked")
         }
     }
 
@@ -181,7 +273,11 @@ class ChronomatronSolverTest {
     fun `joining at a round start answers that round from the replay`() {
         for (round in listOf(2, 4, 6)) assertAllSolved(12, seeds = 1L .. 10L, extra = { result ->
             val expected = (1 until round).sum()
-            if (result.humanClicks != expected) "the player had to click ${result.humanClicks} times instead of $expected" else handover(result)
+            when {
+                result.humanClicks != expected -> "the player had to click ${result.humanClicks} times instead of $expected"
+                result.skippedRounds > 0 -> "a round was left to the player"
+                else -> handover(result)
+            }
         }) { layout, seed ->
             run(layout, userSettings.copy(seed = seed, attachAtRemember = round, manualPlayer = true))
         }

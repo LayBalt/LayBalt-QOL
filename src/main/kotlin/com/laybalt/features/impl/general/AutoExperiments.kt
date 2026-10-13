@@ -104,6 +104,7 @@ object AutoExperiments: Feature(
         override fun debug(msg: String) = AutoExperiments.debug(msg)
         override fun reachedTarget(game: ExperimentGame, size: Int) = AutoExperiments.reachedTarget(game, size)
         override fun onTargetReached(size: Int) = AutoExperiments.onTargetReached(size)
+        override fun onRoundSkipped(game: ExperimentGame) = AutoExperiments.onRoundSkipped(game)
     }
 
     override fun init() {
@@ -255,6 +256,12 @@ object AutoExperiments: Feature(
         driver = null
         if (autoClose.value) mc.player?.closeContainer()
         else ChatUtils.modMessage("§7AutoExperiment: §atarget reached§7, finish the experiment yourself.")
+    }
+
+    /** The solver lost track and leaves this round to the player (input is not blocked); called once per round. */
+    private fun onRoundSkipped(game: ExperimentGame) {
+        val name = game.name.lowercase().replaceFirstChar { it.uppercase() }
+        ChatUtils.modMessage("§7AutoExperiment: §clost track of the $name pattern§7, finish this round yourself. It takes over again next round if it can.")
     }
 
     // ------------------------------------------------------------------ click engine

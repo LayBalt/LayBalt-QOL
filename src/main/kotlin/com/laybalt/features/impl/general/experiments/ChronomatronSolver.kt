@@ -15,14 +15,16 @@ import com.laybalt.features.impl.general.experiments.Experiments.TIMER_PREFIX
  *   2-slot blocks): stained glass while dark, dyed terracotta with a glint while lit. Every slot comes in its own
  *   packet, so between two packets a note can be half lit or half dark.
  * - The replay shows one note about every 0.9 s. In the tick the NEW note lights up, the status turns into the timer.
+ *   Should the status come late, the new note is seen as one more replayed note and may be dark again by then.
  * - Every click lights the clicked note for ~0.5 s; the last correct click starts the next round at once, a wrong click
  *   or the timer running out ends the experiment.
  *
  * So the solver works on notes (colours), never on single slots: a note is on while ANY of its slots is lit and off only
  * once ALL are dark (no phantom note from a half-updated block, the same note twice in a row shows as on-off-on). Like
  * OdinClient, the chain is the previous chain - exactly what the server just accepted - plus the note lit when the
- * timer starts. The replay is recorded as well: it cross-checks that chain and rebuilds it when the solver joined
- * mid-experiment, and is trusted on its own only when its length matches the timer.
+ * timer starts (with a late timer: the one note the replay showed beyond the chain). The replay is recorded as well: it
+ * cross-checks that chain and rebuilds it when the solver joined mid-experiment, and is trusted on its own only when its
+ * length matches the timer. A round the solver cannot answer is left to the player, who is told so in chat.
  *
  * @param attachedAtStart the solver was created together with the window (round 1 starts with an empty chain);
  * otherwise it joined mid-experiment and watches until it can reconstruct the chain.
@@ -45,6 +47,9 @@ class ChronomatronSolver(host: ExperimentHost, private val attachedAtStart: Bool
         DONE
     }
 
+    /** Is the last note that lit up the new note of a late timer? */
+    private enum class Late { NO, NOW, IF_NO_OTHER_NOTE }
+
     /** The chain as the server knows it after the last answered round. */
     private var chain: List<Note> = emptyList()
     /** [chain] is exactly the server's chain (an empty chain at the start of a fresh experiment). */
@@ -66,6 +71,11 @@ class ChronomatronSolver(host: ExperimentHost, private val attachedAtStart: Bool
     /** Notes that lit up during this round's "Remember the pattern!". */
     private val replay = ArrayList<Note>()
     private var rememberAt = 0L
+    /**
+     * Colours glowing from a click when this round started: if the replay starts with such a note while it still glows,
+     * it lights up without an edge and is missing from [replay].
+     */
+    private val startGlow = HashSet<Int>()
 
     private var timerAt = 0L
     /** Chain length announced by the timer (its seconds - 2), -1 when unreadable. */
@@ -75,6 +85,8 @@ class ChronomatronSolver(host: ExperimentHost, private val attachedAtStart: Bool
      * note lights up (the same note replayed and added without a dark gap).
      */
     private var heldNote: Note? = null
+    /** A dark note that is the new note of a late timer if no other note lights up after the timer ([lateNewNote]). */
+    private var lateNote: Note? = null
 
     private var newNote: Note? = null
     private var newNoteAt = 0L
@@ -112,8 +124,15 @@ class ChronomatronSolver(host: ExperimentHost, private val attachedAtStart: Bool
                 val held = heldNote
                 if (held != null && now - timerAt >= HELD_NOTE_MS) acceptNewNote(held, now, "it stayed lit from the replay")
                 else if (now - timerAt >= NEW_NOTE_TIMEOUT_MS) {
-                    debug("Chronomatron: no new note ${NEW_NOTE_TIMEOUT_MS}ms after the timer started; answer by hand")
-                    skipRound()
+                    val late = lateNote
+                    if (late != null) {
+                        if (replay.lastOrNull() === late) replay.removeAt(replay.lastIndex)
+                        acceptNewNote(late, now, "no other note lit up after the late timer")
+                    }
+                    else {
+                        debug("Chronomatron: no new note ${NEW_NOTE_TIMEOUT_MS}ms after the timer started; answer by hand")
+                        skipRound()
+                    }
                 }
             }
 
@@ -164,7 +183,10 @@ class ChronomatronSolver(host: ExperimentHost, private val attachedAtStart: Bool
             state == State.AWAIT_NEW_NOTE -> acceptNewNote(note, now, "it lit up after the timer started")
             phase == Phase.REMEMBER && state == State.WATCH -> {
                 // The glow of the click that finished the last round can arrive just after the status changed.
-                if (now - rememberAt < GLOW_GRACE_MS) return debug("Chronomatron: $note lit right after the round started, a click glow")
+                if (now - rememberAt < GLOW_GRACE_MS) {
+                    startGlow += note.color
+                    return debug("Chronomatron: $note lit right after the round started, a click glow")
+                }
                 replay += note
                 debug("Chronomatron: replay #${replay.size}: $note")
             }
@@ -215,8 +237,11 @@ class ChronomatronSolver(host: ExperimentHost, private val attachedAtStart: Bool
         roundFromStart = fromStart
         rememberAt = now
         replay.clear()
+        startGlow.clear()
+        startGlow += litSince.keys
         newNote = null
         heldNote = null
+        lateNote = null
         answer = emptyList()
         nextIndex = 0
         armed = false
@@ -233,21 +258,48 @@ class ChronomatronSolver(host: ExperimentHost, private val attachedAtStart: Bool
 
         // The new note's slots come before slot 49 in the same tick, so it is usually lit already.
         val candidate = lastOn
-        if (candidate != null && candidate.color in litSince) {
-            if (now - lastOnAt <= NEW_NOTE_WINDOW_MS) {
-                // It was taken for a replayed note because its packets arrived before the status.
-                if (replay.lastOrNull() === candidate) replay.removeAt(replay.lastIndex)
-                return acceptNewNote(candidate, now, "it lit up together with the timer")
-            }
-            heldNote = candidate
+        val lit = candidate != null && candidate.color in litSince
+        if (candidate != null && lit && now - lastOnAt <= NEW_NOTE_WINDOW_MS) {
+            // It was taken for a replayed note because its packets arrived before the status.
+            if (replay.lastOrNull() === candidate) replay.removeAt(replay.lastIndex)
+            return acceptNewNote(candidate, now, "it lit up together with the timer")
+        }
+        val late = if (candidate != null) lateNewNote(candidate, now) else Late.NO
+        if (candidate != null && late == Late.NOW) {
+            replay.removeAt(replay.lastIndex)
+            return acceptNewNote(candidate, now,"the timer came ${now - lastOnAt}ms after it lit up${if (lit) "" else ", dark already"}")
+        }
+        if (lit) heldNote = candidate
+        else if (late == Late.IF_NO_OTHER_NOTE) {
+            lateNote = candidate
+            debug("Chronomatron: $candidate is the new note of a late timer unless another note lights up")
         }
         state = State.AWAIT_NEW_NOTE
+    }
+
+    /**
+     * The status turned into the timer late, so the new note was recorded as one more replayed note (and may be dark
+     * again already). [note], the last note that lit up, is the new note when it did so at most [LATE_NEW_NOTE_MS] before
+     * the timer and the replay before it is complete: the known chain, or, with no known chain, one note short of the
+     * timer. When the new note's packets merely come after the status, the replay is not complete yet and nothing is
+     * taken.
+     */
+    private fun lateNewNote(note: Note, now: Long): Late {
+        if (replay.lastOrNull() !== note || now - lastOnAt > LATE_NEW_NOTE_MS) return Late.NO
+        val before = replay.subList(0, replay.lastIndex)
+        if (! chainTrusted) return if (timerLength > 0 && before.size == timerLength - 1) Late.NOW else Late.NO
+        if (sameColors(chain, before)) return Late.NOW
+        // The first note shows no edge while it still glows from the last click. If the replay then looks just like the
+        // chain (one colour throughout), it can as well be the timer on time with the new note still to come.
+        if (chain.isEmpty() || chain[0].color !in startGlow || ! sameColors(chain.drop(1), before)) return Late.NO
+        return if (sameColors(chain, replay)) Late.IF_NO_OTHER_NOTE else Late.NOW
     }
 
     private fun acceptNewNote(note: Note, now: Long, why: String) {
         newNote = note
         newNoteAt = now
         heldNote = null
+        lateNote = null
 
         val known = if (chainTrusted) chain + note else null
         val replayed = replay + note
@@ -285,10 +337,16 @@ class ChronomatronSolver(host: ExperimentHost, private val attachedAtStart: Bool
         debug("Chronomatron: answering $pick")
     }
 
+    /**
+     * Leaves this round to the player (no input blocked) and tells them in chat. DONE is left only when the next round
+     * begins, so the player is told at most once per round.
+     */
     private fun skipRound() {
+        val announce = state != State.DONE
         chainTrusted = false
         answeredRound = false
         state = State.DONE
+        if (announce) host.onRoundSkipped(ExperimentGame.CHRONOMATRON)
     }
 
     private fun experimentOver(status: String) {
@@ -318,6 +376,11 @@ class ChronomatronSolver(host: ExperimentHost, private val attachedAtStart: Bool
         const val GLOW_GRACE_MS = 300L
         /** A note that lit up at most this long before the timer is the new note (same server tick). */
         const val NEW_NOTE_WINDOW_MS = 300L
+        /**
+         * A late timer still counts the note that lit up last as the new note this long before it: 12 server ticks plus
+         * packet jitter, less than one replay period (0.8-1 s); the replay before it has to fit as well.
+         */
+        const val LATE_NEW_NOTE_MS = 750L
         /** How long to wait for another note before the held note is taken as the new note. */
         const val HELD_NOTE_MS = 500L
         /** No note at all this long after the timer started: give the round to the player. */

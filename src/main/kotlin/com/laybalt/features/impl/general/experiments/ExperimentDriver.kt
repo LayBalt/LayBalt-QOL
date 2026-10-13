@@ -11,6 +11,9 @@ interface ExperimentHost {
 
     /** The stop rule fired: close the experiment (Auto Close) or tell the player to finish it. */
     fun onTargetReached(size: Int)
+
+    /** The solver lost track of [game] and leaves the current round to the player: tell them. At most once per round. */
+    fun onRoundSkipped(game: ExperimentGame)
 }
 
 abstract class ExperimentSolver(protected val host: ExperimentHost) {

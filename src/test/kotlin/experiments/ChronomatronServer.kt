@@ -58,7 +58,13 @@ data class ChronomatronTiming(
     /** How long a shown note stays lit. */
     val lit: IntRange = 8 .. 13,
     /** How long a clicked note stays lit (the logs show every clicked note still lit when the next round starts). */
-    val glow: IntRange = 6 .. 14
+    val glow: IntRange = 6 .. 14,
+    /**
+     * Ticks between the new note lighting up and slot 49 turning into the timer: 0 in the logs; more models a server that
+     * sends the status late, so the client sees the new note as one more replayed note (maybe dark again already). The
+     * server's own timer still starts with the new note.
+     */
+    val timerStatusDelay: IntRange = 0 .. 0
 )
 
 /**
@@ -81,6 +87,7 @@ class ChronomatronServer(
     private var showAt = IntArray(0)
     private var progress = 0
     private var timerEnd = 0
+    private var timerShownAt = 0
     private val litUntil = IntArray(layout.notes.size)
     private val glowUntil = IntArray(layout.notes.size)
 
@@ -106,6 +113,8 @@ class ChronomatronServer(
                 if (i == sequence.lastIndex) {
                     phase = Phase.TIMER
                     timerEnd = tick + (sequence.size + 2) * 20
+                    // No extra random draw without a delay, so the other tests keep their games.
+                    timerShownAt = tick + if (timing.timerStatusDelay.last > 0) pick(timing.timerStatusDelay) else 0
                 }
             }
 
@@ -121,7 +130,7 @@ class ChronomatronServer(
             for (slot in note.slots) board[slot] = item
         }
         board[49] = SimItem.status(
-            if (phase == Phase.TIMER) "Timer: ${(timerEnd - tick + 19) / 20}s" else "Remember the pattern!"
+            if (phase == Phase.TIMER && tick >= timerShownAt) "Timer:${(timerEnd - tick + 19) / 20}s" else "Remember the pattern!"
         )
     }
 
