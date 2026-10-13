@@ -138,9 +138,11 @@ class ClassicDisplay(private val tables: Map<Int, ShippedTable>?) {
             else -> DoorAlgebra.best(key, table, 0, boardReady = true)
         }
         rekeys ++
-        events += "classic: $why at $now - " + (play?.let { "play v$variant/${Door.keyOf(key)}" + if (chain.size > 1) " (${chain.size} plays)" else "" }
-            ?: "no play (layout $variant)")
+        events += "classic: $why at $now - doors ${Door.keyOf(key)}: " + (if (chain.isEmpty()) "no play (layout $variant)" else describeChain())
     }
+
+    /** "v2/034", or "v0/123 then v0/024" for several plays. */
+    fun describeChain(): String = chain.joinToString(" then ") { "v${it.variant}/${it.key}" }.ifEmpty { "nothing" }
 
     /**
      * What 3.2.3 showed: for every lever its remaining times (static seconds before the water, countdowns after it,

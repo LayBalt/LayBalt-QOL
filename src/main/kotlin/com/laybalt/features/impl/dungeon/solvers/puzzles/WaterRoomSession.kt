@@ -88,7 +88,7 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
             activationsLogged ++
             val columns = WaterBoardReader.doorColumns(f)
             core.trace.add(tick, "door blocks y${BoardGeometry.DOOR_Y - 1}..${BoardGeometry.DOOR_Y + 2}: $columns")
-            LayBaltQOL.logger.info("[WaterBoard] doors ${WaterTrace.key(core.classic.gates)} closed (${columns}), showing ${core.classic.play ?: "nothing"}")
+            LayBaltQOL.logger.info("[WaterBoard] classic display: doors ${WaterTrace.key(core.classic.gates)} closed, plays ${core.classic.describeChain()} (door blocks y55..58: $columns)")
         }
 
         // Only to players at the board: the session lives for the whole dungeon, and someone clearing another room
