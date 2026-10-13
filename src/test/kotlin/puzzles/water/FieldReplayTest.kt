@@ -28,9 +28,10 @@ class FieldReplayTest {
         // 23:12:36 "the Purple/Green/Red door closed at 392657": all three in one tick as someone walks in.
         b.tick { closeDoors("034") }
         b.ticks(12)
-        assertTrue(b.modes.contains(Mode.CLASSIC), "the classic display is up first")
-        assertEquals(Mode.ADVANCED, b.core.mode)
-        assertEquals(Stage.PREPARE, b.sup!!.stage)
+        // The first run is the shipped timed solution (3.2.3), whatever the board-truth side makes of the board.
+        assertEquals(Mode.CLASSIC, b.core.mode)
+        assertTrue(b.core.advancedProblem!!.contains("timed solution leads"), b.core.advancedProblem)
+        assertEquals(Stage.PREPARE, b.sup!!.stage, "the board-truth side follows along in the background")
         assertEquals(listOf("034"), b.sup!!.chain.map { it.key })
         assertEquals("034", Door.keyOf(b.core.classic.key))
         // The untouched display: CLICK on the levers flipped before the water, the timers of the rest.
@@ -60,7 +61,7 @@ class FieldReplayTest {
         }
         runUntil(20)
         assertEquals(Stage.RUNNING, b.sup!!.stage)
-        assertEquals(Mode.ADVANCED, b.core.mode)
+        assertEquals(Mode.CLASSIC, b.core.mode)
         assertTrue(b.labels(EMERALD).any { it.endsWith("s") }, "countdowns: ${b.labels(EMERALD)}")
 
         // 23:14:11, about 7 s in: Red reads open for 3 ticks and closed again, then Green - no door toggled.
@@ -74,9 +75,79 @@ class FieldReplayTest {
         }
         assertEquals(Door.bitsOf("034"), b.core.tracker.doors)
         assertEquals(Door.bitsOf("034"), b.core.classic.gates)
-        assertEquals(Stage.RUNNING, b.sup!!.stage, "the run goes on: ${b.messages}")
-        assertEquals(emptyList(), b.messages, "no failure for a flicker")
+        assertEquals(Stage.RUNNING, b.sup!!.stage, "the run goes on: ${b.log}")
+        assertTrue(b.traced("message:").isEmpty(), "no failure for a flicker: ${b.traced("message:")}")
         assertTrue(b.tracedToggles().none { it.contains("opened") }, "no door toggle: ${b.tracedToggles()}")
+        assertEquals(Mode.CLASSIC, b.core.mode)
+        assertEquals(0, b.core.classic.departures)
+        assertTrue(b.modes.none { it == Mode.ADVANCED }, "the board-truth guidance never led this run")
+    }
+
+    @Test
+    fun `our timed run ends with doors still closed - the recovery takes over from the board`() {
+        val b = FieldBoard(variant = 2)
+        b.ticks(40)
+        b.tick { closeDoors("034") }
+        b.ticks(12)
+        val play = WaterTestData.play(2, "034")
+        b.tick { click(QUARTZ) }
+        b.tick { click(GOLD) }
+        b.tick { click(EMERALD) }
+        b.tick { click(WATER) }
+        val start = b.now - 1
+        // Every timed click on time, the water reaches the entry and the board, but never an outlet: no door opens.
+        while (b.now - 1 - start < play.lastClickTick + 40) b.tick {
+            val at = now - 1 - start
+            for (c in play.timedClicks) if (c.tick == at) click(c.lever)
+            if (at == 12) entry(true)
+            if (at in 12 until 110) boardWater(8)
+            if (at == 112) entry(false)
+        }
+        assertEquals(Mode.CLASSIC, b.core.mode, "the timed solution stays up for the whole run")
+        assertTrue(b.messages.isEmpty(), "nothing from the board-truth side in chat while it does not lead: ${b.messages}")
+        b.ticks(ClassicDisplay.RUN_OVER_TICKS) { boardWater(0) }
+        assertEquals(1, b.core.classic.departures, b.traceLines.takeLast(10).toString())
+        assertEquals(Mode.ADVANCED, b.core.mode, "${b.core.advancedProblem}")
+        assertFalse(b.display.silent)
+        assertTrue(b.traced("board-truth guidance in use").isNotEmpty())
+    }
+
+    @Test
+    fun `with the recovery off the timed solution is all there is, even after a run we did not start`() {
+        val b = FieldBoard(variant = 3)
+        b.core.recovery = false
+        b.ticks(20)
+        b.tick { closeDoors("012") }
+        b.ticks(60)
+        // A teammate's run opens Purple and Orange; Blue stays closed and the water keeps running.
+        b.tick { flip(WATER) }
+        b.ticks(12) { entry(true); boardWater(10) }
+        b.tick { doors = Door.bitsOf("2") }
+        b.ticks(400) { boardWater(10) }
+        assertEquals(1, b.core.classic.departures)
+        assertTrue(b.modes.none { it == Mode.ADVANCED }, "no board-truth guidance with the recovery off")
+        assertTrue(b.core.advancedProblem!!.contains("Recovery Guidance is off"), b.core.advancedProblem)
+        assertEquals(Mode.CLASSIC, b.core.mode)
+        assertIs<Guidance.Act>(b.display, "labels above the levers, not a line on a HUD that is switched off")
+        assertTrue(b.messages.isEmpty())
+    }
+
+    @Test
+    fun `replan on request and the board-reading-first setting hand the lead to the board-truth guidance`() {
+        val b = FieldBoard(variant = 3)
+        b.ticks(20)
+        b.tick { closeDoors("012") }
+        b.ticks(12)
+        assertEquals(Mode.CLASSIC, b.core.mode)
+        b.core.advancedFirst = true
+        b.tick()
+        assertEquals(Mode.ADVANCED, b.core.mode, "${b.core.advancedProblem}")
+        b.core.advancedFirst = false
+        b.tick()
+        assertEquals(Mode.CLASSIC, b.core.mode)
+        b.core.replan()
+        b.tick()
+        assertEquals(Mode.ADVANCED, b.core.mode, "${b.core.advancedProblem}")
     }
 
     @Test
@@ -87,9 +158,15 @@ class FieldReplayTest {
             assertEquals(Stage.READING, b.sup!!.stage, "$play")
             b.tick { closeDoors(play.key) }
             b.ticks(12)
-            assertEquals(Mode.ADVANCED, b.core.mode, "$play: ${b.core.advancedProblem}")
+            assertEquals(Mode.CLASSIC, b.core.mode, "$play: ${b.core.advancedProblem}")
             assertEquals(listOf(play.key), b.sup!!.chain.map { it.key }, "$play")
             assertEquals(play.key, b.core.classic.play?.key, "$play")
+            assertEquals(play.times.values.sumOf { it.size }, b.act!!.labels.size, "$play: a label per flip of the shipped play")
+            assertNull(b.act!!.headline, "$play: the untouched display")
+            // With "Water Board-Reading First" the board-truth guidance agrees with it and leads.
+            b.core.advancedFirst = true
+            b.tick()
+            assertEquals(Mode.ADVANCED, b.core.mode, "$play: ${b.core.advancedProblem}")
             assertTrue(b.act!!.labels.isNotEmpty(), "$play")
             assertNull(b.act!!.headline, "$play: the untouched display")
         }
@@ -124,6 +201,9 @@ class FieldReplayTest {
         assertTrue(b.tracedToggles().none { it.contains("opened") }, "doors found open by the re-read are no toggles: ${b.tracedToggles()}")
         assertEquals(Stage.FOREIGN, b.sup!!.stage, "a run nobody here watched is watched like a teammate's")
         assertEquals(emptyList(), b.messages)
+        b.ticks(ClassicDisplay.GATE_STABLE_TICKS + 1) { entry(true); boardWater(10) }
+        assertEquals(1, b.core.classic.departures, "doors changed by a run we did not start")
+        assertEquals("012", b.core.classic.play?.key, "the timed display keeps its play until the doors settle (3.2.3)")
         // The water is turned off and drains: the doors left (Blue) are planned.
         b.tick { flip(WATER) }
         b.ticks(20) { entry(false); boardWater(0) }
@@ -200,10 +280,16 @@ class FieldReplayTest {
         b.ticks(2)
         assertTrue(b.traced("read again after").isNotEmpty())
         assertEquals(Stage.PREPARE, b.sup!!.stage)
-        assertEquals(Mode.ADVANCED, b.core.mode)
-        assertEquals(listOf("§lFLIP BACK"), b.labels(COAL), "Coal is not part of v0/014: flip it back first")
         assertEquals(emptyList(), b.messages)
         assertTrue(b.traced("flip Coal").isEmpty(), "the unseen flip is no timed flip")
+        // The timed solution leads (as 3.2.3); the board-truth side knows about Coal for when it is asked.
+        assertEquals(Mode.CLASSIC, b.core.mode)
+        val adv = assertIs<Guidance.Act>(b.core.advancedGuidance)
+        assertEquals(listOf("§lFLIP BACK"), adv.labels.filter { it.lever == COAL }.map { it.text }, "Coal is not part of v0/014: flip it back first")
+        b.core.advancedFirst = true
+        b.tick()
+        assertEquals(Mode.ADVANCED, b.core.mode)
+        assertEquals(listOf("§lFLIP BACK"), b.labels(COAL))
     }
 
     @Test
@@ -260,7 +346,8 @@ class FieldReplayTest {
         b.doorsLoaded = true
         b.closeDoors("024")
         b.ticks(12)
-        assertEquals(Mode.ADVANCED, b.core.mode)
+        assertEquals(Mode.CLASSIC, b.core.mode)
+        assertEquals("024", b.core.classic.play?.key)
         assertEquals(listOf("024"), b.sup!!.chain.map { it.key })
 
         // Chunks dropped again later: the doors are not read as open, the puzzle is not solved.
@@ -310,7 +397,8 @@ class FieldReplayTest {
         b.ticks(20)
         assertEquals(Door.bitsOf("012"), b.core.classic.gates)
         assertEquals(Door.bitsOf("012"), b.core.tracker.doors)
-        assertEquals(Mode.ADVANCED, b.core.mode)
+        assertEquals(0, b.core.classic.departures)
+        assertEquals(Mode.CLASSIC, b.core.mode)
     }
 
     @Test
@@ -340,7 +428,8 @@ class FieldReplayTest {
     @Test
     fun `the layout read and the indicator disagreeing hands the display to the classic one`() {
         // The indicator blocks read as another layout than the board's toggle blocks: the board-truth side is not trusted.
-        val b = FieldBoard(variant = 2).apply { indicatorRead = 1 }
+        // Board-reading first, so the board-truth side would lead if it could be trusted.
+        val b = FieldBoard(variant = 2).apply { indicatorRead = 1; core.advancedFirst = true }
         b.ticks(20)
         b.tick { closeDoors("034") }
         b.ticks(12)

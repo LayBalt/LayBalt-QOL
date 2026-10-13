@@ -15,9 +15,15 @@ data class GateRead(val closed: Int, val moving: Int = 0)
  * move it on and the first click on the water lever starts the countdowns, exactly like 3.2.3.
  *
  * Doors come from its own reads of the door blocks ([GateRead]): unknown reads and doors caught mid-move keep the last
- * state, and a change counts once it held for [GATE_STABLE_TICKS]. The play follows the doors closed right now whenever
- * no run is going (before the water is pulled, and again once a run is over); during a run it stays, since the doors
- * changing is what the run is for. Every door that was closed reading open again is solved (the 3.2.3 rule). Pure.
+ * state, and a change counts once it held for [GATE_STABLE_TICKS]. The play follows the doors closed right now while the
+ * doors are being set up ([ACTIVATION_TICKS] after they first closed) and once a run of ours is over; during our run it
+ * stays, since the doors changing is what the run is for. Doors that change later without our water click are a run we
+ * did not start (a teammate's, or ours with the click missed): the play stays, as in 3.2.3, until the doors have not
+ * changed for [RUN_OVER_TICKS]. Every door that was closed reading open again is solved (the 3.2.3 rule).
+ *
+ * [departures] counts what this display cannot follow: a run of ours over with doors still closed, and doors changed by
+ * a run we did not start. Until the first one the timed solution is what the room core shows; from then on the
+ * board-truth recovery may lead. Pure.
  */
 class ClassicDisplay(private val tables: Map<Int, ShippedTable>?) {
     /** Layout variant from the indicator blocks (-1 until known). */
@@ -55,6 +61,19 @@ class ClassicDisplay(private val tables: Map<Int, ShippedTable>?) {
     var rekeys = 0
         private set
 
+    /**
+     * How often the board left this display's script: a run of ours over with doors still closed, or doors changed by
+     * a run we did not start. From the first one on the board-truth recovery may lead.
+     */
+    var departures = 0
+        private set
+
+    /** Tick the doors first read closed (-1 before). */
+    private var activatedAt = - 1
+
+    /** Last door change by a run we did not start, while the play waits for the doors to settle (-1: none). */
+    private var foreignSince = - 1
+
     private val clicks = IntArray(WaterLever.entries.size)
     private var pendingRaw = - 1
     private var pendingSince = 0
@@ -89,7 +108,14 @@ class ClassicDisplay(private val tables: Map<Int, ShippedTable>?) {
 
     /** Advances to [now]: a run that is over hands the display back to the doors closed now. */
     fun tick(now: Int) {
-        if (activated && ! solved && runOver(now)) rekey(now, "run over")
+        if (! activated || solved) return
+        if (runOver(now)) {
+            departures ++
+            rekey(now, "run over with ${Door.keyOf(gates)} still closed")
+        }
+        else if (foreignSince >= 0 && waterTick < 0 && now - foreignSince > RUN_OVER_TICKS) {
+            rekey(now, "doors settled after a run we did not start")
+        }
     }
 
     /** One of our clicks on [lever] (3.2.3: every click counts, the first one on the water lever starts the timers). */
@@ -114,10 +140,25 @@ class ClassicDisplay(private val tables: Map<Int, ShippedTable>?) {
         }
         if (! activated) {
             activated = true
+            activatedAt = now
             rekey(now, "doors ${Door.keyOf(closed)} closed")
             return
         }
-        if (closed != key && (waterTick < 0 || runOver(now))) rekey(now, "doors ${Door.keyOf(closed)} closed now")
+        when {
+            // Our run: the doors change as the water reaches them.
+            waterTick >= 0 && ! runOver(now) -> {}
+            waterTick >= 0 -> rekey(now, "doors ${Door.keyOf(closed)} closed now")
+            // Still being set up (no water reaches an outlet this fast): the doors closed now are the puzzle.
+            foreignSince < 0 && now - activatedAt <= ACTIVATION_TICKS -> if (closed != key) rekey(now, "doors ${Door.keyOf(closed)} closed")
+            foreignSince < 0 && closed == key -> {}
+            else -> {
+                if (foreignSince < 0) {
+                    departures ++
+                    events += "classic: doors ${Door.keyOf(closed)} at $now without our water click - a run we did not start, the play stays until the doors settle"
+                }
+                foreignSince = now
+            }
+        }
     }
 
     private fun runOver(now: Int): Boolean {
@@ -127,6 +168,7 @@ class ClassicDisplay(private val tables: Map<Int, ShippedTable>?) {
 
     private fun rekey(now: Int, why: String) {
         key = if (gates > 0) gates else key
+        foreignSince = - 1
         clicks.fill(0)
         waterTick = - 1
         chainIndex = 0
@@ -193,5 +235,8 @@ class ClassicDisplay(private val tables: Map<Int, ShippedTable>?) {
 
         /** A run is over this long after its last planned click: the doors have long toggled by then. */
         const val RUN_OVER_TICKS = 200
+
+        /** Door changes this soon after the doors first closed are the doors being set up, not a run. */
+        const val ACTIVATION_TICKS = 40
     }
 }

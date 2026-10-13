@@ -99,8 +99,11 @@ object PuzzleSolvers: Feature() {
     val currentClickColor by ColorSetting("Click Color", Color.GREEN).showIf { water.value }
     val nextColor by ColorSetting("Next Click Color", Color.YELLOW).showIf { water.value }
     val waterRecovery by ToggleSetting("Water Recovery Guidance", true)
-        .withDescription("Watches the real board (doors, water, lever blocks) and, when the run goes wrong - water in the wrong channel, water that stops short, flips off the timing, levers moved by teammates - shows how to finish from where the board is: a quick fix when one is known to work, otherwise turn the water off, let it drain and run the solutions that open the doors still closed. Whenever the board cannot be read reliably the plain timer display is shown instead. Off: the plain 3.2.2 timer display.")
+        .withDescription("Watches the real board (doors, water, lever blocks) and, when the run goes wrong - water in the wrong channel, water that stops short, flips off the timing, levers moved by teammates - shows how to finish from where the board is: a quick fix when one is known to work, otherwise turn the water off, let it drain and run the solutions that open the doors still closed. The first run is always the plain timer display; the recovery takes over once a run ended with doors still closed or someone else's run changed the doors, and only while the board can be read reliably. Off: the plain 3.2.2 timer display only.")
         .showIf { water.value }
+    val waterBoardFirst by ToggleSetting("Water Board-Reading First", false)
+        .withDescription("Experimental: follows the board from the first run on (flip-back markers for levers moved by teammates, live judgement of the run) instead of the plain timer display. Off: the timer display leads until a run fails, then the recovery takes over.")
+        .showIf { water.value && waterRecovery.value }
     val waterTolerance by SliderSetting("Water Timing Tolerance", 1.0, 0.2, 3.0, 0.1, "s")
         .withDescription("How far a flip may be from its planned time. Beyond it the run counts as off track: a quick fix from the board when one is known to work, otherwise turn the water off, drain and restart. Flips by teammates playing their own timings are not judged.")
         .showIf { water.value && waterRecovery.value }

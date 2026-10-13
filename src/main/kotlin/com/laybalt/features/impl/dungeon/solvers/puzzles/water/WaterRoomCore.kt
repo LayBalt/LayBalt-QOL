@@ -4,10 +4,16 @@ package com.laybalt.features.impl.dungeon.solvers.puzzles.water
  * One Water Board room without Minecraft (client thread only): the board-truth side ([tracker], [supervisor] and the
  * simulator side behind [Hooks]), the 3.2.3 baseline ([classic]) and the choice of what the player sees ([display]).
  *
- * - **Baseline first.** The classic display runs every tick on its own reads of the door blocks and on our own clicks.
- *   The board-truth guidance replaces it only while its inputs agree with the door blocks and nothing is in doubt
- *   ([advancedProblem] is null): the board is loaded and read, a door has closed (the puzzle started), the layout and
- *   the doors match what the classic display reads. Otherwise the classic display is shown - never nothing.
+ * - **Baseline first.** The classic display runs every tick on its own reads of the door blocks and on our own clicks,
+ *   and it leads: the first run of a room is always the shipped timed solution, as in 3.2.3 (the board-truth run
+ *   following has not been proven on Hypixel yet). The board-truth guidance may take over only for recovery, once the
+ *   classic display's own door reads show something it cannot follow ([ClassicDisplay.departures]: our run over with
+ *   doors still closed, or doors changed by a run we did not start), when the classic display has no play, after
+ *   `/lbq water replan`, or with "Water Board-Reading First" on - and never with "Water Recovery Guidance" off. Even
+ *   then it is shown only while its inputs agree with the door blocks and nothing is in doubt ([advancedProblem] is
+ *   null): the board is loaded and read, a door has closed, the layout and the doors match what the classic display
+ *   reads. Otherwise the classic display is shown - never nothing. The supervisor's chat messages reach the player only
+ *   while its guidance is the one shown.
  * - **Never silent.** While the room is unsolved the display is labels, a headline or a status.
  * - **Isolation.** An exception anywhere in the board-truth side is reported once ([Hooks.failed]) and switches that
  *   side off for the room; the baseline goes on. The baseline has its own guard.
@@ -52,6 +58,12 @@ class WaterRoomCore(private val tables: Map<Int, ShippedTable>?, private val hoo
     var recovery = true
     var toleranceTicks = 20
 
+    /** "Water Board-Reading First": the board-truth guidance may lead from the first run on (with [recovery]). */
+    var advancedFirst = false
+
+    /** `/lbq water replan` was used: the player asked for the board-truth guidance. */
+    private var leadRequested = false
+
     var now = 0
         private set
 
@@ -87,6 +99,7 @@ class WaterRoomCore(private val tables: Map<Int, ShippedTable>?, private val hoo
     private var entryWet = false
     private var outletWet = 0
     private val messages = ArrayList<String>()
+    private val supervisorMessages = ArrayList<String>()
     private val logLines = ArrayList<String>()
 
     // ================================================================================================================
@@ -106,6 +119,17 @@ class WaterRoomCore(private val tables: Map<Int, ShippedTable>?, private val hoo
         if (advancedFailed) advancedGuidance = null
         val classicGuidance = classicPart { classicTick(gates, indicator) }
         choose(classicGuidance)
+        forwardMessages()
+    }
+
+    /** The supervisor's messages go to chat only while its guidance is shown; otherwise they are only logged. */
+    private fun forwardMessages() {
+        if (supervisorMessages.isEmpty()) return
+        for (m in supervisorMessages) {
+            if (mode == Mode.ADVANCED) messages += m
+            else logLines += "not shown (display ${mode.name.lowercase()}): ${plain(m)}"
+        }
+        supervisorMessages.clear()
     }
 
     /** The room's rotation is not known yet: nothing can be read. */
@@ -139,6 +163,7 @@ class WaterRoomCore(private val tables: Map<Int, ShippedTable>?, private val hoo
     /** `/lbq water replan`: forget the plan and plan again from the board as it is. */
     fun replan() {
         if (advancedFailed) return
+        leadRequested = true
         advanced("replan") {
             val sup = supervisor ?: return@advanced
             sup.replan(tracker)
@@ -192,7 +217,7 @@ class WaterRoomCore(private val tables: Map<Int, ShippedTable>?, private val hoo
             sup.update(tracker, events)
             hooks.requests(this, sup.drainRequests(), sup)
             for (m in sup.drainMessages()) {
-                messages += m
+                supervisorMessages += m
                 trace.add(now, "message: ${plain(m)}")
             }
             if (sup.stage != lastStage) {
@@ -296,6 +321,7 @@ class WaterRoomCore(private val tables: Map<Int, ShippedTable>?, private val hoo
         else if (doorsDisagreeSince < 0) doorsDisagreeSince = now
 
         if (advancedFailed) return "it failed (see the log)"
+        leadProblem()?.let { return it }
         if (! available) return "the board is not loaded"
         if (! tracker.layoutCaptured) return "the layout is not recognised"
         val sup = supervisor ?: return "no solutions for layout ${tracker.variant}"
@@ -309,6 +335,15 @@ class WaterRoomCore(private val tables: Map<Int, ShippedTable>?, private val hoo
         if (g == Guidance.Solved && classic.activated && ! classic.solved) return "solved on the board, but ${WaterTrace.key(classic.gates)} read closed"
         if (g.silent) return "nothing to show in ${sup.stage}"
         return null
+    }
+
+    /** Why the classic display keeps the lead (the board-truth side is not asked yet); null once it may hand over. */
+    private fun leadProblem(): String? = when {
+        ! recovery -> "Water Recovery Guidance is off"
+        advancedFirst || leadRequested || classicFailed -> null
+        classic.departures > 0 -> null
+        classic.activated && ! classic.solved && classic.play == null -> null
+        else -> "the timed solution leads until a run fails"
     }
 
     // ================================================================================================================

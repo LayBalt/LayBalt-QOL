@@ -125,6 +125,9 @@ class NeverSilentPropertyTest {
         val random = Random(20261015)
         repeat(300) { stream ->
             val b = FieldBoard(random.nextInt(4))
+            // Every combination of the settings that choose the display.
+            b.core.recovery = random.nextInt(4) != 0
+            b.core.advancedFirst = random.nextBoolean()
             val table = WaterTestData.tables.getValue(b.variant)
             val key = table.plays.values.random(random).key
             val activation = random.nextInt(0, 600)

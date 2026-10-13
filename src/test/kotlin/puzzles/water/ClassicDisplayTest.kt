@@ -117,6 +117,44 @@ class ClassicDisplayTest {
     }
 
     @Test
+    fun `doors changed by a run we did not start keep the play until they settle, and count as a departure`() {
+        val c = display(0)
+        var t = c.read("014", 0)
+        t = c.read("014", t, ClassicDisplay.ACTIVATION_TICKS)
+        assertEquals(0, c.departures)
+        // A teammate pulls the water (no click of ours): Purple opens, then Blue closes.
+        t = c.read("14", t, 30)
+        assertEquals(1, c.departures)
+        assertEquals("014", c.play?.key, "3.2.3 kept its play: no play for untouched levers fits a board mid-run")
+        t = c.read("124", t, 30)
+        assertEquals(1, c.departures, "one run, one departure")
+        assertEquals("014", c.play?.key)
+        // The doors have not changed for a run's length: the doors closed now get their plays.
+        t = c.read("124", t, ClassicDisplay.RUN_OVER_TICKS)
+        assertEquals(Door.bitsOf("124"), c.key)
+        assertTrue(c.guidance(t) is Guidance.Act)
+    }
+
+    @Test
+    fun `our run that ends with doors still closed is a departure, a run that opens them is not`() {
+        val failed = display(2)
+        var t = failed.read("034", 0)
+        failed.onClick(WATER, t)
+        t = failed.read("034", t, WaterTestData.play(2, "034").lastClickTick + ClassicDisplay.RUN_OVER_TICKS + 2)
+        assertEquals(1, failed.departures)
+        assertEquals(- 1, failed.waterTick)
+
+        val solved = display(2)
+        t = solved.read("034", 0)
+        solved.onClick(WATER, t)
+        t = solved.read("34", t, 60)
+        t = solved.read("", t, 60)
+        assertTrue(solved.solved)
+        solved.read("", t, ClassicDisplay.RUN_OVER_TICKS + 300)
+        assertEquals(0, solved.departures)
+    }
+
+    @Test
     fun `every door that was closed open again is solved - and a door closing again undoes that`() {
         val c = display(1)
         var t = c.read("134", 0)

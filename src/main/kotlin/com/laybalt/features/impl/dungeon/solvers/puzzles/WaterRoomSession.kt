@@ -80,6 +80,7 @@ class WaterRoomSession(val room: UniqueRoom, private val tables: Map<Int, Shippe
         val gates = WaterBoardReader.readGates(f)
         val indicator = if (core.classic.variant < 0) WaterBoardReader.readVariant(f) else null
         core.recovery = PuzzleSolvers.waterRecovery.value
+        core.advancedFirst = PuzzleSolvers.waterBoardFirst.value
         core.toleranceTicks = (PuzzleSolvers.waterTolerance.value.toDouble() * 20).toInt()
         val rekeys = core.classic.rekeys
         core.tick(tick, available, gates, indicator)
