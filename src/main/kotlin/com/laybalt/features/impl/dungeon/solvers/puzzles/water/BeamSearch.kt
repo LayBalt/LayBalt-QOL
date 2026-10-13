@@ -92,7 +92,7 @@ object BeamSearch {
         out += null
         if (node.steps.size >= req.budget.maxFlips) return out
         for (lever in WaterLever.entries) {
-            val earliest = if (node.lastLever == null) req.human.firstClick(req.now, lever) else node.lastClick + req.human.gap(node.lastLever, lever)
+            val earliest = if (node.lastLever == null) req.human.firstClick(req.startAt, lever) else node.lastClick + req.human.gap(node.lastLever, lever)
             if (t >= earliest) out += lever
         }
         return out

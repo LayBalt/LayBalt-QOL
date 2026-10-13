@@ -103,12 +103,18 @@ class SupervisorPlanningTest {
     }
 
     @Test
-    fun `a plan whose first click is already past is not used`() {
+    fun `a plan that comes too late for its first click is asked for again, three times at most`() {
         val h = harness()
-        val request = h.strayCoal()
+        var request = h.strayCoal()
+        repeat(WaterSupervisor.MAX_LATE_RETRIES) { retry ->
+            h.ticks(10) { flowing() }
+            h.sup.onPlanResult(request.id, plan(h, PlanStep(COAL, h.board.now - 8)), h.board)
+            assertEquals(Stage.PLANNING, h.sup.stage, "a late plan is asked for again (retry $retry)")
+            request = h.requests().filterIsInstance<WaterSupervisor.PlanNeeded>().last()
+        }
         h.ticks(10) { flowing() }
         h.sup.onPlanResult(request.id, plan(h, PlanStep(COAL, h.board.now - 8)), h.board)
-        assertEquals(Stage.STOP_WATER, h.sup.stage)
+        assertEquals(Stage.STOP_WATER, h.sup.stage, "after three late plans the restart it is")
     }
 
     @Test

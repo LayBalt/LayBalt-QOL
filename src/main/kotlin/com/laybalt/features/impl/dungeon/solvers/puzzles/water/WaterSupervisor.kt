@@ -118,6 +118,7 @@ class WaterSupervisor(val table: ShippedTable) {
     private var planText = ""
     private var planHint = ""
     private var replans = 0
+    private var lateRetries = 0
     private var stepFollower: StepFollower? = null
     private var contToggled = 0
     private var contStart = - 1
@@ -193,6 +194,13 @@ class WaterSupervisor(val table: ShippedTable) {
         if (stage != Stage.PLANNING || id != planId || ! view.ready) return
         now = view.now
         val first = plan?.steps?.firstOrNull()
+        if (plan != null && first != null && first.clickTick < now - LATE_START_TICKS && lateRetries < MAX_LATE_RETRIES) {
+            // The plan came too late for its own first click: plan again from the board as it is now.
+            lateRetries ++
+            planSince = now
+            replanRequest()
+            return
+        }
         if (plan == null || first != null && first.clickTick < now - LATE_START_TICKS) {
             fallback(view)
             return
@@ -447,6 +455,7 @@ class WaterSupervisor(val table: ShippedTable) {
         if (! view.waterOn && view.boardWater <= residualWater) return false
         if (replans >= MAX_REPLANS) return false
         replans ++
+        lateRetries = 0
         val remaining = currentRemaining()
         follower = null
         continuation = null
@@ -768,10 +777,13 @@ class WaterSupervisor(val table: ShippedTable) {
         const val STALLED_DRAIN_TICKS = 300
 
         /** The planner gets this long before the drain-and-restart fallback is shown instead. */
-        const val PLAN_WAIT_TICKS = 20
+        const val PLAN_WAIT_TICKS = 30
 
         /** A plan whose first click is this far in the past when it arrives is not used. */
         const val LATE_START_TICKS = 4
+
+        /** A plan that arrives too late is asked for again this often before the fallback is used. */
+        const val MAX_LATE_RETRIES = 3
 
         /** Plans in a row without a door opening before the fallback is used for good. */
         const val MAX_REPLANS = 3

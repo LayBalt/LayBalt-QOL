@@ -33,6 +33,8 @@ class ContinuationPlan(
     val summary: String,
 ) {
     val lastClick: Int get() = steps.maxOfOrNull { it.clickTick } ?: 0
+
+    fun withMargin(margin: Int) = ContinuationPlan(family, steps, predictedEnd, doors, margin, summary)
     override fun toString() = "$family ${steps.joinToString { "${it.lever.displayName}@${it.clickTick}" }} -> $predictedEnd"
 }
 
@@ -127,6 +129,8 @@ class PlanRequest(
     val allowStatic: Boolean = true,
     /** Doors whose water has just arrived but which have not toggled yet: they toggle on their own. */
     val pendingDoors: Int = 0,
+    /** When the plan will reach the player (now plus the planner's expected delay): no click is planned before. */
+    val startAt: Int = now,
 ) {
     /** The doors once the pending toggles happened: each needs water exactly once more, the others none. */
     val target: Int get() = (closed xor pendingDoors) and Door.ALL
@@ -166,20 +170,22 @@ object Planner {
     /** Timed candidates that are also tried with later clicks. */
     const val ROBUSTIFY_CANDIDATES = 4
 
+    /** Plans whose timing margin is checked at most (in order of speed). */
+    const val MARGIN_CHECKS = 12
+
     fun plan(req: PlanRequest, cancel: CancelToken = CancelToken.NONE): PlanResult {
         val started = System.nanoTime()
         fun outOfTime() = req.budget.wallClockMs > 0 && (System.nanoTime() - started) / 1_000_000 > req.budget.wallClockMs
         var evaluated = 0
-        val found = ArrayList<ContinuationPlan>()
+        // Plans that work when played exactly; whether they also work a little off is checked only for the ones chosen.
+        val solved = ArrayList<ContinuationPlan>()
 
-        fun consider(family: PlanFamily, steps: List<PlanStep>, summary: (List<PlanStep>) -> String) {
+        fun consider(family: PlanFamily, steps: List<PlanStep>, summary: (List<PlanStep>) -> String): ContinuationPlan? {
             cancel.check()
             evaluated ++
             val e = evaluate(req, steps)
-            if (! e.solved) return
-            val margin = margin(req, steps)
-            if (margin < req.budget.robustDelta) return
-            found += ContinuationPlan(family, steps, e.end, req.closed, margin, summary(steps))
+            if (! e.solved) return null
+            return ContinuationPlan(family, steps, e.end, req.closed, - 1, summary(steps)).also { solved += it }
         }
 
         // Repairs of the plan being followed.
@@ -203,36 +209,78 @@ object Planner {
                     waterOn -> listOf(WaterLever.WATER) + order
                     else -> order + WaterLever.WATER
                 }
-                val steps = timeline(req.human, req.now, levers)
+                val steps = timeline(req.human, req.startAt, levers)
                 consider(PlanFamily.STATIC, steps) { staticSummary(it, waterOn) }
             }
         }
+        var best = pickRobust(req, solved, cancel, ::outOfTime)
 
         // Timed search, only when nothing cheap comes close to the best possible.
         if (req.budget.timed && ! outOfTime()) {
-            val bestSoFar = found.minOfOrNull { it.predictedEnd } ?: req.restartEnd
-            val seeds = found.map { it.steps }
+            val bestSoFar = best?.predictedEnd ?: req.restartEnd
+            val seeds = solved.map { it.steps }
             // Soonest first; the first one with room for error is taken. The search lands on the earliest tick a click
             // works, which is often right at the edge: the first few are also tried with their later clicks moved later.
             val candidates = BeamSearch.search(req, seeds, bestSoFar, cancel).take(req.budget.maxSolutions)
+            var timed: ContinuationPlan? = null
             for ((i, candidate) in candidates.withIndex()) {
                 if (outOfTime()) break
-                consider(PlanFamily.TIMED, candidate) { timedSummary(it) }
-                if (found.any { it.family == PlanFamily.TIMED }) break
-                if (i < ROBUSTIFY_CANDIDATES) robustify(req, candidate, cancel)?.let { consider(PlanFamily.TIMED, it) { s -> timedSummary(s) } }
-                if (found.any { it.family == PlanFamily.TIMED }) break
+                val plan = consider(PlanFamily.TIMED, candidate) { timedSummary(it) } ?: continue
+                val m = margin(req, plan.steps)
+                if (m >= req.budget.robustDelta) {
+                    timed = plan.withMargin(m)
+                    break
+                }
+                if (i < ROBUSTIFY_CANDIDATES) {
+                    val moved = robustify(req, candidate, cancel)?.let { consider(PlanFamily.TIMED, it) { s -> timedSummary(s) } } ?: continue
+                    timed = moved.withMargin(margin(req, moved.steps))
+                    break
+                }
             }
+            if (timed != null) best = choose(listOfNotNull(best, timed), req.restartEnd)
         }
 
-        val best = choose(found, req.restartEnd)
-        val note = "${found.size} working plans out of $evaluated" + (if (outOfTime()) " (time limit)" else "")
-        return PlanResult(best, evaluated, found.size, note)
+        val chosen = best?.takeIf { score(it) < req.restartEnd }
+        val note = "${solved.size} working plans out of $evaluated" + (if (outOfTime()) " (time limit)" else "")
+        return PlanResult(chosen, evaluated, solved.size, note)
     }
 
-    /** The plan to follow: fastest, a repair if it is nearly as fast, nothing if restarting is faster. */
+    private fun score(p: ContinuationPlan) = p.predictedEnd + if (p.family == PlanFamily.TIMED) TIMED_PENALTY else 0
+
+    private val ORDER = compareBy<ContinuationPlan>({ score(it) }, { it.steps.size }, { it.family.ordinal }, { it.steps.joinToString { s -> "${s.lever.ordinal}:${s.clickTick}" } })
+
+    /**
+     * The fastest plan that also works with every click [SearchBudget.robustDelta] ticks off, or a repair that is nearly as
+     * fast. Margins are only computed in order of speed, for at most [MARGIN_CHECKS] plans.
+     */
+    private fun pickRobust(req: PlanRequest, plans: List<ContinuationPlan>, cancel: CancelToken, outOfTime: () -> Boolean): ContinuationPlan? {
+        val ordered = plans.sortedWith(ORDER)
+        var checks = 0
+        fun robust(p: ContinuationPlan): ContinuationPlan? {
+            if (checks ++ >= MARGIN_CHECKS || outOfTime()) return null
+            cancel.check()
+            val m = margin(req, p.steps)
+            return if (m >= req.budget.robustDelta) p.withMargin(m) else null
+        }
+        var best: ContinuationPlan? = null
+        for (p in ordered) {
+            if (score(p) >= req.restartEnd) break
+            best = robust(p) ?: continue
+            break
+        }
+        val found = best ?: return null
+        if (found.family == PlanFamily.REPAIR) return found
+        for (p in ordered) {
+            if (p.family != PlanFamily.REPAIR) continue
+            if (score(p) > score(found) + FAMILIAR_BONUS) break
+            robust(p)?.let { return it }
+        }
+        return found
+    }
+
+    /** The plan to follow among robust ones: fastest, a repair if it is nearly as fast, nothing if restarting is faster. */
     fun choose(plans: List<ContinuationPlan>, restartEnd: Int): ContinuationPlan? {
-        fun score(p: ContinuationPlan) = p.predictedEnd + if (p.family == PlanFamily.TIMED) TIMED_PENALTY else 0
-        val ordered = plans.sortedWith(compareBy<ContinuationPlan>({ score(it) }, { it.steps.size }, { it.family.ordinal }, { it.steps.joinToString { s -> "${s.lever.ordinal}:${s.clickTick}" } }))
+        val ordered = plans.sortedWith(ORDER)
         val best = ordered.firstOrNull() ?: return null
         val repair = ordered.firstOrNull { it.family == PlanFamily.REPAIR && score(it) <= score(best) + FAMILIAR_BONUS }
         val chosen = repair ?: best
@@ -339,16 +387,16 @@ object Planner {
 
     private fun repairs(req: PlanRequest, remaining: List<PlanStep>): List<Pair<List<PlanStep>, String>> {
         val out = ArrayList<Pair<List<PlanStep>, String>>()
-        val base = retime(req.human, req.now, remaining)
+        val base = retime(req.human, req.startAt, remaining)
         out += base to "keep following the timers"
         val lever = req.fault?.lever ?: return out
         val first = remaining.indexOfFirst { it.lever == lever }
         val withoutFirst = if (first >= 0) remaining.filterIndexed { i, _ -> i != first } else null
-        val nowStep = listOf(PlanStep(lever, req.human.firstClick(req.now, lever)))
-        out += retime(req.human, req.now, nowStep + remaining) to "flip ${lever.displayName} now, then follow the timers"
+        val nowStep = listOf(PlanStep(lever, req.human.firstClick(req.startAt, lever)))
+        out += retime(req.human, req.startAt, nowStep + remaining) to "flip ${lever.displayName} now, then follow the timers"
         if (withoutFirst != null) {
-            out += retime(req.human, req.now, withoutFirst) to "skip ${lever.displayName}'s next flip, then follow the timers"
-            out += retime(req.human, req.now, nowStep + withoutFirst) to "flip ${lever.displayName} now instead of later, then follow the timers"
+            out += retime(req.human, req.startAt, withoutFirst) to "skip ${lever.displayName}'s next flip, then follow the timers"
+            out += retime(req.human, req.startAt, nowStep + withoutFirst) to "flip ${lever.displayName} now instead of later, then follow the timers"
         }
         return out.distinctBy { (steps, _) -> steps }
     }

@@ -45,6 +45,10 @@ class WaterSimBridge(
     private val recentFlips = ArrayDeque<IntArray>()
     private val doorToggled = IntArray(Door.entries.size) { BoardTracker.NEVER }
     private var lastPlanNote = ""
+
+    /** Ticks a plan typically takes from the request to the player (measured; plans start no earlier). */
+    private var planLatency = 8
+    private val requestedAt = HashMap<Int, Int>()
     private var doorsWithoutWater = 0
 
     // ================================================================================================================
@@ -187,7 +191,9 @@ class WaterSimBridge(
                     sup.onPlanResult(r.id, null, tracker)
                     continue
                 }
+                requestedAt[r.id] = now
                 WaterPlannerExecutor.submit(WaterPlannerExecutor.Kind.PLAN, sessionId, { Planner.plan(req, it) }) { result ->
+                    requestedAt.remove(r.id)?.let { at -> learnLatency(tracker.now - at) }
                     lastPlanNote = result.note
                     LayBaltQOL.logger.info("[WaterBoard] plan: ${result.best ?: "none, restart"} (${result.note})")
                     sup.onPlanResult(r.id, result.best, tracker)
@@ -201,6 +207,11 @@ class WaterSimBridge(
                 }
             }
         }
+    }
+
+    private fun learnLatency(ticks: Int) {
+        planLatency = if (ticks > planLatency) (ticks + 2).coerceAtMost(40) else maxOf(4, (planLatency * 3 + ticks) / 4)
+        requestedAt.keys.removeAll { it < 0 }
     }
 
     private fun reason(e: Evaluation): String? = when {
@@ -235,7 +246,10 @@ class WaterSimBridge(
         val state = sync(now, extra) ?: return null
         val restartEnd = now + (if (tracker.waterOn) 20 else 0) + restartCost(sup)
         val budget = SearchBudget(timed = trust == SimTrust.TRUSTED)
-        return PlanRequest(l, calibration.rules, state, now, tracker.doors, perm, human, left, fault, restartEnd, budget, pendingDoors = pendingDoors(now))
+        return PlanRequest(
+            l, calibration.rules, state, now, tracker.doors, perm, human, left, fault, restartEnd, budget,
+            pendingDoors = pendingDoors(now), startAt = now + planLatency,
+        )
     }
 
     /** Ticks a drain and restart would take from here (the cheaper of the shipped plays and a static setting). */
