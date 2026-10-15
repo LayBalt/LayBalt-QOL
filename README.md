@@ -1,7 +1,16 @@
 <!-- markdownlint-disable-file MD001 MD033 -->
 <h2 align="center">LayBalt Repository</h2>
-<h2 align="center">Version 3.2.4</h2>
+<h2 align="center">Version 3.2.5</h2>
 <h4 align="center">LayBaltQOL (LBQ) is a feature-rich Fabric mod for Hypixel Skyblock on Minecraft 26.2.</h4>
+
+---
+
+<h3 align="center">3.2.5: Water Board hotfix</h3>
+
+- **Water Board.** The solver works again. In 3.2.4 it read the board at dungeon start, before Hypixel closes the three doors (that happens when the first player walks in), took the open doors for a solved puzzle and stayed silent for the rest of the run. It now waits for the doors to close, and the puzzle only counts as solved once the map or the reward chest confirms it.
+- **The 3.2.3 timers lead again.** The first run in every room shows the shipped timed solution (countdowns, CLICK labels, tracer). The board-reading guidance only takes over after a run fails, when someone else changes the doors, on <code>/lbq water replan</code>, or with the new <b>Water Board-Reading First</b> option (off by default).
+- **Board reading.** Positions in unloaded chunks (after a death, a teleport or walking away) keep their last value instead of reading as air, short door flickers are filtered, and a double flick of the water lever no longer counts as a water switch.
+- **Water Board Recorder** is now on by default. It writes small local files to <code>config/LayBaltQOL/waterboard/</code> (a trace per room; old files are deleted automatically) so problems can be diagnosed. Turning it off sticks.
 
 ---
 
