@@ -35,7 +35,7 @@ object ChatFeatures: Feature(jsonName = "Chat", description = "Useful tweaks for
     private val chatEmoji by ToggleSetting("Chat Emoji", true).withDescription("Lets you use [MVP++] emojis in chat")
 
     //#if CHEAT
-    private val autoDialogue by ToggleSetting("Auto dialogue").withDescription("Automatically continues dialogues with NPCs.")
+    private val autoDialogue by ToggleSetting("Auto dialogue").withDescription("Clicks the first reply option when an NPC dialogue asks you to choose.")
     //#endif
 
     private val uselessMessages by lazy { DataDownloader.loadJson<List<String>>("uselessMessages.json").map(::Regex) }
@@ -135,7 +135,7 @@ object ChatFeatures: Feature(jsonName = "Chat", description = "Useful tweaks for
         }
 
         //#if CHEAT
-        // https://github.com/jcnlk/quoi/blob/6e74cc3536aa1db91fe4a134254668a96c2ea072/src/main/kotlin/quoi/module/impl/general/chat/impl/AutoDialogue.kt#L4
+        // Idea from quoi's AutoDialogue (no code taken): https://github.com/jcnlk/quoi/blob/6e74cc3536aa1db91fe4a134254668a96c2ea072/src/main/kotlin/quoi/module/impl/general/chat/impl/AutoDialogue.kt#L4
         register<ChatMessageEvent> {
             if (! autoDialogue.value) return@register
             if ("[BARBARIANS] [MAGES]" in event.unformattedText) return@register

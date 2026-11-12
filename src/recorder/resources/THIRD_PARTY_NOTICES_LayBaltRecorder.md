@@ -1,6 +1,6 @@
 # LayBalt Recorder: third-party notices
 
-LayBalt Recorder is the Fishing Recorder of LayBalt QOL on its own (CC0-1.0, see `LICENSE_LayBaltRecorder`).
+LayBalt Recorder is the Fishing Recorder of LayBalt QOL on its own (the Unlicense, see `LICENSE_LayBaltRecorder`).
 
 ## NoammAddons (core)
 
@@ -9,7 +9,7 @@ LayBalt Recorder is the Fishing Recorder of LayBalt QOL on its own (CC0-1.0, see
 
 ## SkyHanni-REPO
 
-- Project: [SkyHanni-REPO](https://github.com/hannibal2/SkyHanni-REPO) (data repository of the SkyHanni mod) by hannibal2 and contributors
+- Project: [SkyHanni-REPO](https://github.com/SkyHanniStudios/SkyHanni-REPO) (data repository of the SkyHanni mod) by hannibal2 and contributors
 - Licence: MIT, Copyright (c) 2022 hannibal2 (full text below)
 - Use: `assets/lbqmod/sea-creatures.json` (sea creature names, location groups, rarities, rare flags and catch messages) is converted from SkyHanni-REPO `constants/SeaCreatures.json`. No SkyHanni code is included; the file names its source in its `source` field.
 

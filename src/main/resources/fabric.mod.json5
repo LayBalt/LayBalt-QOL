@@ -17,7 +17,7 @@
     "sources": "https://github.com/LayBalt/LayBalt-QOL",
     "issues": "https://github.com/LayBalt/LayBalt-QOL/issues"
   },
-  "license": "CC0-1.0",
+  "license": "Unlicense",
   "icon": "assets/lbqmod/icon.png",
   "environment": "*",
   "entrypoints": {
@@ -53,7 +53,7 @@
   "custom": {
     "modmenu": {
       "links": {
-        "Discord": "https://discord.gg/laybalt"
+        "Discord": "https://discord.gg/555QWxv6nS"
       }
     }
   }

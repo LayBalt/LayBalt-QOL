@@ -1,3 +1,4 @@
+// Parts of this file are ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.floor7
 
 import com.laybalt.config.types.*

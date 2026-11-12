@@ -1,3 +1,4 @@
+// Parts of this file are ported from today-i-learned (https://github.com/ikumen/today-i-learned), MIT License, Copyright (c) 2021 ikumen: the TicTacToeUtils minimax, via NoammAddons e006a780
 package com.laybalt.features.impl.dungeon.solvers.puzzles
 
 import com.laybalt.LayBaltQOL.mc

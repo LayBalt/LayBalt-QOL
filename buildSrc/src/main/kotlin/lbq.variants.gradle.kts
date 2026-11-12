@@ -100,6 +100,7 @@ val jarCheat = tasks.register<Jar>("jarCheat") {
     archiveClassifier.set("cheat")
     destinationDirectory.set(libsDir)
     from("LICENSE") { rename { "${it}_$mod_name" } }
+    from("THIRD_PARTY_NOTICES.md") { rename { "THIRD_PARTY_NOTICES_$mod_name.md" } }
 }
 
 val jarLegit = tasks.register<Jar>("jarLegit") {
@@ -108,6 +109,7 @@ val jarLegit = tasks.register<Jar>("jarLegit") {
     archiveClassifier.set("legit")
     destinationDirectory.set(libsDir)
     from("LICENSE") { rename { "${it}_$mod_name" } }
+    from("THIRD_PARTY_NOTICES.md") { rename { "THIRD_PARTY_NOTICES_$mod_name.md" } }
 }
 
 val legitSourcesJar = tasks.register<Jar>("legitSourcesJar") {

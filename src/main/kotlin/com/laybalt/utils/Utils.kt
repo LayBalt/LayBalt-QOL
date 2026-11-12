@@ -10,7 +10,7 @@ import java.net.URI
 object Utils {
     val favoriteColor = Color(0, 134, 255)
 
-    fun openDiscordLink() = UDesktop.browse(URI("https://discord.gg/laybalt"))
+    fun openDiscordLink() = UDesktop.browse(URI("https://discord.gg/555QWxv6nS"))
 
     fun Packet<ServerGamePacketListener>.send() = mc.connection?.send(this)
 }

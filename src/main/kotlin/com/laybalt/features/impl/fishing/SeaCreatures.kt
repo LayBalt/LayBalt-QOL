@@ -1,4 +1,4 @@
-// Sea creature table converted from SkyHanni-REPO (https://github.com/hannibal2/SkyHanni-REPO), MIT License, Copyright (c) 2022 hannibal2
+// Sea creature table converted from SkyHanni-REPO (https://github.com/SkyHanniStudios/SkyHanni-REPO), MIT License, Copyright (c) 2022 hannibal2
 package com.laybalt.features.impl.fishing
 
 //#if CHEAT

@@ -7,8 +7,8 @@ import kotlin.math.roundToInt
 data class TimedClick(val lever: WaterLever, val tick: Int)
 
 /**
- * One entry of `waterSolutions.json` (Odin's non-optimised set, BSD-3): the timed flips that open exactly the doors in
- * [key] when played from the variant's untouched lever state.
+ * One entry of `waterSolutions.json` (Odin's non-optimised set, BSD-3-Clause, Copyright (c) 2025 odtheking): the
+ * timed flips that open exactly the doors in [key] when played from the variant's untouched lever state.
  *
  * Times are seconds after the click on the water lever. A `0.0` entry of a block lever is a flip *before* the water;
  * the water lever's first `0.0` is the start itself and a later water entry turns the water off again (12 of the 40

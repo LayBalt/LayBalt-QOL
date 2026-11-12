@@ -4,9 +4,9 @@ package com.laybalt.features.impl.general.experiments
 
 /**
  * The stake you pick in the "Chronomatron ➜ Stakes" / "Ultrasequencer ➜ Stakes" menu, read from its lore (lines without
- * formatting), as SkyHanni's SuperpairsClicksAlert reads it: the last "Chain of N:" (Chronomatron) or "Series of N:"
- * (Ultrasequencer) reward line is the round count that gives the most Superpairs clicks, with any Metaphysical Serums
- * already counted in by Hypixel. Minecraft-free, so it is unit tested.
+ * formatting). The last "Chain of N:" (Chronomatron) or "Series of N:" (Ultrasequencer) reward line is the round count
+ * that gives the most Superpairs clicks, with any Metaphysical Serums already counted in by Hypixel; SkyHanni's
+ * Superpairs clicks alert stops at the same line. Minecraft-free, so it is unit tested.
  */
 sealed interface Stake {
     /** The most Superpairs clicks come with [rounds] rounds. */
@@ -16,13 +16,27 @@ sealed interface Stake {
     data object Practice: Stake
 
     companion object {
-        private val roundsRegex = Regex("""(?:Chain|Series) of (\d+):""")
+        /** A reward line of the stake: "Chain of 12:" in Chronomatron, "Series of 15:" in Ultrasequencer. */
+        private val rewardLine = Regex("""(?:Chain|Series) of (\d+):""")
 
-        /** The stake whose item has these lore lines; null when it cannot be played (level or experience too low) or says nothing. */
-        fun of(lore: List<String>): Stake? = when {
-            lore.any { "Practice mode has no rewards" in it } -> Practice
-            lore.any { "Enchanting level too low!" in it || "Not enough experience!" in it } -> null
-            else -> lore.asReversed().firstNotNullOfOrNull { roundsRegex.find(it)?.groupValues?.get(1)?.toIntOrNull() }?.let(::Rewards)
+        /**
+         * The stake whose item has these lore lines: practice mode if any line says so, null when it cannot be played
+         * (level or experience too low) or names no reward line, else the rounds of its last reward line.
+         */
+        fun of(lore: List<String>): Stake? {
+            var practice = false
+            var locked = false
+            var rounds: Int? = null
+            for (line in lore) {
+                if ("Practice mode has no rewards" in line) practice = true
+                if ("Enchanting level too low!" in line || "Not enough experience!" in line) locked = true
+                rewardLine.find(line)?.groupValues?.get(1)?.toIntOrNull()?.let { rounds = it }
+            }
+            return when {
+                practice -> Practice
+                locked -> null
+                else -> rounds?.let(::Rewards)
+            }
         }
 
         /**

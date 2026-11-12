@@ -194,6 +194,9 @@ tasks.named<Jar>("jar") {
     from("LICENSE") {
         rename { "${it}_$mod_name" }
     }
+    from("THIRD_PARTY_NOTICES.md") {
+        rename { "THIRD_PARTY_NOTICES_$mod_name.md" }
+    }
 }
 
 listOf("jarCheat", "jarLegit").forEach { taskName ->

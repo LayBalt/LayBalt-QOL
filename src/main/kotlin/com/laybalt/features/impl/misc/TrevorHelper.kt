@@ -34,6 +34,7 @@ import java.awt.Color
 
 /**
  * Based off Nebulune by Starred
+ * Copyright (c) 2025, Starred
  * under BSD-3 Clause license https://github.com/skies-starred/Nebulune/blob/master/LICENSE
  * @link https://github.com/skies-starred/Nebulune/blob/master/src/main/kotlin/foo/starred/nebulune/modules/impl/general/TrevorHelper.kt
  * Modified

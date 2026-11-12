@@ -5,8 +5,8 @@ package com.laybalt.features.impl.dungeon.solvers.puzzles.water
  *
  * The board is the plane z = [BOARD_Z]; the six lever materials move between it and the hidden plane z = [HIDDEN_Z]
  * behind it. The grid covers x -10..10 and y 56..84 (door-pit floor to the top of the water shaft), row 0 = y 84.
- * Lever, door and pattern-indicator positions are Odin's (BSD-3), converted from room-corner coordinates (minus 15
- * on x and z).
+ * Lever, door and pattern-indicator positions are Odin's (BSD-3-Clause, Copyright (c) 2025 odtheking), converted
+ * from room-corner coordinates (minus 15 on x and z).
  */
 object BoardGeometry {
     const val MIN_X = - 10

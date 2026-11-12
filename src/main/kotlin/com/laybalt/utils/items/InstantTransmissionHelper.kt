@@ -1,3 +1,4 @@
+// The AOTV landing prediction is adapted from Shizo by ImJoyler, via NoammAddons 3047b631. Licence unknown (no public source or licence could be found); the Unlicense does not cover this part, see THIRD_PARTY_NOTICES.md.
 package com.laybalt.utils.items
 
 import com.laybalt.LayBaltQOL.mc
