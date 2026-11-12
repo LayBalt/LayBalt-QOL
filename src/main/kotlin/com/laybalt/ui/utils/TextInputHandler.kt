@@ -1,0 +1,466 @@
+// Ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
+package com.laybalt.ui.utils
+
+import com.laybalt.LayBaltQOL.mc
+import com.laybalt.ui.Palette
+import com.laybalt.ui.clickgui.components.settings.Style
+import com.laybalt.ui.render.Shapes.pixel
+import com.laybalt.ui.render.Shapes.roundedRect
+import com.laybalt.ui.text.UIFont
+import com.laybalt.utils.ColorUtils.withAlpha
+import com.laybalt.utils.render.Render2D.drawRect
+import com.laybalt.utils.render.Render2D.drawString
+import com.laybalt.utils.render.Render2D.scissor
+import com.laybalt.utils.render.RenderHelper.width
+import com.mojang.blaze3d.platform.InputConstants
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.input.*
+import net.minecraft.util.StringUtil
+import java.awt.Color
+import kotlin.math.max
+import kotlin.math.min
+
+
+/**
+ * Single-line text editing for the LayBalt screens (caret, mouse selection, word jumps, clipboard, undo/redo), drawn
+ * with [UIFont]. The owner positions it every frame ([x], [y], [width], [height]) and draws the field background.
+ *
+ * @author Odin
+ * @see <a href="https://github.com/odtheking/OdinFabric/blob/c55825af8b8b1080421cf90f61d5a3bdd5e42f14/src/main/kotlin/com/odtheking/odin/utils/ui/TextInputHandler.kt">TextInputHandler</a>
+ * Modified
+ */
+class TextInputHandler(
+    private val textProvider: () -> String,
+    private val textSetter: (String) -> Unit
+) {
+    private inline val text: String get() = textProvider()
+
+    var x = 0f
+    var y = 0f
+    var width = 0f
+    var height = 18f
+
+    /** Inter text size; the text is vertically centred and the caret is as tall as the text. */
+    var fontSize = 7.6f
+    var textColor: Color = Palette.textPrimary
+    /** Horizontal inset of the text inside the field. */
+    var padding = 4f
+    /** Multiplies the alpha of everything the field draws (screen fade). */
+    var opacity = 1f
+    /**
+     * Draw and measure with the vanilla font (9-unit line, shadowed, § colour codes) instead of Inter: for in-game
+     * overlays such as the container search bar, which keep the vanilla look. [fontSize] is ignored.
+     */
+    var useVanillaFont = false
+
+    private var caret = text.length
+        set(value) {
+            if (field == value) return
+            field = value.coerceIn(0, text.length)
+            caretBlinkTime = System.currentTimeMillis()
+        }
+
+    private var selection = text.length
+    private var selectionWidth = 0f
+    private var selectionStartX = 0f
+    private var textOffset = 0f
+    private var caretX = 0f
+
+    private var caretBlinkTime = System.currentTimeMillis()
+    private var lastClickTime = 0L
+    var listening = false
+        set(value) {
+            if (field == value) return
+            field = value
+            mc.textInputManager().onTextInputFocusChange(value)
+        }
+    private var dragging = false
+    private var clickCount = 1
+
+    private val history = mutableListOf<String>()
+    private var historyIndex = - 1
+    private var lastSavedText = ""
+
+    init {
+        saveState()
+    }
+
+    private var previousMousePos = 0f to 0f
+
+    fun draw(context: GuiGraphicsExtractor, mouseX: Float, mouseY: Float, suffix: String? = null) {
+        if (previousMousePos != mouseX to mouseY) mouseDragged(mouseX)
+        previousMousePos = mouseX to mouseY
+
+        if (useVanillaFont) return drawVanilla(context, suffix)
+        val size = fontSize
+
+        val lineH = UIFont.lineHeight(size)
+        val capH = UIFont.capHeight(size)
+        context.scissor(x, y, width, height)
+        if (selectionWidth != 0f) context.roundedRect(
+            x + selectionStartX + padding - textOffset, y + (height - capH * 1.9f) / 2f,
+            selectionWidth, capH * 1.9f, 1.5f, fade(Style.accentColor.withAlpha(110))
+        )
+        UIFont.draw(context, text + suffix.orEmpty(), x + padding - textOffset, y + (height - lineH) / 2f, fade(textColor), size)
+        if (listening) {
+            val time = System.currentTimeMillis()
+            if (time - caretBlinkTime < 530) context.roundedRect(
+                x + caretX + padding - textOffset, y + (height - capH * 1.7f) / 2f,
+                0.9f.coerceAtLeast(context.pixel()), capH * 1.7f, 0f, fade(Style.accentColor)
+            )
+            else if (time - caretBlinkTime > 1060) caretBlinkTime = time
+        }
+        context.disableScissor()
+    }
+
+    /** The pre-LayBalt-GUI look: vanilla text, a 9-unit caret and a flat selection box. */
+    private fun drawVanilla(context: GuiGraphicsExtractor, suffix: String?) {
+        context.scissor(x, y, width, height)
+        if (selectionWidth != 0f) context.drawRect(x + selectionStartX + padding - textOffset, y + 5f, selectionWidth, height - 10, fade(Style.accentColor.withAlpha(110)))
+        if (listening) {
+            val time = System.currentTimeMillis()
+            if (time - caretBlinkTime < 500) context.drawRect(x + caretX + padding - textOffset, y + height / 3.4, 1, 9, fade(textColor))
+            else if (time - caretBlinkTime > 1000) caretBlinkTime = time
+        }
+        context.drawString(text + suffix.orEmpty(), x + padding - textOffset, y + height / 2f - 5, fade(textColor))
+        context.disableScissor()
+    }
+
+    private fun fade(color: Color) = if (opacity >= 0.999f) color else color.withAlpha((color.alpha * opacity).toInt())
+
+    /** Moves the caret to the end of the text and starts listening (used to focus a field from the keyboard). */
+    fun focusEnd() {
+        listening = true
+        caret = text.length
+        clearSelection()
+        updateCaretPosition()
+    }
+
+    fun mouseClicked(mouseX: Float, mouseY: Float, click: MouseButtonEvent): Boolean {
+        if (! (mouseX in x .. (x + width) && mouseY in y .. (y + height))) {
+            resetState()
+            return false
+        }
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return false
+
+        listening = true
+        dragging = true
+
+        val current = System.currentTimeMillis()
+        if (current - lastClickTime < 200) clickCount ++ else clickCount = 1
+        lastClickTime = current
+
+        when (clickCount) {
+            1 -> {
+                caretFromMouse(mouseX)
+                clearSelection()
+            }
+
+            2 -> selectWord()
+            3 -> selectAll()
+            4 -> clickCount = 0
+        }
+        return true
+    }
+
+    fun mouseReleased() {
+        dragging = false
+    }
+
+    private fun mouseDragged(mouseX: Float) {
+        if (dragging) caretFromMouse(mouseX)
+    }
+
+    fun keyPressed(input: KeyEvent): Boolean {
+        if (! listening) return false
+        val returnValue = when (input.key) {
+            InputConstants.KEY_BACKSPACE -> {
+                if (selection != caret) deleteSelection()
+                else if (input.hasControlDown()) {
+                    val previousSpace = getPreviousSpace()
+                    textSetter(text.removeRangeSafe(previousSpace, caret))
+                    caret -= if (caret > previousSpace) caret - previousSpace else 0
+                }
+                else if (caret != 0) {
+                    textSetter(text.dropAt(caret, - 1))
+                    caret --
+                }
+                clearSelection()
+                selection != caret || input.hasControlDown() || caret != 0
+            }
+
+            InputConstants.KEY_DELETE -> {
+                if (selection != caret) deleteSelection()
+                else if (input.hasControlDown()) {
+                    val nextSpace = getNextSpace()
+                    textSetter(text.removeRangeSafe(caret, nextSpace))
+                    caret = if (caret < nextSpace) caret else nextSpace
+                }
+                else if (caret != text.length) {
+                    textSetter(text.dropAt(caret, 1))
+                    caret = if (caret < text.length) caret else text.length
+                }
+                clearSelection()
+                selection != caret || input.hasControlDown() || caret != text.length
+            }
+
+            InputConstants.KEY_RIGHT -> {
+                if (caret != text.length) {
+                    caret = if (input.hasControlDown()) getNextSpace() else caret + 1
+                    if (! input.hasShiftDown()) selection = caret
+                    true
+                }
+                else false
+            }
+
+            InputConstants.KEY_LEFT -> {
+                if (caret != 0) {
+                    caret = if (input.hasControlDown()) getPreviousSpace() else caret - 1
+                    if (! input.hasShiftDown()) selection = caret
+                    true
+                }
+                else false
+            }
+
+            InputConstants.KEY_HOME -> {
+                caret = 0
+                if (! input.hasShiftDown()) selection = caret
+                true
+            }
+
+            InputConstants.KEY_END -> {
+                caret = text.length
+                if (! input.hasShiftDown()) selection = caret
+                true
+            }
+
+            InputConstants.KEY_ESCAPE, InputConstants.KEY_RETURN -> {
+                listening = false
+                true
+            }
+
+            else -> {
+                if (input.hasControlDown() && ! input.hasShiftDown()) {
+                    when (input.key) {
+                        InputConstants.KEY_V -> {
+                            insert(mc.keyboardHandler.clipboard)
+                            true
+                        }
+
+                        InputConstants.KEY_C -> {
+                            if (caret != selection) {
+                                mc.keyboardHandler.clipboard = text.substringSafe(caret, selection)
+                                true
+                            }
+                            else false
+                        }
+
+                        InputConstants.KEY_X -> {
+                            if (caret != selection) {
+                                mc.keyboardHandler.clipboard = text.substringSafe(caret, selection)
+                                deleteSelection()
+                                true
+                            }
+                            else false
+                        }
+
+                        InputConstants.KEY_A -> {
+                            selection = 0
+                            caret = text.length
+                            true
+                        }
+
+                        InputConstants.KEY_W -> {
+                            selectWord()
+                            true
+                        }
+
+                        InputConstants.KEY_Z -> {
+                            undo()
+                            true
+                        }
+
+                        InputConstants.KEY_Y -> {
+                            redo()
+                            true
+                        }
+
+                        else -> false
+                    }
+                }
+                else false
+            }
+        }
+        updateCaretPosition()
+        return returnValue
+    }
+
+    fun keyTyped(input: CharacterEvent): Boolean {
+        if (! listening) return false
+
+        insert(StringUtil.filterText(input.codepointAsString()))
+        return true
+    }
+
+    private fun insert(string: String) {
+        if (caret != selection) {
+            textSetter(text.removeRangeSafe(caret, selection))
+            caret = if (selection > caret) caret else selection
+        }
+        val tl = text.length
+        textSetter(text.substringSafe(0, caret) + string + text.substringSafe(caret, text.length))
+        if (text.length != tl) caret += string.length
+        clearSelection()
+        updateCaretPosition()
+        saveState()
+    }
+
+    private fun deleteSelection() {
+        if (caret == selection) return
+        textSetter(text.removeRangeSafe(caret, selection))
+        caret = if (selection > caret) caret else selection
+        saveState()
+    }
+
+    private fun caretFromMouse(mouseX: Float) {
+        val mx = mouseX - (x + padding) + textOffset
+
+        var currWidth = 0f
+        var newCaret = 0
+
+        for (index in text.indices) {
+            val charWidth = textWidth(text[index].toString())
+            if ((currWidth + charWidth / 2) > mx) break
+            currWidth += charWidth
+            newCaret = index + 1
+        }
+        caret = newCaret
+        updateCaretPosition()
+    }
+
+    private fun updateCaretPosition() {
+        if (selection != caret) {
+            selectionStartX = textWidth(text.substringSafe(0, min(selection, caret)))
+            selectionWidth = textWidth(text.substringSafe(selection, caret))
+        }
+        else {
+            selectionStartX = 0f
+            selectionWidth = 0f
+        }
+
+        if (caret != 0) {
+            val previousX = caretX
+            caretX = textWidth(text.substringSafe(0, caret))
+
+            val visible = width - padding * 2f
+            if (previousX < caretX) {
+                if (caretX - textOffset >= visible) textOffset = caretX - visible
+            }
+            else {
+                if (caretX - textOffset <= 0f) textOffset = textWidth(text.substringSafe(0, caret - 1))
+            }
+
+            if (textOffset > 0 && textWidth(text) - textOffset < visible)
+                textOffset = (textWidth(text) - visible).coerceAtLeast(0f)
+        }
+        else {
+            caretX = 0f
+            textOffset = 0f
+        }
+    }
+
+    private fun clearSelection() {
+        selection = caret
+        selectionWidth = 0f
+        selectionStartX = 0f
+    }
+
+    private fun selectWord() {
+        var start = caret
+        var end = caret
+        while (start > 0 && ! text[start - 1].isWhitespace()) start --
+        while (end < text.length && ! text[end].isWhitespace()) end ++
+
+        selection = start
+        caret = end
+        updateCaretPosition()
+    }
+
+    private fun getPreviousSpace(): Int {
+        var start = caret
+        while (start > 0) {
+            if (start != caret && text[start - 1].isWhitespace()) break
+            start --
+        }
+        return start
+    }
+
+    private fun getNextSpace(): Int {
+        var end = caret
+        while (end < text.length) {
+            if (end != caret && text[end].isWhitespace()) break
+            end ++
+        }
+        return end
+    }
+
+    private fun textWidth(text: String): Float = if (useVanillaFont) text.width().toFloat() else UIFont.width(text, fontSize)
+
+    fun resetState() {
+        listening = false
+        textOffset = 0f
+        clearSelection()
+    }
+
+    private fun selectAll() {
+        selection = 0
+        caret = text.length
+        updateCaretPosition()
+    }
+
+    private fun saveState() {
+        if (text == lastSavedText) return
+
+        if (historyIndex < history.size - 1) history.subList(historyIndex + 1, history.size).clear()
+
+        history.add(text)
+        historyIndex = history.size - 1
+        lastSavedText = text
+    }
+
+    private fun undo() {
+        if (historyIndex <= 0) return
+
+        historyIndex --
+        textSetter(history[historyIndex])
+        caret = text.length
+        selection = caret
+        lastSavedText = text
+    }
+
+    private fun redo() {
+        if (historyIndex >= history.size - 1) return
+
+        historyIndex ++
+        textSetter(history[historyIndex])
+        caret = text.length
+        selection = caret
+        lastSavedText = text
+    }
+
+    private fun String.substringSafe(from: Int, to: Int): String {
+        val f = min(from, to).coerceIn(0, length)
+        val t = max(to, from).coerceIn(0, length)
+        if (t <= f) return ""
+        return substring(f, t)
+    }
+
+    private fun String.removeRangeSafe(from: Int, to: Int): String {
+        val f = min(from, to).coerceIn(0, length)
+        val t = max(to, from).coerceIn(0, length)
+        if (f >= t) return this
+        return removeRange(f, t)
+    }
+
+    private fun String.dropAt(at: Int, amount: Int) = removeRangeSafe(at, at + amount)
+}

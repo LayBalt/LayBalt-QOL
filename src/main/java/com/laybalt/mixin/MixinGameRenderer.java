@@ -1,0 +1,23 @@
+package com.laybalt.mixin;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.laybalt.features.impl.render.NoRender;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import org.spongepowered.asm.mixin.Final;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(GameRenderer.class)
+public class MixinGameRenderer {
+    @Shadow @Final private Minecraft minecraft;
+
+    @Inject(method = "bobHurt", at = @At("HEAD"), cancellable = true)
+    public void onBobHurt(CameraRenderState cameraState, PoseStack poseStack, CallbackInfo ci) {
+        if (minecraft.options.damageTiltStrength().get() == 0 || NoRender.active(NoRender.getHurtCamera())) ci.cancel();
+    }
+}

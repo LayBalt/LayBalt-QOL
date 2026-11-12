@@ -1,0 +1,610 @@
+{
+ "source": "SkyHanni-REPO constants/SeaCreatures.json (https://github.com/SkyHanniStudios/SkyHanni-REPO), MIT License, Copyright (c) 2022 hannibal2",
+ "groups": [
+  {
+   "id": "PARK",
+   "label": "The Park",
+   "creatures": [
+    {
+     "name": "Night Squid",
+     "rarity": "COMMON",
+     "catch": "Pitch darkness reveals a Night Squid."
+    }
+   ]
+  },
+  {
+   "id": "CHUMCAP",
+   "label": "Chumcap Bucket",
+   "creatures": [
+    {
+     "name": "Agarimoo",
+     "rarity": "RARE",
+     "catch": "Your Chumcap Bucket trembles, it's an Agarimoo."
+    }
+   ]
+  },
+  {
+   "id": "CARROT",
+   "label": "Carrot Bait",
+   "creatures": [
+    {
+     "name": "Carrot King",
+     "rarity": "RARE",
+     "rare": true,
+     "catch": "Is this even a fish? It's the Carrot King!"
+    }
+   ]
+  },
+  {
+   "id": "WATER",
+   "label": "Water",
+   "creatures": [
+    {
+     "name": "Squid",
+     "rarity": "COMMON",
+     "catch": "A Squid appeared."
+    },
+    {
+     "name": "Sea Walker",
+     "rarity": "COMMON",
+     "catch": "You caught a Sea Walker."
+    },
+    {
+     "name": "Sea Guardian",
+     "rarity": "COMMON",
+     "catch": "You stumbled upon a Sea Guardian."
+    },
+    {
+     "name": "Sea Archer",
+     "rarity": "UNCOMMON",
+     "catch": "You reeled in a Sea Archer."
+    },
+    {
+     "name": "Rider of the Deep",
+     "rarity": "UNCOMMON",
+     "catch": "The Rider of the Deep has emerged."
+    },
+    {
+     "name": "Sea Witch",
+     "rarity": "UNCOMMON",
+     "catch": "It looks like you've disrupted the Sea Witch's brewing session. Watch out, she's furious!"
+    },
+    {
+     "name": "Catfish",
+     "rarity": "RARE",
+     "catch": "Huh? A Catfish!"
+    },
+    {
+     "name": "Sea Leech",
+     "rarity": "RARE",
+     "catch": "Gross! A Sea Leech!"
+    },
+    {
+     "name": "Guardian Defender",
+     "rarity": "EPIC",
+     "catch": "You've discovered a Guardian Defender of the sea."
+    },
+    {
+     "name": "Deep Sea Protector",
+     "rarity": "EPIC",
+     "catch": "You have awoken the Deep Sea Protector, prepare for a battle!"
+    },
+    {
+     "name": "Water Hydra",
+     "rarity": "LEGENDARY",
+     "rare": true,
+     "catch": "The Water Hydra has come to test your strength."
+    }
+   ]
+  },
+  {
+   "id": "WINTER_ISLAND",
+   "label": "Jerry's Workshop",
+   "creatures": [
+    {
+     "name": "Frozen Steve",
+     "rarity": "COMMON",
+     "catch": "Frozen Steve fell into the pond long ago, never to resurface...until now!"
+    },
+    {
+     "name": "Frosty",
+     "rarity": "COMMON",
+     "catch": "It's a snowman! He looks harmless."
+    },
+    {
+     "name": "Grinch",
+     "rarity": "UNCOMMON",
+     "catch": "The Grinch stole Jerry's Gifts...get them back!"
+    },
+    {
+     "name": "Nutcracker",
+     "rarity": "EPIC",
+     "catch": "You found a forgotten Nutcracker laying beneath the ice."
+    },
+    {
+     "name": "Yeti",
+     "rarity": "LEGENDARY",
+     "rare": true,
+     "catch": "What is this creature!?"
+    },
+    {
+     "name": "Reindrake",
+     "rarity": "MYTHIC",
+     "rare": true,
+     "catch": "A Reindrake forms from the depths."
+    }
+   ]
+  },
+  {
+   "id": "SPOOKY",
+   "label": "Spooky Festival",
+   "creatures": [
+    {
+     "name": "Scarecrow",
+     "rarity": "COMMON",
+     "catch": "Phew! It's only a Scarecrow."
+    },
+    {
+     "name": "Nightmare",
+     "rarity": "RARE",
+     "catch": "You hear trotting from beneath the waves, you caught a Nightmare."
+    },
+    {
+     "name": "Werewolf",
+     "rarity": "EPIC",
+     "catch": "It must be a full moon, a Werewolf appears."
+    },
+    {
+     "name": "Phantom Fisher",
+     "rarity": "LEGENDARY",
+     "rare": true,
+     "catch": "The spirit of a long lost Phantom Fisher has come to haunt you."
+    },
+    {
+     "name": "Grim Reaper",
+     "rarity": "LEGENDARY",
+     "rare": true,
+     "catch": "This can't be! The manifestation of death himself!"
+    },
+    {
+     "name": "Jumpin' Jack",
+     "rarity": "COMMON",
+     "catch": "Watch out! It's Jumpin' Jack."
+    }
+   ]
+  },
+  {
+   "id": "SHARK",
+   "label": "Fishing Festival",
+   "creatures": [
+    {
+     "name": "Nurse Shark",
+     "rarity": "COMMON",
+     "catch": "A tiny fin emerges from the water, you've caught a Nurse Shark."
+    },
+    {
+     "name": "Blue Shark",
+     "rarity": "UNCOMMON",
+     "catch": "You spot a fin as blue as the water it came from, it's a Blue Shark."
+    },
+    {
+     "name": "Tiger Shark",
+     "rarity": "EPIC",
+     "catch": "A striped beast bounds from the depths, the wild Tiger Shark!"
+    },
+    {
+     "name": "Great White Shark",
+     "rarity": "LEGENDARY",
+     "rare": true,
+     "catch": "Hide no longer, a Great White Shark has tracked your scent and thirsts for your blood!"
+    }
+   ]
+  },
+  {
+   "id": "OASIS",
+   "label": "Oasis",
+   "creatures": [
+    {
+     "name": "Oasis Sheep",
+     "rarity": "UNCOMMON",
+     "catch": "An Oasis Sheep appears from the water."
+    },
+    {
+     "name": "Oasis Rabbit",
+     "rarity": "UNCOMMON",
+     "catch": "An Oasis Rabbit appears from the water."
+    }
+   ]
+  },
+  {
+   "id": "ABANDONED_QUARRY",
+   "label": "Abandoned Quarry",
+   "creatures": [
+    {
+     "name": "Small Mithril Grubber",
+     "rarity": "UNCOMMON",
+     "catch": "A leech of the mines surfaces... you've caught a Mithril Grubber."
+    },
+    {
+     "name": "Medium Mithril Grubber",
+     "rarity": "UNCOMMON",
+     "catch": "A leech of the mines surfaces... you've caught a Medium Mithril Grubber."
+    },
+    {
+     "name": "Large Mithril Grubber",
+     "rarity": "UNCOMMON",
+     "catch": "A leech of the mines surfaces... you've caught a Large Mithril Grubber."
+    },
+    {
+     "name": "Bloated Mithril Grubber",
+     "rarity": "UNCOMMON",
+     "catch": "A leech of the mines surfaces... you've caught a Bloated Mithril Grubber."
+    }
+   ]
+  },
+  {
+   "id": "MAGMA_FIELDS",
+   "label": "Magma Fields",
+   "creatures": [
+    {
+     "name": "Lava Blaze",
+     "rarity": "RARE",
+     "catch": "A Lava Blaze has surfaced from the depths!"
+    },
+    {
+     "name": "Lava Pigman",
+     "rarity": "RARE",
+     "catch": "A Lava Pigman arose from the depths!"
+    }
+   ]
+  },
+  {
+   "id": "LAVA_PRECURSOR",
+   "label": "Precursor Remnants",
+   "creatures": [
+    {
+     "name": "Flaming Worm",
+     "rarity": "RARE",
+     "catch": "A Flaming Worm surfaces from the depths!"
+    }
+   ]
+  },
+  {
+   "id": "GOBLIN_BURROWS",
+   "label": "Goblin Holdout",
+   "creatures": [
+    {
+     "name": "Water Worm",
+     "rarity": "RARE",
+     "catch": "A Water Worm surfaces!"
+    },
+    {
+     "name": "Poisoned Water Worm",
+     "rarity": "RARE",
+     "catch": "A Poisoned Water Worm surfaces!"
+    }
+   ]
+  },
+  {
+   "id": "WATER_CRYSTAL_HOLLOWS",
+   "label": "Crystal Hollows",
+   "creatures": [
+    {
+     "name": "Abyssal Miner",
+     "rarity": "LEGENDARY",
+     "rare": true,
+     "catch": "An Abyssal Miner breaks out of the water!"
+    }
+   ]
+  },
+  {
+   "id": "LAVA_CRIMSON_ISLE",
+   "label": "Crimson Isle",
+   "creatures": [
+    {
+     "name": "Moogma",
+     "rarity": "RARE",
+     "catch": "You hear a faint Moo from the lava... A Moogma appears."
+    },
+    {
+     "name": "Magma Slug",
+     "rarity": "RARE",
+     "catch": "From beneath the lava appears a Magma Slug."
+    },
+    {
+     "name": "Baby Magma Slug",
+     "rarity": "RARE"
+    },
+    {
+     "name": "Pyroclastic Worm",
+     "rarity": "RARE",
+     "catch": "You feel the heat radiating as a Pyroclastic Worm surfaces."
+    },
+    {
+     "name": "Lava Flame",
+     "rarity": "RARE",
+     "catch": "A Lava Flame flies out from beneath the lava."
+    },
+    {
+     "name": "Fire Eel",
+     "rarity": "RARE",
+     "catch": "A Fire Eel slithers out from the depths."
+    },
+    {
+     "name": "Lava Leech",
+     "rarity": "RARE",
+     "catch": "A small but fearsome Lava Leech emerges."
+    },
+    {
+     "name": "Taurus",
+     "rarity": "RARE",
+     "catch": "Taurus and his steed emerge."
+    },
+    {
+     "name": "Thunder",
+     "rarity": "MYTHIC",
+     "rare": true,
+     "catch": "You hear a massive rumble as Thunder emerges."
+    },
+    {
+     "name": "Lord Jawbus",
+     "rarity": "MYTHIC",
+     "rare": true,
+     "catch": "You have angered a legendary creature... Lord Jawbus has arrived."
+    }
+   ]
+  },
+  {
+   "id": "PLHLEGBLAST",
+   "label": "Plhlegblast Pool",
+   "creatures": [
+    {
+     "name": "Plhlegblast",
+     "rarity": "MYTHIC",
+     "rare": true,
+     "catch": "WOAH! A Plhlegblast appeared.",
+     "oldNames": [
+      "Phlhlegblast"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "BACKWATER_BAYOU",
+   "label": "Backwater Bayou",
+   "creatures": [
+    {
+     "name": "Trash Gobbler",
+     "rarity": "COMMON",
+     "catch": "The Trash Gobbler is hungry for you!"
+    },
+    {
+     "name": "Banshee",
+     "rarity": "RARE",
+     "catch": "The desolate wail of a Banshee breaks the silence."
+    },
+    {
+     "name": "Alligator",
+     "rarity": "LEGENDARY",
+     "rare": true,
+     "catch": "A long snout breaks the surface of the water. It's an Alligator!"
+    },
+    {
+     "name": "Dumpster Diver",
+     "rarity": "UNCOMMON",
+     "catch": "A Dumpster Diver has emerged from the swamp!"
+    },
+    {
+     "name": "Bayou Sludge",
+     "rarity": "EPIC",
+     "catch": "A swampy mass of slime emerges, the Bayou Sludge!"
+    },
+    {
+     "name": "Titanoboa",
+     "rarity": "MYTHIC",
+     "rare": true,
+     "catch": "A massive Titanoboa surfaces. Its body stretches as far as the eye can see."
+    }
+   ]
+  },
+  {
+   "id": "LAVA_HOTSPOT",
+   "label": "Lava Hotspot",
+   "creatures": [
+    {
+     "name": "Ragnarok",
+     "rarity": "MYTHIC",
+     "rare": true,
+     "catch": "The sky darkens and the air thickens. The end times are upon us: Ragnarok is here."
+    },
+    {
+     "name": "Volcanic Snail",
+     "rarity": "UNCOMMON",
+     "catch": "You feel a burning sensation as you reel in a Volcanic Snail!"
+    },
+    {
+     "name": "Fireproof Witch",
+     "rarity": "RARE",
+     "catch": "Trouble's brewing, it's a Fireproof Witch!"
+    },
+    {
+     "name": "Fried Chicken",
+     "rarity": "COMMON",
+     "catch": "Smells of burning. Must be a Fried Chicken."
+    },
+    {
+     "name": "Magma Pillar",
+     "rarity": "EPIC",
+     "catch": "A Magma Pillar rises from the lava."
+    },
+    {
+     "name": "Fiery Scuttler",
+     "rarity": "LEGENDARY",
+     "rare": true,
+     "catch": "A Fiery Scuttler inconspicuously waddles up to you, friends in tow."
+    }
+   ]
+  },
+  {
+   "id": "WATER_HOTSPOT",
+   "label": "Water Hotspot",
+   "creatures": [
+    {
+     "name": "Wiki Tiki",
+     "rarity": "MYTHIC",
+     "rare": true,
+     "catch": "The water bubbles and froths. A massive form emerges- you have disturbed the Wiki Tiki! You shall pay the price."
+    },
+    {
+     "name": "Blue Ringed Octopus",
+     "rarity": "LEGENDARY",
+     "rare": true,
+     "catch": "A garish set of tentacles arise. It's a Blue Ringed Octopus!"
+    },
+    {
+     "name": "Snapping Turtle",
+     "rarity": "RARE",
+     "catch": "A Snapping Turtle is coming your way, and it's ANGRY!"
+    },
+    {
+     "name": "Frog Man",
+     "rarity": "COMMON",
+     "catch": "Is it a frog? Is it a man? Well, yes, sorta, IT'S FROG MAN!!!!!!"
+    },
+    {
+     "name": "Inkling",
+     "rarity": "UNCOMMON",
+     "catch": "You get an inkling that you've caught... an Inkling!"
+    },
+    {
+     "name": "Manta Ray",
+     "rarity": "EPIC",
+     "catch": "A majestic creature rises from the water. It's a Manta Ray."
+    }
+   ]
+  },
+  {
+   "id": "MOONGLADE_MARSH",
+   "label": "Moonglade Marsh",
+   "creatures": [
+    {
+     "name": "Wetwing",
+     "rarity": "UNCOMMON",
+     "catch": "Look! A Wetwing emerges!"
+    },
+    {
+     "name": "Ent",
+     "rarity": "EPIC",
+     "catch": "You've hooked an Ent, as ancient as the forest itself."
+    },
+    {
+     "name": "Tadgang",
+     "rarity": "RARE",
+     "catch": "A gang of Liltads!"
+    },
+    {
+     "name": "Bogged",
+     "rarity": "COMMON",
+     "catch": "You've hooked a Bogged!"
+    },
+    {
+     "name": "Stridersurfer",
+     "rarity": "RARE",
+     "catch": "You caught a Stridersurfer."
+    },
+    {
+     "name": "The Loch Emperor",
+     "rarity": "LEGENDARY",
+     "rare": true,
+     "catch": "The Loch Emperor arises from the depths.",
+     "oldNames": [
+      "Sea Emperor",
+      "The Sea Emperor"
+     ]
+    },
+    {
+     "name": "Nessie",
+     "rarity": "MYTHIC",
+     "rare": true,
+     "catch": "You've caused a disturbance in the loch. Could it be... Nessie?"
+    }
+   ]
+  },
+  {
+   "id": "LOTUS_ATOLL",
+   "label": "Lotus Atoll",
+   "creatures": [
+    {
+     "name": "Atoll Croaker",
+     "rarity": "COMMON",
+     "catch": "An inquisitive Atoll Croaker takes the bait!"
+    },
+    {
+     "name": "Lotus Guardian",
+     "rarity": "UNCOMMON",
+     "catch": "A Lotus Guardian emerges, ready to protect the Atoll."
+    },
+    {
+     "name": "gorF",
+     "rarity": "RARE",
+     "catch": "What even is that?! A... gorF?"
+    },
+    {
+     "name": "Drowned Captain",
+     "rarity": "EPIC",
+     "catch": "A Drowned Captain takes hold of your bobber!"
+    },
+    {
+     "name": "Puddle Jumper",
+     "rarity": "LEGENDARY",
+     "rare": true,
+     "catch": "A Puddle Jumper is preparing for liftoff—cast your rod into it and hold on tight!"
+    },
+    {
+     "name": "Frog Prince",
+     "rarity": "MYTHIC",
+     "rare": true,
+     "catch": "Bow down before the Frog Prince... or pay the hefty price!"
+    }
+   ]
+  },
+  {
+   "id": "TORRHUS_CANYON",
+   "label": "Torrhus Canyon",
+   "creatures": [
+    {
+     "name": "Haggard",
+     "rarity": "COMMON",
+     "catch": "A Haggard stumbles to the shore, ready for a fight!"
+    },
+    {
+     "name": "Brineling",
+     "rarity": "UNCOMMON",
+     "catch": "A Brineling interrupts you with a stream of bubbles!"
+    },
+    {
+     "name": "Sprawl",
+     "rarity": "RARE",
+     "catch": "A Sprawl emerges from the blue, and it's looking for you!"
+    },
+    {
+     "name": "Torrid",
+     "rarity": "EPIC",
+     "catch": "The laughter of a Torrid echoes through the air."
+    },
+    {
+     "name": "Silkbreeze",
+     "rarity": "LEGENDARY",
+     "rare": true,
+     "catch": "Something zips through the air - it's a Silkbreeze!"
+    },
+    {
+     "name": "Giant Isopod",
+     "rarity": "MYTHIC",
+     "rare": true,
+     "catch": "A Giant Isopod was dredged up from the depths!"
+    }
+   ]
+  }
+ ]
+}

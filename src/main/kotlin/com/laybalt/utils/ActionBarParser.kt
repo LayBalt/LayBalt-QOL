@@ -1,0 +1,138 @@
+// Secrets read guard ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking (parts of this file)
+package com.laybalt.utils
+
+import com.laybalt.LayBaltQOL
+import com.laybalt.LayBaltQOL.mc
+import com.laybalt.event.EventBus.register
+import com.laybalt.event.impl.DungeonEvent
+import com.laybalt.event.impl.MainThreadPacketReceivedEvent
+import com.laybalt.event.priority.EventPriority
+import com.laybalt.init.types.ISelfInit
+import com.laybalt.utils.ChatUtils.formattedText
+import com.laybalt.utils.dungeons.DungeonListener
+import com.laybalt.utils.dungeons.map.core.RoomTile
+import com.laybalt.utils.dungeons.map.handlers.DungeonScanner
+import com.laybalt.utils.dungeons.map.utils.ScanUtils
+import com.laybalt.utils.location.LocationUtils
+import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket
+import net.minecraft.network.protocol.game.ClientboundSystemChatPacket
+import kotlin.math.roundToInt
+
+object ActionBarParser: ISelfInit {
+    val HP_REGEX = Regex("§[c6]([\\d,]+)/([\\d,]+)[\uE010❤]")
+    val DEF_REGEX = Regex("""§a([\d,]+)(§a)?[❈]( Defense)?""") // https://regex101.com/r/QDZtRK/1
+    val MANA_REGEX = Regex("§b([\\d,]+)/([\\d,]+)[\uE003✎]( Mana)?")
+    val OVERFLOW_REGEX = Regex("§3([\\d,]+)[\uE017ʬ]") // §3100ʬ
+    val VITALITY_REGEX = Regex("""§4([\d.,]+)/([\d,.]+)[♨]( Vitality)?""") // https://regex101.com/r/tLHZYG/1
+    val STACKS_REGEX = Regex("(?:§6|§6§l)([\\d,]+)([ᝐ⁑҉Ѫ⚶])(?:§r)?")
+    val SALVATION_REGEX = Regex("(?:§6|§a§l)?T([12]|3!)(?:§r)?")
+    val MANA_USAGE_REGEX = Regex("§b-([\\d,]+) Mana \\(§6.+?§b\\)|§c§lNOT ENOUGH MANA") // §b-50 Mana (§6Speed Boost§b) , §c§lNOT ENOUGH MANA
+    val SECRETS_REGEX = Regex("\\s*§7(\\d+)/(\\d+) Secrets") // §76/10 Secrets§r
+
+    val currentSpeed get() = ((mc.player?.abilities?.walkingSpeed ?: 0.1f) * 1000).roundToInt()
+    var currentHealth = 0
+    var maxHealth = 0
+    var currentDefense = 0
+    var currentMana = 0
+    var maxMana = 0
+    var overflowMana = 0
+    var currentVitality = 0
+    var maxVitality = 0
+    var isVitalityShown = false
+    var effectiveHP = 0
+    var netherArmorStacks = 0
+    var stackSymbol = ""
+    var salvation = 0
+    var secrets: Int? = 0
+    var maxSecrets: Int? = 0
+
+    private var skipNextSecrets = false
+    private var lastSecretsMax: Int? = null
+
+    override fun init() {
+        register<DungeonEvent.RoomEvent.onEnter> { skipNextSecrets = true }
+
+        register<MainThreadPacketReceivedEvent.Post>(EventPriority.HIGHEST) {
+            if (! LocationUtils.inSkyblock) return@register
+            if (event.packet is ClientboundSystemChatPacket && event.packet.overlay()) {
+                extractStats(event.packet.content.formattedText)
+            }
+            else if (event.packet is ClientboundSetActionBarTextPacket) {
+                extractStats(event.packet.text.formattedText)
+            }
+        }
+    }
+
+    private fun extractStats(input: String) {
+        if (LayBaltQOL.debugFlags.contains("actionbar")) LayBaltQOL.logger.info(input)
+
+        HP_REGEX.find(input)?.let { match ->
+            currentHealth = match.groupValues[1].remove(",").toIntOrNull() ?: currentHealth
+            maxHealth = match.groupValues[2].remove(",").toIntOrNull() ?: maxHealth
+        }
+
+        DEF_REGEX.find(input)?.let { match ->
+            currentDefense = match.groupValues[1].remove(",").toIntOrNull() ?: currentDefense
+        }
+
+        effectiveHP = (currentHealth * (1 + currentDefense / 100f)).toInt()
+
+        MANA_REGEX.find(input)?.let { match ->
+            currentMana = match.groupValues[1].remove(",").toIntOrNull() ?: currentMana
+            maxMana = match.groupValues[2].remove(",").toIntOrNull() ?: maxMana
+        }
+
+        OVERFLOW_REGEX.find(input).let { match ->
+            overflowMana = match?.groupValues?.get(1)?.remove(",")?.toIntOrNull() ?: 0
+        }
+
+        MANA_USAGE_REGEX.find(input)?.let { match ->
+            val usage = match.groupValues[1].remove(",").toIntOrNull() ?: 0
+            currentMana = (currentMana - usage).coerceAtLeast(0)
+        }
+
+        VITALITY_REGEX.find(input)?.let { match ->
+            currentVitality = match.groupValues[1].remove(",").toDoubleOrNull()?.toInt() ?: currentVitality
+            maxVitality = match.groupValues[2].remove(",").toDoubleOrNull()?.toInt() ?: maxVitality
+            isVitalityShown = true
+        } ?: ::isVitalityShown.set(false)
+
+        STACKS_REGEX.find(input)?.let { match ->
+            netherArmorStacks = match.groupValues[1].remove(",").toIntOrNull() ?: netherArmorStacks
+            stackSymbol = match.groupValues[2]
+        }
+
+        SALVATION_REGEX.find(input)?.let { match ->
+            salvation = match.groupValues[1].trimEnd('!').toIntOrNull() ?: salvation
+        }
+
+        SECRETS_REGEX.takeIf { LocationUtils.inDungeon }?.find(input)?.let { match ->
+            secrets = match.groupValues[1].remove(",").toIntOrNull() ?: secrets
+            maxSecrets = match.groupValues[2].remove(",").toIntOrNull() ?: maxSecrets
+
+            // Odin f09e7645: right after entering a room the action bar can still show the previous room's count.
+            // When that room had the same total, the first read is ignored so the new room does not inherit it.
+            val sameMax = maxSecrets == lastSecretsMax
+            lastSecretsMax = maxSecrets
+            if (skipNextSecrets && sameMax) {
+                skipNextSecrets = false
+                return
+            }
+            skipNextSecrets = false
+
+            ScanUtils.getRoomGraf(mc.player !!.position()).let { (gx, gy) ->
+                val roomTile = DungeonScanner.dungeonList[gy * 11 + gx] as? RoomTile ?: return
+                if (roomTile.data.name == "Unknown") return
+
+                if (roomTile.uniqueRoom?.foundSecrets != secrets && roomTile.data.secrets == maxSecrets) {
+                    roomTile.uniqueRoom?.foundSecrets = secrets !!
+                }
+            }
+
+            return
+        }
+
+        maxSecrets = null
+        secrets = null
+    }
+}

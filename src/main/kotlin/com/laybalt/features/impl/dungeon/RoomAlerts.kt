@@ -1,0 +1,60 @@
+package com.laybalt.features.impl.dungeon
+
+import com.laybalt.config.types.SliderSetting
+import com.laybalt.config.types.ToggleSetting
+import com.laybalt.event.impl.DungeonEvent
+import com.laybalt.event.impl.WorldChangeEvent
+import com.laybalt.features.Feature
+import com.laybalt.ui.utils.Resolution
+import com.laybalt.utils.dungeons.DungeonListener
+import com.laybalt.utils.dungeons.map.core.RoomState
+import com.laybalt.utils.dungeons.map.core.RoomType
+import com.laybalt.utils.equalsOneOf
+import com.laybalt.utils.render.Render2D.drawCenteredString
+import com.laybalt.utils.render.RenderHelper.width
+import net.minecraft.sounds.SoundEvents
+import kotlin.math.roundToLong
+
+object RoomAlerts: Feature("Alerts when certain stuff happens in your current room") {
+    private val clear by ToggleSetting("Cleared", true)
+    private val secrets by ToggleSetting("Secrets Done", true)
+    private val displayTime by SliderSetting("Display Time", 2.0, 0.5, 3.0, 0.1, "s")
+    // NoammAddons c0dc1ea3: the alert sound is configurable (sound key, volume, pitch, test button)
+    private val sound = createSoundSettings("Sound", SoundEvents.NOTE_BLOCK_PLING.value()) { clear.value || secrets.value }
+
+    private var alertText = "Cleared"
+        set(value) {
+            field = value
+            sound()
+            alertUntil = System.currentTimeMillis() + (displayTime.value * 1000).roundToLong()
+        }
+
+    private var alertUntil = 0L
+
+    override fun init() {
+        hudElement("Room Alerts", { clear.value || secrets.value }, { System.currentTimeMillis() < alertUntil }, centered = { true }) { ctx, example ->
+            val text = if (example) "Cleared" else alertText
+            ctx.drawCenteredString(text, 0, 0)
+            text.width() to 9f
+        } defaults {
+            x = Resolution.width / 2f
+            y = Resolution.height * 0.444f
+            scale = 2.5f
+        }
+
+        register<DungeonEvent.RoomEvent.onStateChange> {
+            if (! clear.value && ! secrets.value) return@register
+            if (! event.room.data.type.equalsOneOf(RoomType.NORMAL, RoomType.PUZZLE, RoomType.RARE, RoomType.TRAP)) return@register
+            if (event.room.data.type == RoomType.PUZZLE && event.room.name != "Blaze") return@register
+            if (DungeonListener.thePlayer !in event.roomPlayers) return@register
+
+            alertText = when (event.newState) {
+                RoomState.CLEARED if clear.value -> (if (event.room.data.secrets == 0) "&a" else "") + "Cleared"
+                RoomState.GREEN if (secrets.value && event.room.data.secrets > 0) -> "&aSecrets Done!"
+                else -> return@register
+            }
+        }
+
+        register<WorldChangeEvent> { alertUntil = 0L }
+    }
+}

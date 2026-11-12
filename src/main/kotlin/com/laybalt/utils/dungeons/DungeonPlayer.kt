@@ -1,0 +1,39 @@
+package com.laybalt.utils.dungeons
+
+import com.laybalt.LayBaltQOL.mc
+import com.laybalt.utils.dungeons.enums.DungeonClass
+import com.laybalt.utils.dungeons.map.handlers.DungeonScanner
+import com.laybalt.utils.dungeons.map.utils.MapUtils
+import net.minecraft.client.player.AbstractClientPlayer
+import net.minecraft.client.resources.DefaultPlayerSkin
+import net.minecraft.resources.Identifier
+import net.minecraft.world.phys.Vec3
+
+data class DungeonPlayer(
+    var name: String,
+    var clazz: DungeonClass,
+    var clazzLvl: Int,
+    var skin: Identifier = (mc.player?.skin ?: DefaultPlayerSkin.getDefaultSkin()).body.texturePath(),
+    var isDead: Boolean = false,
+) {
+    var entity: AbstractClientPlayer? = null
+        set(value) {
+            skin = value?.skin?.body?.texturePath() ?: skin
+            field = value
+        }
+
+    var mapX = 0f
+    var mapZ = 0f
+    var yaw = 0f
+    var icon = ""
+
+    fun getRealPos() = Vec3(
+        (mapX - MapUtils.startCorner.first) / MapUtils.coordMultiplier + DungeonScanner.startX - 15,
+        entity?.y ?: .0,
+        (mapZ - MapUtils.startCorner.second) / MapUtils.coordMultiplier + DungeonScanner.startZ - 15
+    )
+
+    val clearedRooms = mutableSetOf<String>() to mutableSetOf<String>()
+    val deaths = mutableListOf<String>()
+    var secretsBeforeRun = 0L
+}

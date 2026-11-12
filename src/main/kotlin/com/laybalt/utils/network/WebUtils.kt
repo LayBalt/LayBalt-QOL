@@ -1,0 +1,59 @@
+package com.laybalt.utils.network
+
+import com.laybalt.LayBaltQOL.MOD_NAME
+import com.laybalt.LayBaltQOL.MOD_VERSION
+import com.laybalt.LayBaltQOL.scope
+import com.laybalt.utils.JsonUtils
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.UserAgent
+import io.ktor.client.plugins.compression.ContentEncoding
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.get
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.isSuccess
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.*
+import java.util.concurrent.*
+import java.util.zip.*
+
+object WebUtils {
+    private val sharedRequests = ConcurrentHashMap<String, Deferred<Result<HttpResponse>>>()
+
+    val client = HttpClient(CIO) {
+        install(UserAgent) { agent = "$MOD_NAME/$MOD_VERSION (+https://github.com/LayBalt/LayBalt-QOL)" }
+        // NoammAddons de642ff7 timeouts (we keep CIO): a stalled response would otherwise hang every shared caller of the URL.
+        install(HttpTimeout) {
+            connectTimeoutMillis = 30_000
+            socketTimeoutMillis = 30_000
+            requestTimeoutMillis = 30_000
+        }
+        install(ContentNegotiation) { json(JsonUtils.json) }
+        install(ContentEncoding) {
+            gzip(1.0F)
+            deflate(0.9F)
+        }
+    }
+
+    suspend fun get(url: String, block: HttpRequestBuilder.() -> Unit = {}): Result<HttpResponse> {
+        while (true) {
+            sharedRequests[url]?.let { return it.await() }
+
+            val deferred = scope.async(start = CoroutineStart.LAZY) { runCatching { client.get(url, block) } }
+            sharedRequests.putIfAbsent(url, deferred) ?: run {
+                deferred.invokeOnCompletion { sharedRequests.remove(url, deferred) }
+                deferred.start()
+                return deferred.await()
+            }
+        }
+    }
+
+    suspend inline fun <reified T> getAs(url: String) = get(url).mapCatching {
+        if (! it.status.isSuccess()) error("HTTP ${it.status.value}-${it.status.description}: ${it.bodyAsText()}")
+        it.body<T>()
+    }
+}

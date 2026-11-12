@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "lbqmod",
+  "version": "${version}",
+  "name": "LayBalt QOL",
+  //#if CHEAT
+  "description": "LayBalt QOL — Hypixel SkyBlock quality-of-life mod for Minecraft 26.2 (NoammAddons core)",
+  //#else
+  //$"description": "LayBalt QOL — Hypixel SkyBlock quality-of-life mod for Minecraft 26.2 (NoammAddons core) Version: Legit",
+  //#endif
+  "authors": [
+    "LayBalt",
+    "Somikyy"
+  ],
+  "contact": {
+    "homepage": "https://github.com/LayBalt",
+    "sources": "https://github.com/LayBalt/LayBalt-QOL",
+    "issues": "https://github.com/LayBalt/LayBalt-QOL/issues"
+  },
+  "license": "Unlicense",
+  "icon": "assets/lbqmod/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "modmenu": [
+      "com.laybalt.ui.clickgui.ModMenuIntegration"
+    ],
+    // Runs before Minecraft and every LayBaltQOL object load: copies a NoammAddons config on a fresh install.
+    "preLaunch": [
+      {
+        "value": "com.laybalt.config.ForeignConfigPreLaunch",
+        "adapter": "kotlin"
+      }
+    ],
+    "client": [
+      {
+        "value": "com.laybalt.LayBaltQOL",
+        "adapter": "kotlin"
+      }
+    ]
+  },
+  "mixins": [
+    "lbqmod.mixins.json"
+  ],
+  "accessWidener": "lbqmod.accesswidener",
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": "26.2",
+    "java": ">=25",
+    "fabric-api": "*",
+    // NoammAddons 20a78018: the Kotlin libraries are not nested (Fabric Language Kotlin ships them), so require at least the version built against
+    "fabric-language-kotlin": ">=@FABRIC_KOTLIN_VERSION@"
+  },
+  "custom": {
+    "modmenu": {
+      "links": {
+        "Discord": "https://discord.gg/555QWxv6nS"
+      }
+    }
+  }
+}

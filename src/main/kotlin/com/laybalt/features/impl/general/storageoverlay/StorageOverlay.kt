@@ -1,0 +1,247 @@
+package com.laybalt.features.impl.general.storageoverlay
+
+import com.laybalt.LayBaltQOL
+import com.laybalt.config.types.*
+import com.laybalt.event.impl.*
+import com.laybalt.event.priority.EventPriority
+import com.laybalt.features.Feature
+import com.laybalt.features.impl.general.ItemTooltip
+import com.laybalt.init.types.ICustomMenu
+import com.laybalt.utils.ChatUtils.unformattedText
+import com.laybalt.utils.ThreadUtils
+import com.laybalt.utils.catch
+import com.laybalt.utils.location.LocationUtils
+import gg.essential.universal.UMinecraft
+import gg.essential.universal.wrappers.UPlayer
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import net.minecraft.client.gui.screens.Screen
+import net.minecraft.client.gui.screens.inventory.ContainerScreen
+import net.minecraft.nbt.*
+import net.minecraft.network.protocol.game.ClientboundContainerClosePacket
+import net.minecraft.network.protocol.game.ServerboundContainerClosePacket
+import net.minecraft.world.item.Items
+import net.minecraft.world.level.block.Blocks
+import java.io.File
+import java.nio.file.*
+import java.util.*
+import kotlin.jvm.optionals.getOrNull
+
+object StorageOverlay: Feature("Shows all storage pages in an overlay when opening storage."), ICustomMenu {
+    val scaleSetting by SliderSetting("Scale", 1.0f, 0.5f, 2.0f, 0.05f).withDescription("The scale of the menu")
+    val columnsSetting by SliderSetting("Columns", 3, 1, 10, 1).withDescription("The number of max pages to show on each row")
+    val maxHeightSetting by SliderSetting("Max Height", 324, 80, 600, 1).withDescription("The maximum height of the entire menu")
+    val scrollSpeedSetting by SliderSetting("Scroll Speed", 10, 1, 50, 1).withDescription("How fast you scroll")
+    val retainScrollSetting by ToggleSetting("Retain Scroll", true).withDescription("Keeps the scroll offset after closing the menu")
+    val enableTooltipInStorage by ToggleSetting("Tooltip Scroll").withDescription("Lets the scroll wheel move and scale item tooltips inside the overlay (requires ${ItemTooltip.name} with Scrollable Tooltips enabled)")
+    val hideNonMatchingPages by ToggleSetting("Hide Non-Matching Pages").withDescription("Hides storage pages that contain no item matching the current Inventory Search query")
+    val alwaysShowCustomNames by ToggleSetting("Always Show Custom Names", true).jsonName("Show Custom Names").withDescription("Shows custom titles on inactive pages. When disabled, only the open page has a title. Default titles are only shown on the open page")
+    val storageNames by MapSetting<Int, String>("Custom Names")
+
+    private val storageDir = File(mc.gameDirectory, "config/${LayBaltQOL.CONFIG_DIR}/storage").also(File::mkdirs)
+    // NoammAddons b2ac69a8: one file per SkyBlock profile; the old per-account file stays the fallback until a profile id is known
+    private val dataFile get() = File(storageDir, dataProfile?.let { "${UPlayer.getUUID()}_$it.nbt" } ?: "${UPlayer.getUUID()}.nbt")
+    private var dataProfile: String? = null
+    @Volatile var storageMenuData: SortedMap<StoragePage, NBTInventory?> = TreeMap()
+    private val saveMutex = Mutex()
+
+    private var currentMenu: StorageMenu? = null
+    private var active: StorageOverlayScreen? = null
+
+    @JvmField @Volatile var inStorageTransition = false
+
+    @JvmStatic
+    fun activeFor(screen: ContainerScreen) = active?.takeIf { it.containerScreen === screen }
+    override fun isActive() = (UMinecraft.currentScreenObj as? ContainerScreen)?.let(::activeFor) != null
+
+    private val emptyStorageSlotItems = listOf(
+        Blocks.STAINED_GLASS_PANE.red().asItem(),
+        Blocks.STAINED_GLASS_PANE.brown().asItem(),
+        Items.DYE.gray()
+    )
+
+    override fun init() {
+        register<KeyboardEvent.KeyPressed>(EventPriority.HIGHEST) {
+            val screen = UMinecraft.currentScreenObj as? ContainerScreen ?: return@register
+            if (activeFor(screen)?.onNameKeyPressed(event.keyEvent) == true) event.isCanceled = true
+        }
+
+        register<KeyboardEvent.CharTyped>(EventPriority.HIGHEST) {
+            val screen = UMinecraft.currentScreenObj as? ContainerScreen ?: return@register
+            if (activeFor(screen)?.onNameCharTyped(event.charEvent) == true) event.isCanceled = true
+        }
+
+        register<ContainerFullyOpenedEvent> {
+            if (! LocationUtils.inSkyblock) return@register
+            val screen = UMinecraft.currentScreenObj as? ContainerScreen ?: return@register
+            if (screen.menu.containerId != event.windowId) return@register
+            if (screen.title.unformattedText != event.title.unformattedText) return@register
+            val menu = currentMenu ?: return@register
+            saveContent(menu)
+        }
+
+        register<MainThreadPacketReceivedEvent.Pre> {
+            if (event.packet !is ClientboundContainerClosePacket) return@register
+            val overlay = active ?: return@register
+            overlay.saveEditingName()
+            currentMenu?.let(::saveContent)
+            overlay.isExiting = true
+            active = null
+            inStorageTransition = true
+            ThreadUtils.setTimeout(250) { inStorageTransition = false }
+        }
+
+        register<PacketEvent.Sent> {
+            if (event.packet !is ServerboundContainerClosePacket) return@register
+            val overlay = active ?: return@register
+            mc.execute {
+                if (active !== overlay) return@execute
+                overlay.saveEditingName()
+                currentMenu?.let(::saveContent)
+                overlay.isExiting = true
+                active = null
+                if (mc.gui.screen() === overlay.containerScreen) mc.gui.setScreen(null)
+                overlay.containerScreen = null
+                overlay.storageMenu = null
+            }
+        }
+    }
+
+    @JvmStatic
+    fun onScreenChange(oldScreen: Screen?, newScreen: Screen?): Screen? {
+        if (! LocationUtils.inSkyblock) return null
+        if (oldScreen == null && newScreen == null) return null
+
+        if (LocationUtils.profileId != dataProfile) {
+            dataProfile = LocationUtils.profileId
+            storageMenuData = TreeMap()
+            // load now: if the first screen of the new profile is a storage menu, saving it must not overwrite that profile's file
+            loadData()
+        }
+
+        val screen = newScreen as? ContainerScreen
+        val menu = StorageMenu.get(screen)
+        val overlay = oldScreen as? StorageOverlayScreen ?: active
+        if (oldScreen !== newScreen) overlay?.saveEditingName()
+
+        if (currentMenu == null && menu == null) loadData()
+        currentMenu?.let(::saveContent)
+        menu?.let(::saveContent)
+        currentMenu = menu
+
+        if (oldScreen === active?.containerScreen) {
+            active?.containerScreen = null
+            active?.storageMenu = null
+            active = null
+        }
+
+        if (newScreen == null && overlay != null && ! overlay.isExiting && overlay.containerScreen != null) return overlay
+        if (screen == null) return null
+        if (overlay?.isExiting == true) return null
+        val currentMenu = currentMenu ?: return null
+
+        inStorageTransition = false
+
+        active = (overlay ?: StorageOverlayScreen()).also {
+            it.containerScreen = screen
+            it.storageMenu = currentMenu
+            if (overlay == null) it.pendingCenterPage = (currentMenu as? StorageMenu.Page)?.storagePage
+        }
+
+        return null
+    }
+
+    private fun saveContent(menu: StorageMenu) {
+        if (menu is StorageMenu.Overview) return saveOverview(menu, storageMenuData)
+        if (menu is StorageMenu.Page) return savePage(menu, storageMenuData)
+    }
+
+    private fun saveOverview(handler: StorageMenu.Overview, data: SortedMap<StoragePage, NBTInventory?>) {
+        var changed = false
+        for ((index, stack) in handler.handler.slots.map { it.item }.withIndex()) {
+            if (stack.isEmpty) continue
+            val slot = StoragePage.overview(index) ?: continue
+            val isEmpty = stack.item in emptyStorageSlotItems
+            if (slot in data) {
+                if (isEmpty) {
+                    data.remove(slot)
+                    changed = true
+                }
+                continue
+            }
+            if (! isEmpty) {
+                data[slot] = null
+                changed = true
+            }
+        }
+        if (changed) ThreadUtils.async(::saveData)
+    }
+
+    private fun savePage(handler: StorageMenu.Page, data: SortedMap<StoragePage, NBTInventory?>) {
+        val slot = handler.storagePage
+        val gui = handler.handler
+
+        val end = (gui.rowCount * 9).takeIf { it > 9 } ?: return
+        val chestItems = gui.slots.subList(9, end).map { it.item.copy() }
+        if (chestItems.isEmpty()) return
+
+        data[slot] = NBTInventory(chestItems)
+        ThreadUtils.async(::saveData)
+    }
+
+    private suspend fun saveData() = saveMutex.withLock {
+        Files.createDirectories(storageDir.toPath())
+        val file = dataFile
+        val root = CompoundTag()
+
+        for ((slot, inv) in storageMenuData) inv?.let {
+            root.putString("${slot.index}_inv", it.encode())
+        }
+
+        val tempFile = file.toPath().resolveSibling("${file.name}.${UUID.randomUUID()}.tmp")
+        try {
+            NbtIo.writeCompressed(root, tempFile)
+            try {
+                Files.move(tempFile, file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            }
+            catch (_: AtomicMoveNotSupportedException) {
+                Files.move(tempFile, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
+        }
+        finally {
+            Files.deleteIfExists(tempFile)
+        }
+    }
+
+    private fun loadData() {
+        if (storageMenuData.isNotEmpty()) return
+        val file = dataFile.takeIf(File::exists) ?: adoptLegacyFile() ?: return
+        val root = catch { NbtIo.readCompressed(file.toPath(), NbtAccounter.uncompressedQuota()) }
+            ?: return
+
+        val data = TreeMap<StoragePage, NBTInventory?>()
+
+        for (i in 0 until 27) {
+            val invKey = "${i}_inv"
+            if (! root.contains(invKey)) continue
+
+            val slot = StoragePage(i)
+            val inventory = NBTInventory.decode(root.getString(invKey).getOrNull() ?: "")
+            data[slot] = inventory
+        }
+
+        storageMenuData = data
+    }
+
+    /**
+     * Upgrade path from the per-account file (3.2.5 and older, also where NoammAddons previews are imported):
+     * the first profile seen without its own file takes the legacy file over once, by moving it,
+     * so other profiles do not inherit its stale pages. Returns the file to read, or null if there is none.
+     */
+    private fun adoptLegacyFile(): File? {
+        if (dataProfile == null) return null
+        val legacy = File(storageDir, "${UPlayer.getUUID()}.nbt").takeIf(File::exists) ?: return null
+        val target = dataFile
+        return catch { Files.move(legacy.toPath(), target.toPath()); target } ?: legacy
+    }
+}

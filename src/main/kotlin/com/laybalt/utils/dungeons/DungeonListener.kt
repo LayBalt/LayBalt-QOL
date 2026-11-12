@@ -1,0 +1,303 @@
+package com.laybalt.utils.dungeons
+
+import net.minecraft.world.entity.EntityTypes
+import com.laybalt.LayBaltQOL
+import com.laybalt.LayBaltQOL.mc
+import com.laybalt.LayBaltQOL.scope
+import com.laybalt.event.EventBus
+import com.laybalt.event.EventBus.register
+import com.laybalt.event.impl.*
+import com.laybalt.event.priority.EventPriority
+import com.laybalt.init.types.ISelfInit
+import com.laybalt.mixin.IPlayerInfo
+import com.laybalt.utils.*
+import com.laybalt.utils.ChatUtils.formattedText
+import com.laybalt.utils.ChatUtils.removeFormatting
+import com.laybalt.utils.NumbersUtils.romanToDecimal
+import com.laybalt.utils.dungeons.enums.*
+import com.laybalt.utils.dungeons.map.core.*
+import com.laybalt.utils.dungeons.map.handlers.DungeonScanner
+import com.laybalt.utils.items.ItemUtils.skyblockId
+import com.laybalt.utils.location.LocationUtils.inDungeon
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import net.minecraft.client.multiplayer.PlayerInfo
+import net.minecraft.client.player.AbstractClientPlayer
+import net.minecraft.network.protocol.game.*
+import java.util.concurrent.*
+
+object DungeonListener: ISelfInit {
+    private val tablistRegex = Regex("""^\[\d+] (?:\[[^]]+] )*([A-Za-z0-9_]{1,16}) .*\((\w+)(?: (\w+))?\)$""") // https://regex101.com/r/7D78SS/4
+    private val puzzleCountRegex = Regex("§b§lPuzzles: §f\\((?<count>\\d)\\)")
+    private val puzzleRegex = Regex(" (.+): \\[[✦✔✖].+")
+    private val deathRegex = Regex("^ ☠ (?:You were|(?<username>\\w+)) (?<reason>.+?)(?: and became a ghost)?\\.$") // https://regex101.com/r/Yc3HhV/4
+    private val keyPickupRegex = Regex("^§e§lRIGHT CLICK §7on §7.+?§7 to open it\\. This key can only be used to open §a(?<num>\\d+)§7 door!$")
+    // NoammAddons e2f5d4bc: public so the legit RunSplits can count the wither doors as they open
+    val witherDoorOpenedRegex = Regex("^(?:\\[.+?] )?(?<name>\\w+) opened a WITHER door!$")
+    private val watcherMessageRegex = Regex("^\\[BOSS] The Watcher: .+$")
+    private val runEndRegex = Regex("^\\s*(Master Mode)? ?(?:The)? Catacombs - (Floor (.{1,3})|Entrance)$") // https://regex101.com/r/W4UjWQ/3
+
+    val dungeonTeammates = CopyOnWriteArrayList<DungeonPlayer>()
+    var dungeonTeammatesNoSelf = listOf<DungeonPlayer>()
+    var thePlayer: DungeonPlayer? = null
+
+    var maxPuzzleCount = 0
+    var puzzles = mutableListOf<Puzzle>()
+
+    data class DualTime(val ticks: Long, val real: Long = System.currentTimeMillis()) {
+        companion object {
+            operator fun DualTime.minus(other: DualTime) = DualTime(ticks - other.ticks, real - other.real)
+        }
+    }
+
+    var dungeonStarted = false
+    var dungeonStartTime: DualTime? = null
+    var dungeonEnded = false
+
+    var bloodOpenTime: DualTime? = null
+    var watcherClearTime: DualTime? = null
+    var watcherFinishSpawnTime: Long? = null
+    var bossEntryTime: DualTime? = null
+    var dungeonEndTime: Long? = null
+
+    var lastDoorOpener: DungeonPlayer? = null
+
+    var currentTime = 0L
+
+    override fun init() {
+        register<MainThreadPacketReceivedEvent.Post>(EventPriority.HIGH) {
+            if (! inDungeon) return@register
+
+            when (val packet = event.packet) {
+                is ClientboundPlayerInfoUpdatePacket -> {
+                    for (entry in TabListUtils.getTabList()) {
+                        val text = entry.first.formattedText
+                        updateDungeonTeammates(text, entry.second)
+                        updatePuzzleCount(text)
+                        updatePuzzles(text)
+                    }
+                }
+
+                is ClientboundTabListPacket -> Blessing.entries.forEach { blessing ->
+                    blessing.regex.find(packet.footer.string)?.let {
+                        blessing.current = it.groupValues[1].romanToDecimal()
+                    }
+                }
+
+                is ClientboundContainerSetSlotPacket -> {
+                    thePlayer?.isDead = PlayerUtils.getHotbarSlot(0)?.skyblockId == "HAUNT_ABILITY"
+                }
+
+                is ClientboundRemoveEntitiesPacket -> dungeonTeammates.forEach {
+                    val id = it.entity?.id ?: return@forEach
+                    if (id !in packet.entityIds) return@forEach
+                    it.entity = null
+                }
+
+                is ClientboundAddEntityPacket -> {
+                    if (packet.type != EntityTypes.PLAYER) return@register
+                    val entity = mc.level?.getEntity(packet.id) as? AbstractClientPlayer ?: return@register
+                    dungeonTeammates.find { it.entity == null && it.name == entity.name.string }?.entity = entity
+                }
+            }
+        }
+
+        register<ChatMessageEvent>(EventPriority.HIGHEST) {
+            if (! inDungeon) return@register
+            val text = event.formattedText
+            val unformatted = event.unformattedText
+
+            when {
+                unformatted.lowercase().contains("blaze done") -> {
+                    puzzles.find { it.tabName == "Higher Or Lower" }?.let { puzzle ->
+                        puzzle.state = RoomState.CLEARED
+                        DungeonScanner.uniqueRooms.entries.find {
+                            it.key.contains("Blaze")
+                        }?.value?.mainRoom?.state = RoomState.CLEARED
+                    }
+                }
+
+                unformatted.matches(runEndRegex) -> {
+                    dungeonEnded = true
+                    dungeonEndTime = currentTime
+                    scope.launch { EventBus.post(DungeonEvent.RunEndedEvent) }
+                }
+
+                text == "§cThe §c§lBLOOD DOOR§c has been opened!" -> DoorType.BLOOD.keys --
+
+                "§c ☠" in text && "reconnected" !in unformatted -> {
+                    val match = deathRegex.find(unformatted) ?: return@register
+                    val username = match.groups["username"]?.value?.takeUnless { it == "You" } ?: mc.user.name
+                    val reason = match.groups["reason"]?.value ?: ""
+                    scope.launch {
+                        while (thePlayer == null) delay(1)
+                        if (username == mc.user.name) thePlayer?.isDead = true
+                        EventBus.post(DungeonEvent.PlayerDeathEvent(username, reason))
+                    }
+                }
+
+                unformatted == "[BOSS] The Watcher: You have proven yourself. You may pass." -> {
+                    DungeonScanner.uniqueRooms["Blood"]?.mainRoom?.state = RoomState.GREEN
+                    watcherClearTime = DualTime(currentTime)
+                }
+
+                unformatted == "[BOSS] The Watcher: That will be enough for now." -> {
+                    DungeonScanner.uniqueRooms["Blood"]?.mainRoom?.state = RoomState.CLEARED
+                    watcherFinishSpawnTime = currentTime
+                }
+
+                watcherMessageRegex.matches(unformatted) && bloodOpenTime == null -> {
+                    bloodOpenTime = DualTime(currentTime)
+                    EventBus.post(DungeonEvent.BloodOpenEvent)
+                }
+
+                unformatted == "[NPC] Mort: Here, I found this map when I first entered the dungeon." -> scope.launch {
+                    dungeonStartTime = DualTime(currentTime)
+                    while (thePlayer?.clazz == DungeonClass.Empty) delay(50)
+                    dungeonStarted = true
+                    EventBus.post(DungeonEvent.RunStatedEvent)
+                }
+
+                else -> {
+                    witherDoorOpenedRegex.find(unformatted)?.destructured?.let { (name) ->
+                        lastDoorOpener = dungeonTeammates.find { it.name == name }
+                        DoorType.WITHER.keys --
+                        return@register
+                    }
+
+                    keyPickupRegex.find(text)?.destructured?.let { (num) ->
+                        val type = when {
+                            "WITHER door" in unformatted -> DoorType.WITHER
+                            "BLOOD DOOR" in unformatted -> DoorType.BLOOD
+                            else -> null
+                        } ?: return@register
+
+                        val amount = num.toInt()
+                        type.keys += amount
+                        return@register
+                    }
+                }
+            }
+        }
+
+        register<TickEvent.Server>(EventPriority.HIGHEST) {
+            if (! inDungeon) return@register
+            currentTime ++
+        }
+
+        register<WorldChangeEvent>(EventPriority.HIGHEST) {
+            dungeonStarted = false
+            dungeonTeammates.clear()
+            dungeonTeammatesNoSelf = emptyList()
+            thePlayer = null
+            maxPuzzleCount = 0
+            puzzles.clear()
+            dungeonStartTime = null
+            dungeonEnded = false
+            bloodOpenTime = null
+            watcherClearTime = null
+            watcherFinishSpawnTime = null
+            bossEntryTime = null
+            dungeonEndTime = null
+            lastDoorOpener = null
+            currentTime = 0
+            DoorType.reset()
+            Blessing.reset()
+        }
+
+        register<DungeonEvent.RoomEvent.onStateChange> {
+            if (lastDoorOpener == null) return@register
+            if (event.room.data.type != RoomType.BLOOD) return@register
+            if (! event.newState.equalsOneOf(RoomState.DISCOVERED, RoomState.CLEARED, RoomState.GREEN)) return@register
+            lastDoorOpener = null
+        }
+    }
+
+    private fun updateDungeonTeammates(tabName: String, tabEntry: PlayerInfo) {
+        if ("dev" in LayBaltQOL.debugFlags) listOf(
+            DungeonPlayer("LayBalt", DungeonClass.Mage, 50),
+            DungeonPlayer("Somikyy", DungeonClass.Archer, 50),
+            DungeonPlayer("LayBaltALT", DungeonClass.Healer, 50),
+            DungeonPlayer("CatgirlLayBalt", DungeonClass.Tank, 50),
+            DungeonPlayer("BlackDragonLord", DungeonClass.Berserk, 50),
+        ).let { list ->
+            dungeonTeammates.clear()
+            dungeonTeammates.addAll(list)
+
+            thePlayer = dungeonTeammates.find { it.name == mc.user.name }
+            dungeonTeammatesNoSelf = dungeonTeammates.filterNot { it == thePlayer }
+
+            dungeonTeammates.onEach { teammate ->
+                teammate.entity = mc.level?.players()?.find { it.name.string == teammate.name } ?: teammate.entity
+            }
+
+            return
+        }
+
+        val line = (tabEntry as IPlayerInfo).rawTabListDisplayName?.string ?: tabName.removeFormatting()
+        val (name, clazz, clazzLevel) = tablistRegex.matchEntire(line)?.destructured ?: return
+        val playerInfo = if (name == tabEntry.profile.name) tabEntry
+        else mc.connection?.getPlayerInfo(name) ?: tabEntry
+        val skin = playerInfo.skin.body.texturePath()
+
+        dungeonTeammates.find { it.name == name }?.let { currentTeammate ->
+            currentTeammate.clazz = if (clazz != "DEAD") DungeonClass.fromName(clazz) else currentTeammate.clazz
+            currentTeammate.clazzLvl = clazzLevel.romanToDecimal()
+            currentTeammate.skin = skin
+            currentTeammate.isDead = clazz == "DEAD"
+        } ?: dungeonTeammates.add(
+            DungeonPlayer(
+                name,
+                DungeonClass.fromName(clazz),
+                clazzLevel.romanToDecimal(),
+                skin,
+                clazz == "DEAD",
+            )
+        )
+
+        thePlayer = dungeonTeammates.find { it.name == mc.user.name }
+        dungeonTeammatesNoSelf = dungeonTeammates.filter { it != thePlayer }
+
+        dungeonTeammates.onEach { teammate ->
+            if (teammate.entity != null) return@onEach
+            teammate.entity = mc.level?.players()?.find { it.name.string == teammate.name }
+        }
+    }
+
+    private fun updatePuzzleCount(tabName: String) {
+        if (maxPuzzleCount != 0) return
+        if (tabName.contains("Puzzles: ")) {
+            maxPuzzleCount = puzzleCountRegex.matchEntire(tabName)?.groups?.get(1)?.value?.toIntOrNull() ?: maxPuzzleCount
+            repeat(maxPuzzleCount) { puzzles.add(Puzzle.UNKNOWN) }
+        }
+    }
+
+    private fun updatePuzzles(tabName: String) {
+        val line = tabName.removeFormatting()
+
+        val name = puzzleRegex.find(line)?.destructured?.component1() ?: return
+        val newState = when {
+            "✦" in line && "???" in line -> RoomState.UNOPENED
+            "✦" in line -> RoomState.DISCOVERED
+            "✖" in line -> RoomState.FAILED
+            "✔" in line -> RoomState.GREEN
+            else -> return
+        }
+
+        val detected = Puzzle.fromName(name) ?: return
+
+        val puzzle = puzzles.find { it == detected && it != Puzzle.UNKNOWN } ?: run {
+            if (detected != Puzzle.UNKNOWN) puzzles.find { it == Puzzle.UNKNOWN }?.let {
+                puzzles.remove(it)
+                puzzles.add(detected)
+                return@run detected
+            }
+
+            detected
+        }
+
+        if (puzzle != Puzzle.UNKNOWN && puzzle.state != newState) {
+            puzzle.state = newState
+        }
+    }
+}

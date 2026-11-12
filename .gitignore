@@ -1,29 +1,44 @@
+# gradle
+.gradle/
+build/
+out/
+classes/
+
 # eclipse
-bin
 *.launch
-.settings
-.metadata
+.settings/
 .classpath
 .project
+bin/
 
 # idea
-out
-*.ipr
-*.iws
-*.iml
 .idea/*
 !.idea/codeStyles
 !.idea/copyright
+*.iml
+*.ipr
+*.iws
 
-# gradle
-build
-gradle.properties
-.gradle
+# vscode
+.vscode/
 
-# other
-eclipse
-run
-.vscode
-infer-out/
-ciwork/
-.DS_STORE
+# fabric
+run/
+
+# java
+hs_err_*.log
+replay_*.log
+*.hprof
+*.jfr
+
+# kotlin
+.kotlin/
+*.salive
+/logs
+
+# macos
+.DS_Store
+*.DS_Store
+
+# recorder-only jar production test run
+run-recorder-prod/

@@ -1,156 +1,227 @@
-import org.apache.commons.lang3.SystemUtils
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import org.gradle.jvm.tasks.Jar
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import java.util.*
 
 plugins {
+    id("net.fabricmc.fabric-loom")
+    `maven-publish`
+    kotlin("jvm")
+    kotlin("plugin.serialization")
+    id("lbq.variants")
+    id("lbq.preprocessing")
+    id("lbq.loom")
+    id("lbq.recorder")
     idea
-    java
-    kotlin("jvm") version "1.8.0"
-    id("gg.essential.loom") version "0.10.0.+"
-    id("dev.architectury.architectury-pack200") version "0.1.3"
-    id("com.github.johnrengelman.shadow") version "8.1.1"
-
-    id("net.kyori.blossom") version "1.3.1"
 }
 
-//Constants:
-
-val baseGroup: String by project
-val mcVersion: String by project
-val version: String by project
-val modid: String by project
-
-// Toolchains:
-java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(8))
-}
-
-// Minecraft configuration:
-loom {
-    log4jConfigs.from(file("log4j2.xml"))
-    launchConfigs {
-        "client" {
-        }
-    }
-    runConfigs {
-        "client" {
-            if (SystemUtils.IS_OS_MAC_OSX) {
-                // It can cause crashes on macOS
-                vmArgs.remove("-XstartOnFirstThread")
-            }
-        }
-        remove(getByName("server"))
-    }
-    forge {
-        pack200Provider.set(dev.architectury.pack200.java.Pack200Adapter())
+idea {
+    module {
+        isDownloadSources = true
+        isDownloadJavadoc = true
     }
 }
 
-sourceSets {
-    main {
-        java {
-            setSrcDirs(listOf("src/main/java"))
-        }
-        kotlin {
-            setSrcDirs(listOf("src/main/kotlin")) // Добавить папку kotlin
-        }
-    }
-    test {
-        java {
-            setSrcDirs(listOf("src/test/java"))
-        }
-        kotlin {
-            setSrcDirs(listOf("src/test/kotlin")) // Добавить папку kotlin для тестов
-        }
-    }
-}
+val minecraft_version = project.property("minecraft_version") as String
+val loader_version = project.property("loader_version") as String
+val fabric_kotlin_version = project.property("fabric_kotlin_version") as String
+val mod_version = project.property("mod_version") as String
+val maven_group = project.property("maven_group") as String
+val mod_name = project.property("mod_name") as String
+val fabric_version = project.property("fabric_version") as String
+val modmenu_version = project.property("modmenu_version") as String
+val ktor_version = project.property("ktor_version") as String
+val iris_version = project.property("iris_version") as String
+val universalcraft_version = project.property("universalcraft_version") as String
+val datafixer_version = project.property("datafixer_version") as String
+val datafixerCapability = "me.owdding:item-data-fixer-$minecraft_version"
 
-// Dependencies:
+version = mod_version
+group = maven_group
+
+base { archivesName.set(mod_name) }
+
+val bundled = configurations.create("bundled")
+val processedIncludeJarsDir = layout.buildDirectory.dir("processIncludeJars")
+
+configurations {
+    implementation.get().extendsFrom(bundled)
+}
 
 repositories {
-    mavenCentral()
-    maven("https://repo.spongepowered.org/maven/")
-    // If you don't want to log in with your real minecraft account, remove this line
     maven("https://pkgs.dev.azure.com/djtheredstoner/DevAuth/_packaging/public/maven/v1")
     maven("https://repo.essential.gg/repository/maven-public")
-}
-
-val shadowImpl: Configuration by configurations.creating {
-    configurations.implementation.get().extendsFrom(this)
+    maven("https://maven.terraformersmc.com/releases/")
+    maven("https://api.modrinth.com/maven")
+    maven("https://jitpack.io")
+    maven("https://maven.teamresourceful.com/repository/thatgravyboat/") {
+        content { includeGroup("me.owdding") }
+    }
 }
 
 dependencies {
-    minecraft("com.mojang:minecraft:1.8.9")
-    mappings("de.oceanlabs.mcp:mcp_stable:22-1.8.9")
-    forge("net.minecraftforge:forge:1.8.9-11.15.1.2318-1.8.9")
+    minecraft("com.mojang:minecraft:$minecraft_version")
 
-    // If you don't want to log in with your real minecraft account, remove this line
-    runtimeOnly("me.djtheredstoner:DevAuth-forge-legacy:1.2.1")
-    implementation(kotlin("stdlib"))
+    implementation("net.fabricmc:fabric-loader:$loader_version")
+    implementation("net.fabricmc.fabric-api:fabric-api:$fabric_version")
+    implementation("net.fabricmc:fabric-language-kotlin:$fabric_kotlin_version")
 
-    annotationProcessor("org.spongepowered:mixin:0.8.5:processor")
-    compileOnly("org.spongepowered:mixin:0.8.5")
+    runtimeOnly("me.djtheredstoner:DevAuth-fabric:1.2.2")
+    compileOnly("maven.modrinth:iris:$iris_version")
+    compileOnly("com.terraformersmc:modmenu:$modmenu_version")
 
-    shadowImpl("gg.essential:loader-launchwrapper:1.1.3")
+    compileOnly("io.github.llamalad7:mixinextras-fabric:0.5.5")
+    annotationProcessor("io.github.llamalad7:mixinextras-fabric:0.5.5")
 
-    api("com.mojang:brigadier:1.0.18")
+    bundled("io.github.classgraph:classgraph:4.8.195")
+    // Upstream meowdding item-data-fixer publishes one variant per Minecraft version, selected by capability.
+    bundled("me.owdding:item-data-fixer:$datafixer_version") {
+        capabilities { requireCapability(datafixerCapability) }
+    }
+    bundled("gg.essential:universalcraft-26.2-fabric:$universalcraft_version") {
+        exclude(group = "net.fabricmc", module = "fabric-loader")
+    }
+    bundled("io.ktor:ktor-client-cio:$ktor_version")
+    bundled("io.ktor:ktor-client-content-negotiation-jvm:$ktor_version")
+    bundled("io.ktor:ktor-client-encoding:$ktor_version")
+    bundled("io.ktor:ktor-serialization-kotlinx-json-jvm:$ktor_version")
 
-    implementation("gg.essential:vigilance-$mcVersion-forge:299")
+    testImplementation(kotlin("test"))
 }
 
-// Tasks:
-
-tasks.withType(JavaCompile::class) {
-    options.encoding = "UTF-8"
+/** Whether dotted version [a] is newer than [b] (1.11.1 > 1.11.0, 2.0 > 1.99); a non-numeric part counts as 0. */
+fun isNewerVersion(a: String, b: String): Boolean {
+    val x = a.split('.', '-', '+').map { it.toIntOrNull() ?: 0 }
+    val y = b.split('.', '-', '+').map { it.toIntOrNull() ?: 0 }
+    for (i in 0 until maxOf(x.size, y.size)) {
+        val diff = x.getOrElse(i) { 0 } - y.getOrElse(i) { 0 }
+        if (diff != 0) return diff > 0
+    }
+    return false
 }
 
-tasks.withType(org.gradle.jvm.tasks.Jar::class) {
-    archiveBaseName.set(modid)
-    manifest.attributes.run {
-        this["FMLCorePluginContainsFMLMod"] = "true"
-        this["ForceLoadAsMod"] = "true"
+afterEvaluate {
+    // NoammAddons 20a78018: Fabric Language Kotlin already ships the Kotlin stdlib and kotlinx (coroutines, serialization,
+    // io, ...), and fabric.mod.json requires at least the version built against, so those are not nested again.
+    // A library that ktor or another bundled one needs newer than Fabric Language Kotlin's is still nested
+    // (Fabric Loader then loads the newest copy), so dropping one never downgrades it at runtime.
+    val fabricKotlinVersions = configurations.detachedConfiguration(
+        dependencies.create("net.fabricmc:fabric-language-kotlin:$fabric_kotlin_version")
+    ).resolvedConfiguration.resolvedArtifacts.associate { it.moduleVersion.id.module to it.moduleVersion.id.version }
+
+    bundled.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
+        artifact.moduleVersion.id.let { id ->
+            // WebSocket support was removed from LayBalt QOL; keep the transitive ktor
+            // websocket artifacts off the shipped jar (nothing loads them at runtime).
+            if (id.group == "io.ktor" && id.name.startsWith("ktor-websocket")) return@let
+            val fabricKotlinVersion = fabricKotlinVersions[id.module]
+            if (fabricKotlinVersion != null) {
+                if (! isNewerVersion(id.version, fabricKotlinVersion)) return@let
+                logger.info("Nesting ${id.module}:${id.version}: Fabric Language Kotlin only ships $fabricKotlinVersion")
+            }
+            val include = dependencies.add("include", "${id.group}:${id.name}:${id.version}") as ModuleDependency
+            if ("${id.group}:${id.name}" == "me.owdding:item-data-fixer") {
+                include.capabilities { requireCapability(datafixerCapability) }
+            }
+        }
     }
 }
 
-tasks.processResources {
-    inputs.property("version", project.version)
-    inputs.property("mcversion", mcVersion)
-    inputs.property("modid", modid)
-    inputs.property("basePackage", baseGroup)
+tasks.withType<JavaCompile>().configureEach { options.release.set(25) }
+tasks.withType<KotlinCompile>().configureEach { compilerOptions { jvmTarget.set(JvmTarget.JVM_25) } }
 
-    filesMatching(listOf("mcmod.info")) {
-        expand(inputs.properties)
+fun File.writeWithoutNestedJarMetadata() {
+    if (! isFile) return
+
+    val modJson = JsonSlurper().parse(this).let { parsed ->
+        @Suppress("UNCHECKED_CAST")
+        (parsed as Map<String, Any?>).toMutableMap()
     }
 
-    rename("(.+_at.cfg)", "META-INF/$1")
+    modJson.remove("jars")
+    writeText(JsonOutput.prettyPrint(JsonOutput.toJson(modJson)))
 }
 
+fun ProcessResources.writeNestedJarMetadata() {
+    dependsOn("processIncludeJars")
+    inputs.dir(processedIncludeJarsDir)
 
-val remapJar by tasks.named<net.fabricmc.loom.task.RemapJarTask>("remapJar") {
-    archiveClassifier.set("")
-    from(tasks.shadowJar)
-    input.set(tasks.shadowJar.get().archiveFile)
+    doLast {
+        val modJsonFile = destinationDir.resolve("fabric.mod.json")
+        val modJson = JsonSlurper().parse(modJsonFile).let { parsed ->
+            @Suppress("UNCHECKED_CAST")
+            (parsed as Map<String, Any?>).toMutableMap()
+        }
+
+        modJson["jars"] = processedIncludeJarsDir.get().asFile.listFiles()
+            ?.filter { it.isFile && it.extension == "jar" }
+            ?.sortedBy { it.name }
+            ?.map { mapOf("file" to "META-INF/jars/${it.name}") }
+            .orEmpty()
+
+        modJsonFile.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(modJson)))
+    }
 }
 
-tasks.jar {
-    archiveClassifier.set("without-deps")
-    destinationDirectory.set(layout.buildDirectory.dir("intermediates"))
+fun ProcessResources.writeBuildInfo() {
+    doLast {
+        val props = Properties()
+        props.setProperty("ci", (System.getenv("GITHUB_ACTIONS") == "true").toString())
+        props.setProperty("built_at", System.currentTimeMillis().toString())
+        destinationDir.resolve("build-info.properties").outputStream().use { props.store(it, null) }
+    }
+}
+
+tasks.named<ProcessResources>("processResources") {
+    doLast {
+        destinationDir.resolve("fabric.mod.json").writeWithoutNestedJarMetadata()
+    }
+}
+
+listOf("processCheatResources", "processLegitResources").forEach { taskName ->
+    tasks.named<ProcessResources>(taskName) {
+        writeNestedJarMetadata()
+        writeBuildInfo()
+    }
 }
 
 tasks.named<Jar>("jar") {
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    destinationDirectory.set(layout.buildDirectory.dir("tmp/intermediateJars"))
+    archiveClassifier.set("dev")
+
+    from("LICENSE") {
+        rename { "${it}_$mod_name" }
+    }
+    from("THIRD_PARTY_NOTICES.md") {
+        rename { "THIRD_PARTY_NOTICES_$mod_name.md" }
+    }
 }
 
-tasks.shadowJar {
-    destinationDirectory.set(layout.buildDirectory.dir("intermediates"))
-    archiveClassifier.set("non-obfuscated-with-deps")
-    configurations = listOf(shadowImpl)
-    doLast {
-        configurations.forEach {
-            println("Copying dependencies into mod: ${it.files}")
+listOf("jarCheat", "jarLegit").forEach { taskName ->
+    tasks.named<Jar>(taskName) {
+        // LayBaltQOL-<mod_version>-<minecraft_version>[-legit].jar
+        archiveVersion.set("$mod_version-$minecraft_version")
+
+        dependsOn("processIncludeJars")
+        from(processedIncludeJarsDir) {
+            into("META-INF/jars")
         }
     }
-
-    // If you want to include other dependencies and shadow them, you can relocate them in here
-    fun relocate(name: String) = relocate(name, "$baseGroup.deps.$name")
 }
 
-tasks.assemble.get().dependsOn(tasks.remapJar)
+// The published artifact is the cheat variant, with no classifier: LayBaltQOL-<version>-26.2.jar
+tasks.named<Jar>("jarCheat") {
+    archiveClassifier.set("")
+}
+
+// The legit variant is kept available (./gradlew jarLegit) but is not part of `build`.
+listOf("jarLegit", "legitSourcesJar", "legitClasses", "compileLegitKotlin", "compileLegitJava").forEach { taskName ->
+    tasks.named(taskName) { enabled = false }
+}
+
+tasks.named<Test>("test") {
+    failOnNoDiscoveredTests = false
+    maxHeapSize = "2g"
+}

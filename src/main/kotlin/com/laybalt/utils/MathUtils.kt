@@ -1,0 +1,101 @@
+package com.laybalt.utils
+
+import com.laybalt.LayBaltQOL.mc
+import com.laybalt.utils.render.RenderHelper.renderVec
+import net.minecraft.core.BlockPos
+import net.minecraft.core.Vec3i
+import net.minecraft.util.Mth
+import net.minecraft.world.phys.*
+import kotlin.math.*
+import kotlin.random.Random
+
+object MathUtils {
+    data class Rotation(var yaw: Float, var pitch: Float)
+
+    fun gaussianRandom(min: Int, max: Int): Int {
+        val u1 = 1.0 - Random.nextDouble()
+        val u2 = 1.0 - Random.nextDouble()
+        val gaussian = sqrt(- 2.0 * ln(u1)) * cos(2.0 * Math.PI * u2)
+
+        val mean = min + (max - min) / 2.0
+        val stdDev = (max - min) / 6.0
+
+        val result = (gaussian * stdDev) + mean
+
+        return max(min.toDouble(), min(max.toDouble(), result)).toInt()
+    }
+
+    fun distance2D(vec1: Vec3, vec2: Vec3): Double {
+        val deltaX = vec1.x - vec2.x
+        val deltaZ = vec1.z - vec2.z
+        return sqrt(deltaX * deltaX + deltaZ * deltaZ)
+    }
+
+    fun normalizeYaw(value: Float): Float = Mth.wrapDegrees(value)
+
+    fun normalizePitch(num: Float): Float = num.coerceIn(- 90f, 90f)
+
+    fun fixRot(rot: Rotation, lastRot: Rotation): Rotation {
+        val yaw = rot.yaw
+        val pitch = rot.pitch
+
+        val lastYaw = lastRot.yaw
+        val lastPitch = lastRot.pitch
+
+        val f = mc.options.sensitivity().get().toFloat() * 0.6f + 0.2f
+        val gcd = f * f * f * 1.2f
+
+        val dYaw = yaw - lastYaw
+        val dPitch = pitch - lastPitch
+
+        val fixedDYaw = dYaw - (dYaw % gcd)
+        val fixedDPitch = dPitch - (dPitch % gcd)
+
+        val fixedYaw = lastYaw + fixedDYaw
+        val fixedPitch = lastPitch + fixedDPitch
+
+        return Rotation(fixedYaw, fixedPitch)
+    }
+
+    fun calcYawPitch(blockPos: Vec3): Rotation {
+        val playerPos = mc.player !!.renderVec.add(y = mc.player !!.eyeHeight)
+        val delta = blockPos.subtract(playerPos)
+        val yaw = - atan2(delta.x, delta.z) * (180 / PI)
+        val pitch = - atan2(delta.y, sqrt(delta.x * delta.x + delta.z * delta.z)) * (180 / PI)
+        return Rotation(yaw.toFloat(), pitch.toFloat())
+    }
+
+    fun lerp(prev: Number, newPos: Number, partialTicks: Number): Double {
+        return prev.toDouble() + (newPos.toDouble() - prev.toDouble()) * partialTicks.toDouble()
+    }
+
+    fun interpolateYaw(startYaw: Float, targetYaw: Float, progress: Float): Float {
+        var delta = (targetYaw - startYaw) % 360
+
+        if (delta > 180) delta -= 360
+        if (delta < - 180) delta += 360
+
+        return (startYaw + delta * progress)
+    }
+
+    fun BlockPos.add(x: Number = 0, y: Number = 0, z: Number = 0) = this.offset(x.toInt(), y.toInt(), z.toInt())
+    fun BlockPos.toVec() = vec(x, y, z)
+    val BlockPos.center get() = Vec3.atCenterOf(this)
+
+
+    fun Vec3.toPos() = BlockPos(floor(x).toInt(), floor(y).toInt(), floor(z).toInt())
+    fun Vec3.add(x: Number = 0.0, y: Number = 0.0, z: Number = 0.0) = add(vec(x, y, z))
+    fun Vec3i.destructured() = Triple(x, y, z)
+    fun Vec3.destructured() = Triple(x, y, z)
+    fun Vec3.center() = add(vec(0.5, 0.5, 0.5))
+    fun Vec3.xzInAABB(aabb: AABB) = x in aabb.minX .. aabb.maxX && z in aabb.minZ .. aabb.maxZ
+
+    fun vec(x: Number, y: Number, z: Number) = Vec3(x.toDouble(), y.toDouble(), z.toDouble())
+    fun aabb(x1: Number, y1: Number, z1: Number, x2: Number, y2: Number, z2: Number): AABB {
+        return AABB(x1.toDouble(), y1.toDouble(), z1.toDouble(), x2.toDouble(), y2.toDouble(), z2.toDouble())
+    }
+
+    // NoammAddons 029687b6: raytrace(player, range) is gone, GyroHelper aims with EtherwarpHelper.getEtherPos
+
+    fun getLookVec(yaw: Float, pitch: Float) = Vec3.directionFromRotation(pitch, yaw)
+}

@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "com.laybalt.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "plugin": "com.laybalt.init.AutoMixinDiscovery",
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
