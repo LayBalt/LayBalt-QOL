@@ -1,5 +1,6 @@
 package com.laybalt.utils.items
 
+import com.laybalt.mixin.ICustomData
 import com.laybalt.utils.*
 import com.laybalt.utils.ChatUtils.formattedText
 import com.laybalt.utils.ChatUtils.removeFormatting
@@ -10,13 +11,16 @@ import com.laybalt.utils.items.ItemRarity.Companion.RARITY_PATTERN
 import com.laybalt.utils.items.ItemRarity.Companion.rarityCache
 import com.laybalt.utils.network.data.DungeonStats
 import net.minecraft.core.component.DataComponents
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.component.CustomData
 import net.minecraft.world.item.component.ItemLore
 import kotlin.jvm.optionals.getOrNull
 
 object ItemUtils {
-    val ItemStack.customData get() = getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag()
+    /** NoammAddons ce2d84dd: the item's own tag, read without a copy. Read only: never change the returned tag. */
+    @Suppress("KotlinConstantConditions", "CAST_NEVER_SUCCEEDS")
+    val ItemStack.customData: CompoundTag get() = (getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY) as ICustomData).getTagDirect()
     val ItemStack.lore get() = getOrDefault(DataComponents.LORE, ItemLore.EMPTY).styledLines().map { it.formattedText }
     val ItemStack.itemUUID get() = customData.getString("uuid").getOrNull() ?: ""
     val ItemStack.skyblockId: String

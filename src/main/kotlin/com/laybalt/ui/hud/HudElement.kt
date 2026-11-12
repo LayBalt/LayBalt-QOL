@@ -91,6 +91,8 @@ abstract class HudElement {
     }
 
     fun renderElement(ctx: GuiGraphicsExtractor, example: Boolean) {
+        // NoammAddons e7ada2f7 dropped this check because its HUD loop now tests toggle first. LayBalt keeps it: several
+        // features (container value, inventory search, item value, Kuudra tracker, Vesuvius) call renderElement directly.
         if (! toggle) return
 
         ctx.pose().pushMatrix()

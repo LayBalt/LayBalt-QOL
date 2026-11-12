@@ -47,10 +47,17 @@ object ClearInfoUpdater: ISelfInit {
     fun initStartSecrets() = LayBaltQOL.scope.launch(Dispatchers.IO) {
         if (! DungeonMap.enabled) return@launch
         if (! MapConfig.printPlayersClearInfo.value) return@launch
+        // NoammAddons 3c810cdb: your own count comes from one /secretcount read (no backend, so only while the feature is on)
+        val ownSecrets = ProfileUtils.getSecretsCMD()
         coroutineScope {
             val jobs = DungeonListener.dungeonTeammates.map { teammate ->
                 async {
-                    // Only your own count can be read (/secretcount); other players' lookups have no backend.
+                    if (teammate == DungeonListener.thePlayer) {
+                        teammate.secretsBeforeRun = ownSecrets.getOrDefault(0)
+                        return@async
+                    }
+
+                    // Your own count comes from /secretcount, teammates' from the stats server (Secrets Counter > API URL).
                     // An unknown count stays 0 and the run summary leaves the secrets part out for that player.
                     ProfileUtils.getSecrets(teammate.name).onSuccess {
                         teammate.secretsBeforeRun = it
@@ -70,10 +77,14 @@ object ClearInfoUpdater: ISelfInit {
     fun sendClearInfoMessage() = LayBaltQOL.scope.launch(Dispatchers.IO) {
         if (! DungeonMap.enabled) return@launch
         if (! MapConfig.printPlayersClearInfo.value) return@launch
+        // read once, also when you are dead at the end of the run (getSecrets only runs /secretcount while alive)
+        val ownSecrets = ProfileUtils.getSecretsCMD()
         val msgList = DungeonListener.dungeonTeammates.map { teammate ->
             async {
                 val before = teammate.secretsBeforeRun
-                val foundSecrets = if (before > 0L) ProfileUtils.getSecrets(teammate.name).getOrNull()?.let { it - before } else null
+                val foundSecrets = if (before <= 0L) null
+                else if (teammate == DungeonListener.thePlayer) ownSecrets.getOrNull()?.let { it - before }
+                else ProfileUtils.getSecrets(teammate.name).getOrNull()?.let { it - before }
                 val playerFormatted = "${teammate.clazz.code}${teammate.name}"
 
                 val baseComp = LayBaltQOL.PREFIX.copy().append(Component.literal(" $playerFormatted&f:&r ".addColor()))

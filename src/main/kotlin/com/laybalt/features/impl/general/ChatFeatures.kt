@@ -4,6 +4,7 @@ package com.laybalt.features.impl.general
 import net.minecraft.network.chat.TextColor
 import com.laybalt.LayBaltQOL
 import com.laybalt.commands.CommandBuilder
+import com.laybalt.config.ConfigManager
 import com.laybalt.config.PogObject
 import com.laybalt.config.types.ToggleSetting
 import com.laybalt.event.impl.*
@@ -14,7 +15,6 @@ import com.laybalt.interfaces.IChatComponent
 import com.laybalt.ui.notification.NotificationManager
 import com.laybalt.utils.*
 import com.laybalt.utils.ChatUtils.removeFormatting
-import com.laybalt.utils.ChatUtils.unformattedText
 import com.mojang.brigadier.arguments.StringArgumentType
 import gg.essential.universal.UKeyboard
 import gg.essential.universal.UMinecraft
@@ -23,11 +23,15 @@ import net.minecraft.client.gui.screens.ChatScreen
 import net.minecraft.client.multiplayer.chat.GuiMessage
 import net.minecraft.network.chat.*
 import com.mojang.blaze3d.platform.InputConstants
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo
+//#if CHEAT
+import net.minecraft.network.protocol.common.ServerboundCustomClickActionPacket
+//#endif
 
 object ChatFeatures: Feature(jsonName = "Chat", description = "Useful tweaks for the chat such as Ctrl + Click to copy messages."), ICommandProvider {
     private val ctrlClickToCopy by ToggleSetting("Ctrl Click to Copy", true).withDescription("Ctrl + Left Click a message to copy it to your clipboard.")
     private val removeUselessMessages by ToggleSetting("Remove useless messages", true).withDescription("Removes a lot of useless messages from the chat.")
+    // NoammAddons 3d0e212a: the per-enemy Explosive Shot damage has its own toggle (it used to follow "Remove useless messages")
+    private val explosiveShotDamage by ToggleSetting("Explosive Shot Damage", true).withDescription("Shows the damage per enemy dealt by your Explosive Shot.")
     private val chatEmoji by ToggleSetting("Chat Emoji", true).withDescription("Lets you use [MVP++] emojis in chat")
 
     //#if CHEAT
@@ -96,8 +100,11 @@ object ChatFeatures: Feature(jsonName = "Chat", description = "Useful tweaks for
             event.isCanceled = true
         }
 
+        // Configs saved before the split keep what they had: no damage line while "Remove useless messages" was off.
+        ConfigManager.oneShotDefault("chat-explosive-shot-damage") { if (! removeUselessMessages.value) explosiveShotDamage.value = false }
+
         register<ChatMessageEvent> {
-            if (! removeUselessMessages.value) return@register
+            if (! explosiveShotDamage.value) return@register
             val (sHits, _, fDamage) = explosiveShotRegex.find(event.unformattedText)?.destructured ?: return@register
             val hits = sHits.toIntOrNull() ?: return@register
             val totalDamage = fDamage.replace(",", "").toDoubleOrNull() ?: return@register
@@ -111,29 +118,38 @@ object ChatFeatures: Feature(jsonName = "Chat", description = "Useful tweaks for
                 .let { replaceWordEmotes(it, event.isCommand) }
         }
 
+        // NoammAddons 29ed9775: hides only the printed line, so ChatMessageEvent listeners still see the message.
+        register<PrintMessageEvent> {
+            if (! removeUselessMessages.value) return@register
+            val msg = event.unformattedText
+
+            if (msg.isBlank()) {
+                if (lastMessageBlank) event.cancel()
+                else lastMessageBlank = true
+                return@register
+            }
+
+            if (uselessMessages.any { it.matches(msg) } || customHiders.get().any { it.matches(msg) }) return@register event.cancel()
+
+            lastMessageBlank = false
+        }
+
         //#if CHEAT
         // https://github.com/jcnlk/quoi/blob/6e74cc3536aa1db91fe4a134254668a96c2ea072/src/main/kotlin/quoi/module/impl/general/chat/impl/AutoDialogue.kt#L4
         register<ChatMessageEvent> {
             if (! autoDialogue.value) return@register
             if ("[BARBARIANS] [MAGES]" in event.unformattedText) return@register
             if (! event.unformattedText.startsWith("Select an option: ")) return@register
-            val cmd = (event.component.siblings.getOrNull(0)?.style?.clickEvent as? ClickEvent.RunCommand)?.command ?: return@register
-            ChatUtils.sendCommand(cmd)
+            // NoammAddons 2fdd97e4 / 97a1f00b: the first option may sit deeper than siblings[0] and may be a custom click action.
+            fun firstOption(c: Component): ClickEvent? = (c.style.clickEvent as? ClickEvent.RunCommand ?: c.style.clickEvent as? ClickEvent.Custom)
+                ?: c.siblings.firstNotNullOfOrNull { firstOption(it) }
+            when (val option = firstOption(event.component)) {
+                is ClickEvent.RunCommand -> ChatUtils.sendCommand(option.command)
+                is ClickEvent.Custom -> mc.connection?.send(ServerboundCustomClickActionPacket(option.id, option.payload))
+                else -> {}
+            }
         }
         //#endif
-    }
-
-    @JvmStatic
-    fun addMassageHook(comp: Component, ci: CallbackInfo) {
-        if (! enabled) return
-        if (! removeUselessMessages.value) return
-        val msg = comp.unformattedText
-
-        if (msg.isBlank()) return if (lastMessageBlank) ci.cancel() else ::lastMessageBlank.set(true)
-
-        if (uselessMessages.any { it.matches(msg) } || customHiders.get().any { it.matches(msg) }) return ci.cancel()
-
-        lastMessageBlank = false
     }
 
     private fun getHoveredMsg(): String {

@@ -175,20 +175,28 @@ object DebugHUD {
         draw("Is Leader: ${if (PartyUtils.isLeader()) "§aYES" else "§cNO"}")
 
         val leaderName = PartyUtils.partyLeader
-        val selfName = LayBaltQOL.mc.player?.gameProfile?.name
+        val selfName = LayBaltQOL.mc.user.name
         draw("Party Leader: ${leaderName?.let { "§f$it" } ?: "§7None"}")
+        PartyUtils.previousLeader?.let { draw("Previous Leader: §7$it") }
+        if (PartyUtils.pendingInvites.isNotEmpty()) draw("Pending Invites: §e${PartyUtils.pendingInvites.joinToString(", ")}")
 
         y += 5
-        draw("§b§lMEMBERS (${PartyUtils.members.size})", 0x55FFFF)
-        if (PartyUtils.members.isEmpty()) draw(" §7No members detected...")
-        else PartyUtils.members.forEach { member ->
+        val members = PartyUtils.partyMembers
+        draw("§b§lMEMBERS (${members.size})", 0x55FFFF)
+        if (members.isEmpty()) draw(" §7No members detected...")
+        else members.sortedBy { it.role }.forEach { member ->
             val tags = buildList {
-                if (member == leaderName) add("§6[LEADER]")
-                if (member == selfName) add("§d(YOU)")
+                when (member.role) {
+                    PartyUtils.PartyRole.LEADER -> add("§6[LEADER]")
+                    PartyUtils.PartyRole.MOD -> add("§e[MOD]")
+                    PartyUtils.PartyRole.MEMBER -> {}
+                }
+                if (! member.isOnline) add("§c(OFFLINE)")
+                if (member.name.equals(selfName, ignoreCase = true)) add("§d(YOU)")
             }.joinToString(" ")
 
             val tagText = if (tags.isNotEmpty()) " $tags" else ""
-            draw(" §f$member$tagText")
+            draw(" §f${member.name}$tagText")
         }
     }
 

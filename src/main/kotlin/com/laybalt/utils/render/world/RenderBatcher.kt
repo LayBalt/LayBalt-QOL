@@ -3,7 +3,9 @@ package com.laybalt.utils.render.world
 import com.laybalt.utils.render.world.batches.FilledBatch
 import com.laybalt.utils.render.world.batches.LineBatch
 import com.mojang.blaze3d.vertex.PoseStack
+import net.fabricmc.fabric.api.client.rendering.v1.SubmitRenderPhases
 import net.minecraft.client.renderer.SubmitNodeCollector
+import net.minecraft.client.renderer.feature.CustomFeatureRenderer
 import net.minecraft.client.renderer.rendertype.RenderType
 import org.joml.Vector3f
 
@@ -33,14 +35,14 @@ object RenderBatcher {
     fun flush(collector: SubmitNodeCollector) {
         if (filledBatches.isEmpty() && lineBatches.isEmpty()) return
 
-        for (batchData in filledBatches.values) collector.submitCustomGeometry(poseStack, batchData.type) { _, consumer ->
+        for (batchData in filledBatches.values) collector.submitBatch(batchData.type) { _, consumer ->
             for (state in batchData.data) {
                 consumer.addVertex(state.x, state.y, state.z)
                 consumer.setColor(state.r, state.g, state.b, state.a)
             }
         }
 
-        for (batchData in lineBatches.values) collector.submitCustomGeometry(poseStack, batchData.type) { _, consumer ->
+        for (batchData in lineBatches.values) collector.submitBatch(batchData.type) { _, consumer ->
             for (state in batchData.data) {
                 consumer.addVertex(state.x, state.y, state.z)
                 consumer.setColor(state.r, state.g, state.b, state.a)
@@ -51,5 +53,13 @@ object RenderBatcher {
 
         filledBatches.clear()
         lineBatches.clear()
+    }
+
+    // NoammAddons b9beda78: 26.2 has no OIT pipelines, so blended custom geometry submitted the plain way lands in the
+    // translucent phase and see-through blocks (glass, leaves, ...) draw over it. Submit straight into Fabric's phases
+    // (see-through types on top of everything, the rest after terrain) instead of rerouting with a SubmitNodeCollection mixin.
+    private fun SubmitNodeCollector.submitBatch(type: RenderType, renderer: SubmitNodeCollector.CustomGeometryRenderer) {
+        val phase = if (type in LayBaltRenderTypes.alwaysOnTopTypes) SubmitRenderPhases.ALWAYS_ON_TOP else SubmitRenderPhases.AFTER_TERRAIN
+        submitCustom(phase, CustomFeatureRenderer.Submit(poseStack.last().copy(), type, renderer))
     }
 }

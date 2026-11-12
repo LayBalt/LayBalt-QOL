@@ -1,178 +1,488 @@
+// Originally ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking; rewritten after NoammAddons 9e1eed5a
 package com.laybalt.utils
 
+import kotlin.math.abs
 import com.laybalt.LayBaltQOL.mc
+import com.laybalt.event.EventBus
 import com.laybalt.event.EventBus.register
 import com.laybalt.event.impl.ChatMessageEvent
+import com.laybalt.event.impl.ContainerEvent
+import com.laybalt.event.impl.ContainerFullyOpenedEvent
 import com.laybalt.event.impl.DungeonEvent
+import com.laybalt.event.impl.PartyEvent
 import com.laybalt.event.priority.EventPriority
 import com.laybalt.init.types.ISelfInit
+import com.laybalt.utils.ChatUtils.removeFormatting
+import com.laybalt.utils.ChatUtils.unformattedText
+import com.laybalt.utils.NumbersUtils.romanToDecimal
 import com.laybalt.utils.dungeons.DungeonListener
-import com.laybalt.utils.dungeons.DungeonUtils
+import com.laybalt.utils.items.ItemUtils.lore
 import com.laybalt.utils.location.LocationUtils
+import com.laybalt.utils.location.WorldType
+import net.minecraft.world.item.Items
 
 /**
- * @author Odin
- * @link https://github.com/odtheking/OdinFabric/blob/main/src/main/kotlin/com/odtheking/odin/utils/skyblock/PartyUtils.kt
- * Modified
+ * Party tracking. Originally based on Odin's PartyUtils
+ * (https://github.com/odtheking/OdinFabric/blob/main/src/main/kotlin/com/odtheking/odin/utils/skyblock/PartyUtils.kt),
+ * now the NoammAddons 9e1eed5a rewrite: roles, online state, pending invites, multi-line messages and
+ * case-insensitive names. Since NoammAddons 7a8b74f3 / 385fc5fc every change is posted as a [PartyEvent].
  */
 object PartyUtils: ISelfInit {
-    private val joinedSelf = Regex("^You have joined ((?:\\[[^]]*?])? ?)?(\\w{1,16})'s? party!$")
-    private val joinedOther = Regex("^((?:\\[[^]]*?])? ?)?(\\w{1,16}) joined the party\\.$")
-    private val leftParty = Regex("^((?:\\[[^]]*?])? ?)?(\\w{1,16}) has left the party\\.$")
-    private val kickedParty = Regex("^((?:\\[[^]]*?])? ?)?(\\w{1,16}) has been removed from the party\\.$")
-    private val kickedOffline = Regex("^Kicked ((?:\\[[^]]*?])? ?)?(\\w{1,16}) because they were offline\\.$")
-    private val kickedDisconnected = Regex("^((?:\\[[^]]*?])? ?)?(\\w{1,16}) was removed from your party because they disconnected\\.$")
-    private val transferLeave = Regex("^The party was transferred to ((?:\\[[^]]*?])? ?)?(\\w{1,16}) because ((?:\\[[^]]*?])? ?)?(\\w{1,16}) left$")
-    private val transferBy = Regex("^The party was transferred to ((?:\\[[^]]*?])? ?)?(\\w{1,16}) by ((?:\\[[^]]*?])? ?)?(\\w{1,16})$")
-    private val partyChat = Regex("^Party > ((?:\\[[^]]*?])? ?)?(\\w{1,16}): (.+)$")
-    private val partyInvite = Regex("^((?:\\[[^]]*?])? ?)?(\\w{1,16}) invited ((?:\\[[^]]*?])? ?)?(\\w{1,16}) to the party! They have 60 seconds to accept.$")
-    private val leaderDisconnected = Regex("^The party leader, ((?:\\[[^]]*?])? ?)?(\\w{1,16}) has disconnected, they have 5 minutes to rejoin before the party is disbanded\\.$")
-    private val leaderRejoined = Regex("^The party leader ((?:\\[[^]]*?])? ?)?(\\w{1,16}) has rejoined\\.$")
-    private val memberFormat = Regex("^((?:\\[[^]]*?])? ?)?(\\w{1,16})$")
-    private val partyWith = Regex("^You'll be partying with: (.+)$")
+    enum class PartyRole { LEADER, MOD, MEMBER }
+    enum class OnlineState { ONLINE, OFFLINE }
 
-    private val queuedInFinder = Regex("^Party Finder > Your party has been queued in the dungeon finder!$")
-    private val dungeonJoin = Regex("^Party Finder > (\\w{1,16}) joined the dungeon group! \\((\\w+) Level (\\d+)\\)$")
-    private val kuudraJoin = Regex("^Party Finder > ((?:\\[[^]]*?])? ?)?(\\w{1,16}) joined the group! \\(Combat Level (\\d+)\\)$")
-    private val membersList = Regex("^Party (Leader|Moderators|Members): (.+)$")
+    data class PartyMember(
+        val name: String,
+        val role: PartyRole,
+        val state: OnlineState,
+        val rank: String? = null,
+        val rankPrefix: String? = null,
+    ) {
+        val isOnline get() = state == OnlineState.ONLINE
+        val displayName get() = rankPrefix?.let { "$it $name" } ?: name
+    }
 
-    private val disbandPatterns = listOf(
-        Regex("^((?:\\[[^]]*?])? ?)?(\\w{1,16}) has disbanded the party!$"),
-        Regex("^You have been kicked from the party by ((?:\\[[^]]*?])? ?)?(\\w{1,16})$"),
-        Regex("^The party was disbanded because all invites expired and the party was empty.$"),
-        Regex("^The party was disbanded because the party leader disconnected.$"),
-        Regex("^You left the party.$"),
-        Regex("^You are not currently in a party.$")
+    private const val RANK = "(?:\\[[^]]+] )?"
+    private const val NAME = "(\\w{1,16})"
+    private fun line(pattern: String) = Regex("^$pattern$")
+
+    private val joinedSelf = line("You have joined $RANK$NAME'?s? party!")
+    private val partyingWith = line("You'll be partying with: (.+)")
+    private val kickedSelf = line("You have been kicked from the party by $RANK$NAME")
+    private val disbanded = line("$RANK$NAME has disbanded the party!")
+    private val selfLeft = setOf(
+        "You left the party.",
+        "You are not in a party right now.",
+        "You are not currently in a party.",
+        "You are not in a party.",
     )
+    private const val DISBANDED_PREFIX = "The party was disbanded because "
+    // NoammAddons 73a821fd: the line after confirming your own group in the Group Builder.
+    private const val QUEUING_PARTY = "Queueing your party..."
+    private const val QUEUED_IN_FINDER = "Party Finder > Your party has been queued in the dungeon finder!"
+    private const val FAILED_TO_QUEUE = "Failed to queue"
+    private const val QUEUE_PAIR_MS = 2_000L
+    private var queueingAt = 0L
+    private var queuedAt = 0L
 
-    val members = mutableListOf<String>()
-
-    var partyLeader: String? = null
+    /** You joined someone else's Party Finder group (its leader unknown until the run starts, a warp or /pl). */
+    @Volatile var joinedOthersGroup = false
         private set
 
-    var isInParty: Boolean = false
+    private val joined = line("$RANK$NAME joined the party\\.")
+    // Also covers the Kuudra finder line "joined the group! (Combat Level N)" our Odin-based version matched separately.
+    private val finderJoined = line("Party Finder > $RANK$NAME joined the (?:dungeon )?group! \\(.+\\)")
+    // NoammAddons 7a8b74f3: the action is captured so MemberLeft can tell leaving, kicks and disconnects apart.
+    private val removed = line("$RANK$NAME (has left the party|has been removed from the party|was removed from (?:the|your) party because they disconnected)\\.")
+    private val kickedOffline = line("Kicked (.+) because they were offline\\.")
+
+    private val transferred = line("The party was transferred to $RANK$NAME (by|because) $RANK$NAME(?: left)?")
+    private val roleChanged = line("$RANK$NAME has (?:promoted|demoted) $RANK$NAME to Party (Leader|Moderator|Member)")
+    // NoammAddons 952281d9: /p warp names the leader.
+    private val warped = line("Party Leader, $RANK$NAME, summoned you to their server\\.")
+
+    private val invited = line("$RANK$NAME invited $RANK$NAME to the party! They have \\d+ seconds to accept\\.")
+    private val inviteExpired = line("The party invite to $RANK$NAME has expired\\.?")
+
+    private val memberDisconnected = line("$RANK$NAME has disconnected, they have \\d+ minutes? to rejoin before they are removed from the party\\.")
+    private val leaderDisconnected = line("The party leader,? $RANK$NAME has disconnected, they have \\d+ minutes? to rejoin before the party is disbanded\\.")
+    private val rejoined = line("(?:The party leader,? )?$RANK$NAME has rejoined\\.")
+
+    // NoammAddons 2a0d7001: the size is kept so a complete list marks the members as known.
+    private val listHeader = line("Party Members \\((\\d+)\\)")
+    private val listEntry = line("Party (Leader|Moderators|Members): (.+)")
+
+    private val partyChat = line("Party > $RANK$NAME: .*")
+
+    // Entrance added on our side (DungeonUtils.floorEnterRegex accepts it too), so Auto Requeue works on F0.
+    private val floorEntered = line("[^\\w\\s]*\\s*$RANK$NAME entered (?:MM )?The Catacombs, (?:Floor [IVX]+|Entrance)!")
+
+    private val named = line("$RANK$NAME")
+    private val rankedName = Regex("\\[([^]]+)] (\\w{1,16})(?!\\w)")
+    private val rankedNameFormatted = Regex("((?:§.)*\\[(?:[^]§]|§.)+](?:§.)*) (?:§.)*(\\w{1,16})(?!\\w)")
+
+    private var lineRanks = emptyMap<String, Pair<String, String?>>()
+    private val separator = Regex("^[-▬=\\s]+$")
+
+    // NoammAddons 2a0d7001: true once the whole member list is known (joined a party, or a complete /pl). Until then a
+    // member leaving must not be read as "the party is empty now".
+    private var membersKnown = false
+    private var listSize: Int? = null
+    // NoammAddons 73a821fd: you just pressed "Confirm Group" in the Group Builder.
+    private var createdGroup = false
+
+    // NoammAddons 385fc5fc: every change posts PartyEvent.Update (Party HUD rebuilds its lines on it).
+    @Volatile var partyMembers: List<PartyMember> = emptyList()
+        private set(value) {
+            if (field == value) return
+            field = value
+            EventBus.post(PartyEvent.Update)
+        }
+
+    @Volatile var pendingInvites: Set<String> = emptySet()
+        private set(value) {
+            if (field == value) return
+            field = value
+            EventBus.post(PartyEvent.Update)
+        }
+
+    @Volatile var previousLeader: String? = null
         private set
+
+    @Volatile var isInParty = false
+        private set(value) {
+            if (field == value) return
+            field = value
+            EventBus.post(PartyEvent.Update)
+        }
+
+    val members get() = partyMembers.map(PartyMember::name)
+    val partyLeader get() = partyMembers.firstOrNull { it.role == PartyRole.LEADER }?.name
+    val partySize get() = partyMembers.size
+
+    private val self get() = mc.user.name
 
     override fun init() {
-        register<ChatMessageEvent>(EventPriority.HIGHEST) {
+        register<ChatMessageEvent>(EventPriority.HIGHEST, receiveCancelled = true) {
             if (! LocationUtils.onHypixel) return@register
-            val message = event.unformattedText
 
-            joinedOther.find(message)?.let { return@register addMember(it.groupValues[2]) }
+            val lines = event.unformattedText.split('\n')
+            val formattedLines = event.formattedText.split('\n').takeIf { it.size == lines.size }
 
-            joinedSelf.find(message)?.let {
-                addMember(it.groupValues[2])
-                partyLeader = it.groupValues[2]
-                addMember(mc.player?.gameProfile?.name ?: return@register)
-                return@register
+            lines.forEachIndexed { i, raw ->
+                val text = raw.trim()
+                if (text.isEmpty() || separator.matches(text)) return@forEachIndexed
+                handleLine(text, formattedLines?.get(i) ?: raw)
+                lineRanks = emptyMap()
             }
-
-            leftParty.find(message)?.let { return@register removeMember(it.groupValues[2]) }
-
-            kickedParty.find(message)?.let { return@register removeMember(it.groupValues[2]) }
-
-            kickedOffline.find(message)?.let { return@register removeMember(it.groupValues[2]) }
-
-            kickedDisconnected.find(message)?.let { return@register removeMember(it.groupValues[2]) }
-
-            transferBy.find(message)?.let {
-                addMember(it.groupValues[2])
-                addMember(it.groupValues[4])
-                partyLeader = it.groupValues[2]
-                return@register
-            }
-
-            transferLeave.find(message)?.let {
-                addMember(it.groupValues[2])
-                partyLeader = it.groupValues[2]
-                removeMember(it.groupValues[4])
-                return@register
-            }
-
-            leaderDisconnected.find(message)?.let {
-                partyLeader = it.groupValues[2]
-                return@register
-            }
-
-            leaderRejoined.find(message)?.let {
-                partyLeader = it.groupValues[2]
-                return@register
-            }
-
-            partyChat.find(message)?.let {
-                addMember(it.groupValues[2])
-                return@register
-            }
-
-            partyInvite.find(message)?.let {
-                addMember(it.groupValues[2])
-                if (partyLeader == null) partyLeader = it.groupValues[2]
-                return@register
-            }
-
-            queuedInFinder.find(message)?.let {
-                addMember(mc.player?.gameProfile?.name ?: return@register)
-                if (partyLeader == null) partyLeader = mc.player?.gameProfile?.name
-                return@register
-            }
-
-            for (pattern in disbandPatterns) {
-                if (pattern.containsMatchIn(message)) return@register disband()
-            }
-
-            membersList.find(message)?.let { match ->
-                val type = match.groupValues[1]
-
-                match.groupValues[2].split(" ●").forEach { segment ->
-                    val memberMatch = memberFormat.find(segment.trim()) ?: return@forEach
-                    addMember(memberMatch.groupValues[2])
-                    if (type == "Leader") partyLeader = memberMatch.groupValues[2]
-                }
-                return@register
-            }
-
-            partyWith.find(message)?.let { match ->
-                match.groupValues[1].split(", ").forEach { playerName ->
-                    val memberMatch = memberFormat.find(playerName.trim()) ?: return@forEach
-                    addMember(memberMatch.groupValues[2])
-                }
-                return@register
-            }
-
-            DungeonUtils.floorEnterRegex.find(message)?.let {
-                val name = message.substringBefore(" entered").split(" ").last()
-                addMember(name)
-                partyLeader = name
-                return@register
-            }
-
-            kuudraJoin.find(message)?.let { return@register addMember(it.groupValues[2]) }
-
-            dungeonJoin.find(message)?.let { return@register addMember(it.groupValues[1]) }
         }
 
+        // NoammAddons 2a0d7001 / 952281d9 / 49d2c405: a run only refreshes the online state of the living teammates
+        // of a party we already know about; it no longer makes a solo player (or an unknown party) "leader".
         register<DungeonEvent.RunStatedEvent> {
-            DungeonListener.dungeonTeammates.forEach { addMember(it.name) }
-            if (partyLeader == null) partyLeader = mc.user.name
+            if (! isInParty) return@register
+            for (teammate in DungeonListener.dungeonTeammates) {
+                if (teammate.isDead) continue
+                upsert(teammate.name, state = OnlineState.ONLINE)
+            }
+        }
+
+        // NoammAddons 26984c13: the Group Builder (Mort's Party Finder menu) shows the type, floor and note of your
+        // group; Party Finder's Auto Kick follows them.
+        register<ContainerFullyOpenedEvent> {
+            if (LocationUtils.world != WorldType.DungeonHub) return@register
+            if (event.title.string != "Group Builder") return@register
+            if (event.items[32]?.hoverName?.unformattedText != "Confirm Group") return@register
+
+            val typeSlot = event.items[11]?.takeIf { it.`is`(Items.PLAYER_HEAD) } ?: return@register
+            val floorSlot = event.items[12]?.takeIf { it.`is`(Items.PLAYER_HEAD) } ?: return@register
+            val noteSlot = event.items[13]?.takeIf { it.`is`(Items.PAPER) } ?: return@register
+
+            if (typeSlot.hoverName.string != "Select Dungeon Type") return@register
+            if (floorSlot.hoverName.string != "Select Floor") return@register
+            if (noteSlot.hoverName.string != "Set Group Note") return@register
+
+            // getOrNull: a lore layout change must not throw from the event (upstream indexes directly).
+            val selectedType = typeSlot.lore.getOrNull(3)?.removeFormatting()?.substringAfter("Currently Selected: ") ?: return@register
+            val selectedFloor = floorSlot.lore.getOrNull(3)?.removeFormatting()?.substringAfter("Currently Selected: ") ?: return@register
+            val note = noteSlot.lore.getOrNull(4)?.removeFormatting()?.substringBeforeLast(".") ?: return@register
+
+            val isMaster = selectedType.startsWith("Master Mode")
+            val floor = when {
+                selectedFloor.startsWith("E") -> 0
+                "Floor " in selectedFloor -> selectedFloor.substringAfter("Floor ").trim().romanToDecimal()
+                else -> return@register
+            }
+
+            EventBus.post(PartyEvent.FinderGroupSettings(floor, isMaster, note))
+        }
+
+        // NoammAddons 73a821fd: "Confirm Group" in the Group Builder creates a party you lead.
+        register<ContainerEvent.SlotClick> {
+            if (! LocationUtils.world.equalsOneOf(WorldType.DungeonHub, WorldType.CrimsonIsle)) return@register
+            if (event.screen.title.string != "Group Builder") return@register
+            if (event.slotId != 32) return@register
+            createdGroup = true
+            ThreadUtils.scheduledTaskServer(20) { createdGroup = false }
         }
     }
 
-    fun isLeader(): Boolean = partyLeader == mc.user.name
+    fun getMember(name: String = self) = partyMembers.firstOrNull { it.name.same(name) }
+    fun getRole(name: String = self) = getMember(name)?.role
+    fun getState(name: String) = getMember(name)?.state
+    fun membersWith(role: PartyRole) = partyMembers.filter { it.role == role }
+    fun membersWith(state: OnlineState) = partyMembers.filter { it.state == state }
 
-    private fun addMember(playerName: String) {
-        if (! isInParty) isInParty = true
-        if (playerName !in members) members.add(playerName)
+    fun isLeader() = getRole() == PartyRole.LEADER
+    fun isLeader(name: String) = getRole(name) == PartyRole.LEADER
+    fun isMod(name: String = self) = getRole(name) == PartyRole.MOD
+    fun isMember(name: String) = getMember(name) != null
+    fun isOnline(name: String) = getState(name) == OnlineState.ONLINE
+    fun canInvite() = getRole() in setOf(PartyRole.LEADER, PartyRole.MOD)
+
+    fun sync() = ChatUtils.sendCommand("pl")
+
+    private fun handleLine(text: String, formatted: String) {
+        val prefixes = rankedNameFormatted.findAll(formatted).associate { it.groupValues[2].lowercase() to it.groupValues[1] }
+        lineRanks = rankedName.findAll(text).associate { it.groupValues[2].lowercase() to (it.groupValues[1] to prefixes[it.groupValues[2].lowercase()]) }
+
+        if (text in selfLeft || text.startsWith(DISBANDED_PREFIX)) return reset()
+
+        // NoammAddons 49d2c405: a floor entry only names the leader of a party we are in (solo runs post it too).
+        if (isInParty) floorEntered.matchEntire(text)?.let { return setLeader(it.groupValues[1]) }
+        if (disbanded.matches(text) || kickedSelf.matches(text)) return reset()
+
+        joinedSelf.matchEntire(text)?.let {
+            reset()
+            setLeader(it.groupValues[1])
+            membersKnown = true
+            return
+        }
+
+        partyingWith.matchEntire(text)?.let { match ->
+            return match.groupValues[1].split(", ").mapNotNull(::nameOf).forEach { upsert(it) }
+        }
+
+        // NoammAddons 2a0d7001: someone joining no longer makes you leader (you may have missed your own join line);
+        // the leader comes from the invite line, the Group Builder or /pl.
+        joined.matchEntire(text)?.let {
+            val name = it.groupValues[1]
+            upsert(name, state = OnlineState.ONLINE)
+            EventBus.post(PartyEvent.MemberJoined(name))
+            return
+        }
+
+        finderJoined.matchEntire(text)?.let {
+            val name = it.groupValues[1]
+            // you joined someone else's Party Finder group: a new party
+            if (name.same(self)) {
+                reset()
+                joinedOthersGroup = true
+                return upsert(name, state = OnlineState.ONLINE)
+            }
+
+            upsert(name, state = OnlineState.ONLINE)
+            EventBus.post(PartyEvent.MemberJoined(name))
+            return
+        }
+
+        if (text == QUEUING_PARTY && createdGroup && ! isInParty) {
+            createdGroup = false
+            setLeader(self)
+        }
+
+        // You listed the group yourself: "Queueing your party..." (only the one who queues sees it) and the queued line
+        // (every member sees it) within 2 s of each other, in either order, and no "Failed to queue" (a member trying).
+        // For a missed "Confirm Group" click; the queued line alone made members of others' groups leader (and Auto
+        // Kick then kicked as one), as your chat logs showed.
+        val now = System.currentTimeMillis()
+        when (text) {
+            QUEUING_PARTY -> queueingAt = now
+            QUEUED_IN_FINDER -> queuedAt = now
+            else -> if (text.startsWith(FAILED_TO_QUEUE)) queueingAt = 0L
+        }
+        if ((text == QUEUING_PARTY || text == QUEUED_IN_FINDER) && queueingAt > 0L && queuedAt > 0L && abs(queueingAt - queuedAt) <= QUEUE_PAIR_MS) {
+            queueingAt = 0L
+            queuedAt = 0L
+            setLeader(self)
+        }
+
+        removed.matchEntire(text)?.let {
+            val (name, action) = it.destructured
+            val cause = when {
+                action.startsWith("has left") -> PartyEvent.LeaveCause.LEFT
+                action.startsWith("has been removed") -> PartyEvent.LeaveCause.KICKED
+                else -> PartyEvent.LeaveCause.DISCONNECTED
+            }
+            return removeMember(name, cause)
+        }
+
+        kickedOffline.matchEntire(text)?.let { match ->
+            return match.groupValues[1].split(", ").mapNotNull(::nameOf).forEach { removeMember(it, PartyEvent.LeaveCause.KICKED) }
+        }
+
+        transferred.matchEntire(text)?.let {
+            val (newLeader, reason, oldLeader) = it.destructured
+            setLeader(newLeader)
+            EventBus.post(PartyEvent.RoleChange(newLeader, PartyRole.LEADER))
+            if (reason == "because") return removeMember(oldLeader, PartyEvent.LeaveCause.LEFT)
+
+            upsert(oldLeader, PartyRole.MOD)
+            EventBus.post(PartyEvent.RoleChange(oldLeader, PartyRole.MOD))
+            return
+        }
+
+        warped.matchEntire(text)?.let {
+            setLeader(it.groupValues[1])
+            EventBus.post(PartyEvent.Warp)
+            return
+        }
+
+        roleChanged.matchEntire(text)?.let {
+            val (actor, target, role) = it.destructured
+            if (! isMember(actor) || ! isMember(target)) membersKnown = false
+            // NoammAddons 952281d9: only the leader can promote or demote.
+            setLeader(actor)
+            when (role) {
+                "Leader" -> {
+                    setLeader(target)
+                    upsert(actor, PartyRole.MOD)
+                    EventBus.post(PartyEvent.RoleChange(target, PartyRole.LEADER))
+                    EventBus.post(PartyEvent.RoleChange(actor, PartyRole.MOD))
+                }
+
+                "Moderator" -> {
+                    upsert(target, PartyRole.MOD)
+                    EventBus.post(PartyEvent.RoleChange(target, PartyRole.MOD))
+                }
+
+                else -> {
+                    upsert(target, PartyRole.MEMBER)
+                    EventBus.post(PartyEvent.RoleChange(target, PartyRole.MEMBER))
+                }
+            }
+            return
+        }
+
+        invited.matchEntire(text)?.let {
+            val (inviter, invitee) = it.destructured
+            if (! isMember(inviter)) membersKnown = false
+            if (partyLeader == null) setLeader(inviter) else upsert(inviter, state = OnlineState.ONLINE)
+            if (! pendingInvites.has(invitee)) pendingInvites = pendingInvites + invitee
+            EventBus.post(PartyEvent.Invite(inviter, invitee))
+            return
+        }
+
+        inviteExpired.matchEntire(text)?.let {
+            val invitee = it.groupValues[1]
+            pendingInvites = pendingInvites.without(invitee)
+            EventBus.post(PartyEvent.InviteExpired(invitee))
+            return
+        }
+
+        leaderDisconnected.matchEntire(text)?.let {
+            val name = it.groupValues[1]
+            setLeader(name)
+            upsert(name, state = OnlineState.OFFLINE)
+            EventBus.post(PartyEvent.MemberStateChange(name, OnlineState.OFFLINE))
+            return
+        }
+
+        memberDisconnected.matchEntire(text)?.let {
+            val name = it.groupValues[1]
+            if (! isMember(name)) membersKnown = false
+            upsert(name, state = OnlineState.OFFLINE)
+            EventBus.post(PartyEvent.MemberStateChange(name, OnlineState.OFFLINE))
+            return
+        }
+
+        // NoammAddons 2a0d7001: a rejoin also tells us about members we had not seen, and who the leader is.
+        rejoined.matchEntire(text)?.let {
+            val name = it.groupValues[1]
+            if (! isMember(name)) membersKnown = false
+            if (text.startsWith("The party leader")) setLeader(name)
+            upsert(name, state = OnlineState.ONLINE)
+            EventBus.post(PartyEvent.MemberStateChange(name, OnlineState.ONLINE))
+            return
+        }
+
+        listHeader.matchEntire(text)?.let {
+            val wasInParty = isInParty
+            partyMembers = emptyList()
+            isInParty = true
+            membersKnown = false
+            listSize = it.groupValues[1].toInt()
+            if (! wasInParty) EventBus.post(PartyEvent.Joined)
+            return
+        }
+
+        listEntry.matchEntire(text)?.let { return parseListEntry(it.groupValues[1], formatted) }
+
+        partyChat.matchEntire(text)?.let {
+            val name = it.groupValues[1]
+            if (! isMember(name)) membersKnown = false
+            return upsert(name, state = OnlineState.ONLINE)
+        }
     }
 
-    private fun removeMember(playerName: String) {
-        if (playerName !in members) return
-        members.remove(playerName)
-        if (members.isEmpty()) disband()
+    private fun parseListEntry(kind: String, formatted: String) {
+        formatted.substringAfter(": ").split('●').dropLast(1).forEach { segment ->
+            val name = nameOf(segment.removeFormatting()) ?: return@forEach
+            val dotColour = segment.lastIndexOf('§').takeIf { it in 0 until segment.lastIndex }?.let { segment[it + 1] }
+            val state = if (dotColour == 'c') OnlineState.OFFLINE else OnlineState.ONLINE
+
+            when (kind) {
+                "Leader" -> setLeader(name)
+                "Moderators" -> upsert(name, PartyRole.MOD)
+                else -> upsert(name, PartyRole.MEMBER)
+            }
+            upsert(name, state = state)
+        }
+
+        if (listSize == partySize) {
+            membersKnown = true
+            listSize = null
+        }
     }
 
-    private fun disband() {
-        members.clear()
-        partyLeader = null
+    private fun upsert(name: String, role: PartyRole? = null, state: OnlineState? = null) {
+        val wasInParty = isInParty
+        if (! wasInParty) membersKnown = false
+        isInParty = true
+        val current = partyMembers.let { list ->
+            if (list.any { it.name.same(self) }) list
+            else list + PartyMember(self, PartyRole.MEMBER, OnlineState.ONLINE)
+        }
+
+        val existing = current.firstOrNull { it.name.same(name) }
+        val seenRank = lineRanks[name.lowercase()]
+        val updated = PartyMember(
+            existing?.name ?: name,
+            role ?: existing?.role ?: PartyRole.MEMBER,
+            state ?: existing?.state ?: OnlineState.ONLINE,
+            seenRank?.first ?: existing?.rank,
+            seenRank?.second ?: existing?.rankPrefix,
+        )
+
+        partyMembers = if (existing == null) current + updated else current.map { if (it === existing) updated else it }
+        if (pendingInvites.has(name)) pendingInvites = pendingInvites.without(name)
+        if (! wasInParty) EventBus.post(PartyEvent.Joined)
+    }
+
+    private fun removeMember(name: String, cause: PartyEvent.LeaveCause) {
+        if (name.same(self)) return reset()
+        if (! isMember(name)) membersKnown = false
+        partyMembers = partyMembers.filterNot { it.name.same(name) }
+        EventBus.post(PartyEvent.MemberLeft(name, cause))
+        if (membersKnown && partyMembers.all { it.name.same(self) } && pendingInvites.isEmpty()) reset()
+    }
+
+    private fun setLeader(name: String) {
+        // a leader is known now: the group is no longer one you joined with its leader unknown
+        joinedOthersGroup = false
+        val current = partyLeader
+        if (current != null && ! current.same(name)) {
+            previousLeader = current
+            upsert(current, PartyRole.MEMBER, OnlineState.ONLINE)
+        }
+        upsert(name, PartyRole.LEADER, OnlineState.ONLINE)
+    }
+
+    private fun reset() {
+        val wasInParty = isInParty
+        val oldMembers = members.filterNot { it.same(self) }
+        partyMembers = emptyList()
+        pendingInvites = emptySet()
+        previousLeader = null
         isInParty = false
+        membersKnown = false
+        listSize = null
+        joinedOthersGroup = false
+        if (wasInParty) EventBus.post(PartyEvent.Left(oldMembers))
     }
+
+    private fun nameOf(entry: String) = named.matchEntire(entry.trim())?.groupValues?.get(1)
+    private fun String?.same(other: String?) = this != null && equals(other, ignoreCase = true)
+    private fun Set<String>.has(name: String) = any { it.equals(name, ignoreCase = true) }
+    private fun Set<String>.without(name: String) = filterNot { it.equals(name, ignoreCase = true) }.toSet()
 }

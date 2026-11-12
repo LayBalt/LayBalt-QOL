@@ -21,6 +21,8 @@ object LocationUtils: ISelfInit, Shortcuts {
     @JvmField var inSkyblock = false
     @JvmField var world: WorldType? = null
     @JvmField var serverId: String? = null
+    /** The SkyBlock profile id from the "Profile ID: ..." line Hypixel sends on each SkyBlock join (NoammAddons b2ac69a8). Kept across world changes. */
+    @JvmField var profileId: String? = null
 
     @JvmField var inDungeon = false
     @JvmField var dungeonFloor: String? = null
@@ -72,6 +74,11 @@ object LocationUtils: ISelfInit, Shortcuts {
             }
             F7Phase = getPhase(packet.y)
             P3Section = findP3Section(packet.x, packet.y, packet.z)
+        }
+
+        // receiveCancelled: a chat filter hiding the line must not hide the profile switch
+        EventBus.register<ChatMessageEvent>(EventPriority.HIGHEST, receiveCancelled = true) {
+            profileIdRegex.matchEntire(event.unformattedText)?.let { profileId = it.groupValues[1] }
         }
 
         EventBus.register<WorldChangeEvent>(EventPriority.HIGH) { reset() }
@@ -130,6 +137,7 @@ object LocationUtils: ISelfInit, Shortcuts {
     }
 
     private val lobbyRegex = Regex("\\d\\d/\\d\\d/\\d\\d (\\w{0,6}) *")
+    private val profileIdRegex = Regex("Profile ID: ([\\w-]+)")
 
     private val p3Sections = arrayOf(
         aabb(90, 158, 123, 111, 105, 32),

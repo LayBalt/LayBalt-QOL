@@ -18,8 +18,10 @@ import com.laybalt.utils.Utils.send
 import com.laybalt.utils.dungeons.DungeonListener.thePlayer
 import com.laybalt.utils.dungeons.DungeonPlayer
 import com.laybalt.utils.items.ItemUtils.skyblockId
+import com.mojang.blaze3d.platform.InputConstants
 import gg.essential.universal.UMinecraft
 import kotlinx.coroutines.delay
+import net.minecraft.client.KeyMapping
 import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.BlockPos
@@ -33,6 +35,7 @@ import net.minecraft.world.entity.player.Inventory
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.phys.*
+import org.lwjgl.glfw.GLFW
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -70,6 +73,29 @@ object PlayerUtils: ISelfInit, Shortcuts {
         key.isDown = true
         (key as IKeyMapping).clickCount += 1
         key.isDown = false
+    }
+
+    /**
+     * Presses the use key and keeps it down like a held right click: vanilla uses the item again every 4 ticks until
+     * [releaseUse]. Never call [rightClick] meanwhile, it lets the key go.
+     */
+    fun holdUse() {
+        val key = mc.options.keyUse
+        key.isDown = true
+        (key as IKeyMapping).clickCount += 1
+    }
+
+    /** Lets go of a use key held by [holdUse]; while you hold it down yourself, it stays down. */
+    fun releaseUse() {
+        mc.options.keyUse.isDown = isPhysicallyDown(mc.options.keyUse)
+    }
+
+    /** [key] is down on your keyboard or mouse right now, whatever a feature set its pressed state to. */
+    fun isPhysicallyDown(key: KeyMapping): Boolean {
+        val k = (key as IKeyMapping).key
+        if (k == InputConstants.UNKNOWN) return false
+        return if (k.type == InputConstants.Type.MOUSE) GLFW.glfwGetMouseButton(mc.window.handle(), k.value) == GLFW.GLFW_PRESS
+        else InputConstants.isKeyDown(mc.window, k.value)
     }
 
     fun getSelectionBlock(): BlockPos? {
@@ -182,9 +208,13 @@ object PlayerUtils: ISelfInit, Shortcuts {
     suspend fun leapAction(leapTarget: DungeonPlayer) {
         if (thePlayer?.isDead == true) return
         if (leapTarget.isDead) return modMessage(leapTarget.name + " is dead R.I.P!")
-        val leapIndex = findHotbarSlot { it.skyblockId.contains("LEAP") } ?: return modMessage("&cNo leap found in hotbar!")
+        // NoammAddons abd13e35: the Infinileap first, then a Spirit Leap, never any other item with LEAP in its id
+        val leapIndex = findHotbarSlot { it.skyblockId == "INFINITE_SPIRIT_LEAP" }
+            ?: findHotbarSlot { it.skyblockId == "SPIRIT_LEAP" }
+            ?: return modMessage("&cNo leap found in hotbar!")
 
-        if (! inLeapMenu) {
+        // NoammAddons f0f273a8: the "spirit leap" menu handler in init() clicks and closes the menu it opens
+        if (! inLeapMenu) return run {
             if (player.inventory.selectedSlot != leapIndex) {
                 swapToSlot(leapIndex)
                 waitTicks(2)
@@ -199,7 +229,7 @@ object PlayerUtils: ISelfInit, Shortcuts {
         LeapMenu.updateLeapMenu()
         LeapMenu.players.find { it?.player?.name == leapTarget.name }?.let { target ->
             modMessage("Leaping To: &e[${leapTarget.clazz.name[0]}] &a${leapTarget.name}")
-            GuiUtils.clickSlot(target.slotIndex, GuiUtils.ButtonType.MIDDLE)
+            GuiUtils.clickSlot(target.slotIndex, GuiUtils.ButtonType.LEFT)
             player.closeContainer()
         }
     }

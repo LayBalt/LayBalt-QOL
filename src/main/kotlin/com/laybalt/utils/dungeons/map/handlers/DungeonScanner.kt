@@ -22,6 +22,8 @@ object DungeonScanner: ISelfInit {
     var mimicRoom: UniqueRoom? = null
 
     var witherDoors = 0
+    /** The wither doors this scanner added to [witherDoors] (not the ones the map turned into wither doors later). */
+    private val countedWitherDoors = HashSet<DoorTile>()
     var cryptCount = 0
     var secretCount = 0
 
@@ -49,6 +51,7 @@ object DungeonScanner: ISelfInit {
             mimicRoom = null
             hasScanned = false
             witherDoors = 0
+            countedWitherDoors.clear()
             cryptCount = 0
             secretCount = 0
         }
@@ -130,6 +133,13 @@ object DungeonScanner: ISelfInit {
                 RoomTile(x, z, ScanUtils.getRoomData(roomCore) ?: return null).apply {
                     addToUnique(row, column)
                     uniqueRoom?.highestBlock = roofHeight
+                    // NoammAddons 51c86198: the fairy room's door counts as exactly one wither door, whether it was
+                    // still closed or already open when it was scanned. A wither door counted before the fairy room
+                    // was known is taken back here, so it is not counted twice.
+                    if (data.type == RoomType.FAIRY) {
+                        val index = row * 11 + column
+                        witherDoors += 1 - countedWitherDoors.count { index in it.roomTileIndices }
+                    }
                 }
             }
 
@@ -150,8 +160,13 @@ object DungeonScanner: ISelfInit {
             roofHeight.equalsOneOf(73, 74, 81, 82) -> {
                 val doorBlock = WorldUtils.getBlockAt(x, 69, z)
                 val type = DoorType.entries.find { it.source == doorBlock } ?: DoorType.NORMAL
-                if (type == DoorType.WITHER) witherDoors ++
-                DoorTile(x, z, type)
+                // NoammAddons 51c86198: a wither door next to a known fairy room is already counted by that room
+                DoorTile(x, z, type).also { door ->
+                    if (type == DoorType.WITHER && door.roomTiles.none { it.data.type == RoomType.FAIRY }) {
+                        witherDoors ++
+                        countedWitherDoors.add(door)
+                    }
+                }
             }
 
             // Connection between large rooms

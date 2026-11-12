@@ -387,7 +387,11 @@ object ForeignConfigImport: ICommandProvider {
             alias("Champion Room", "Miniboss Room")
             alias("Unknown Room", "Unopened Room")
             alias("Unknown Door", "Unopened Door")
-            skip(NO_EQUIVALENT, "Room Text", "Text Scaling", "Player Name Color", "Own Player Head", "Fairy Door", "Disable Prediction", "Parse map websocket")
+            // Odin 8580eb4e
+            alias("Player Head Scale", "Player Heads Scale")
+            alias("Player Class Color Size", "Head Border Size")
+            skip(NO_EQUIVALENT, "Room Text", "Text Scaling", "Player Name Color", "Own Player Head", "Fairy Door", "Disable Prediction", "Parse map websocket",
+                "Player Pointer Scale")
         }
         odin("Terminal Solver", "Terminal Solver") {
             alias("Normal Term Size", "Vanilla Term Size")
@@ -448,7 +452,8 @@ object ForeignConfigImport: ICommandProvider {
             alias("Storm Pad Hud", "Storm Pad Timer")
             alias("Storm PY Hud", "Storm PY Timer")
             skip("removed upstream after the dungeon update", "Secrets Hud")
-            skip(NO_EQUIVALENT, "Storm Lightning Hud", "Storm Tick Hud", "Fire Freeze Hud")
+            skip(NO_EQUIVALENT, "Storm Lightning Hud", "Storm Tick Hud")
+            alias("Fire Freeze Hud", "Fire Freeze Timer") // Odin 3bf75747
         }
         odin("Chat Commands", "Party Helper") {
             val commands = mapOf(
@@ -461,6 +466,7 @@ object ForeignConfigImport: ICommandProvider {
             commands.forEach { (odin, cmd) -> alias(odin, "Enabled Commands >> $cmd") }
             custom("Queue instance cmds") { c, v -> listOf("!f", "!m", "!t").forEach { set(c, "Queue instance cmds", "Enabled Commands >> $it", v) } }
             alias("Auto Confirm", "Auto Confirm Invite")
+            alias("Delay", "Response Delay") // Odin 035c4942: ticks before answering a chat command
             skip(NO_EQUIVALENT, "Odin", "Racism")
             skip("LayBaltQOL's emotes are Chat > Chat Emoji (a separate feature)", "Chat Emotes")
         }
@@ -547,6 +553,8 @@ object ForeignConfigImport: ICommandProvider {
             alias("Ice Fill Solver", "@section:Ice Fill Solver")
             alias("Blaze Solver Next Line", "Blaze Next Line")
             alias("Blaze Solver Lines", "Blaze Lines")
+            alias("Blaze Solver Line", "Blaze Lines") // Odin 1acdc46d renamed it
+            alias("Hide Blazes", "Hide Blazes") // Odin 1acdc46d
             alias("Blaze Solver Lines Width", "Blaze Line Width")
             alias("Blaze Style", "Blaze Box Style")
             alias("First Color", "First Blaze Color")
@@ -562,7 +570,9 @@ object ForeignConfigImport: ICommandProvider {
             alias("Weirdos Wrong Color", "Wrong Chest Color")
             alias("Color for one", "Correct Pad Color")
             alias("Tracer Color Second", "Next Click Color")
-            skip("LayBaltQOL has several \"Click Color\" settings in this feature; not imported to avoid writing the wrong one", "Tracer Color First", "Ice Fill Color")
+            // NoammAddons eea0d140 gave these colours their own json names, so they are unambiguous now.
+            alias("Tracer Color First", "Water Board Click Color")
+            alias("Ice Fill Color", "Ice Fill Line Color")
             skip(NO_EQUIVALENT, "Optimized Solutions", "Water Tracer", "Color for multiple", "Color for visited", "Maze Tracer", "Tracer Color",
                 "Use Optimized Patterns", "Beams Style", "Beams Tracer", "Beams Color Alpha", "Weirdos Style", "Quiz Depth", "Boulder Style")
             custom("PuzzlePBs") { c, v -> importPBs(c, v) { "puzzle_${it.lowercase().replace(' ', '_')}" } }
@@ -884,6 +894,7 @@ object ForeignConfigImport: ICommandProvider {
             if (naMarker?.get("reportPending")?.asBoolean == true) {
                 val features = reportNaCopy(report, naMarker)
                 counts[Source.NA] = features
+                changed = true // reportNaCopy applies the renamed NoammAddons keys the loader dropped
                 ForeignImportMarker.update { root ->
                     root.getAsJsonObject("na")?.apply {
                         remove("reportPending")
@@ -1022,10 +1033,15 @@ object ForeignConfigImport: ICommandProvider {
             if (feature == null) report.line("  - $name: skipped (not part of LayBaltQOL; ignored by the loader)")
             else {
                 kept ++
+                // the loader migrated these keys (e.g. Auto Terminal's delays, NoammAddons 5dff2334): report what it read
+                obj.getAsJsonObject("configSettings")?.let { ConfigManager.applySettingMigrations(feature, it) }
                 if (feature === SlotBinding) importNaSlotBindings(obj.getAsJsonObject("configSettings"), report)
-                val unknown = obj.getAsJsonObject("configSettings")?.keySet()?.filter { feature.getSettingByName(it) == null && ! isNaSlotBindingsKey(feature, it) }.orEmpty()
+                val unknown = obj.getAsJsonObject("configSettings")?.keySet()
+                    ?.filter { feature.getSettingByName(it) == null && ! isNaSlotBindingsKey(feature, it) && ! isNaRenamedKey(name, it) }.orEmpty()
                 report.line("  + $name (${if (on) "on" else "off"}${if (feature.wip) ", WIP: stays off" else ""})" +
                     if (unknown.isEmpty()) "" else "; settings not in LayBaltQOL, ignored: ${unknown.joinToString()}")
+                // the loader dropped these keys (renamed upstream or kept in another feature)
+                applyNaRenamed(name, obj.getAsJsonObject("configSettings"), report)
             }
         }
         return kept
@@ -1078,7 +1094,8 @@ object ForeignConfigImport: ICommandProvider {
 
     private fun applyNaFeature(feature: Feature, obj: JsonObject, huds: Map<String, JsonObject>, report: Report) {
         val on = obj.get("enabled")?.asBoolean == true
-        val settings = obj.getAsJsonObject("configSettings") ?: JsonObject()
+        // settings replaced by one of another shape (e.g. Auto Terminal's delays, NoammAddons 5dff2334), as the loader does
+        val settings = (obj.getAsJsonObject("configSettings") ?: JsonObject()).also { ConfigManager.applySettingMigrations(feature, it) }
         report.line("  [NoammAddons] ${feature.jsonName} (${if (on) "on" else "off"}) -> ${feature.name}")
         when {
             feature.wip -> report.line("    - stays off: ${feature.name} is work in progress")
@@ -1091,7 +1108,9 @@ object ForeignConfigImport: ICommandProvider {
         }
         val ctx = Ctx(Module(Source.NA, feature.jsonName, on, settings), feature, null, report, emptySet(), exact = true)
         if (feature === SlotBinding) importNaSlotBindings(settings, report)
-        for ((key, value) in settings.entrySet()) if (! isNaSlotBindingsKey(feature, key)) set(ctx, key, key, value)
+        for ((key, value) in settings.entrySet()) if (! isNaSlotBindingsKey(feature, key) && ! isNaRenamedKey(feature.jsonName, key)) set(ctx, key, key, value)
+        // only renames into this feature: features imported earlier are not touched
+        applyNaRenamed(feature.jsonName, settings, report) { it === feature }
         for (hud in feature.hudElements) {
             val saved = huds[hud.name] ?: continue
             runCatching {
@@ -1111,12 +1130,15 @@ object ForeignConfigImport: ICommandProvider {
             val obj = el.takeIf { it.isJsonObject }?.asJsonObject ?: continue
             val name = obj.get("name")?.asString ?: continue
             val feature = FeatureManager.getFeatureByName(name) ?: run { report.line("  - $name: skipped (not part of LayBaltQOL)"); null } ?: continue
-            val module = Module(Source.NA, name, obj.get("enabled")?.asBoolean == true, obj.getAsJsonObject("configSettings") ?: JsonObject())
+            // settings replaced by one of another shape (e.g. Auto Terminal's delays, NoammAddons 5dff2334), as the loader does
+            val settings = (obj.getAsJsonObject("configSettings") ?: JsonObject()).also { ConfigManager.applySettingMigrations(feature, it) }
+            val module = Module(Source.NA, name, obj.get("enabled")?.asBoolean == true, settings)
             report.line("  [NoammAddons] $name (${if (module.enabled) "on" else "off"})")
             val ctx = Ctx(module, feature, null, report, emptySet())
             applyEnabled(ctx, true)
             if (feature === SlotBinding) importNaSlotBindings(module.settings, report)
-            for ((key, value) in module.settings.entrySet()) if (! isNaSlotBindingsKey(feature, key)) set(ctx, key, key, value)
+            for ((key, value) in module.settings.entrySet()) if (! isNaSlotBindingsKey(feature, key) && ! isNaRenamedKey(name, key)) set(ctx, key, key, value)
+            applyNaRenamed(name, module.settings, report)
             count ++
         }
 
@@ -1147,6 +1169,42 @@ object ForeignConfigImport: ICommandProvider {
     }
 
     private const val NA_SLOT_BINDINGS_KEY = "bindings"
+
+    private class NaRename(val feature: String, val setting: String)
+
+    /**
+     * NoammAddons settings whose json name changed upstream after LayBaltQOL took them over (LayBaltQOL keeps the old
+     * name, so its own saved configs still load), or that NoammAddons keeps in another feature. Per NoammAddons feature:
+     * its current setting key -> the LayBaltQOL feature and setting json name. The config loader drops these keys (it
+     * matches json names exactly), so every NoammAddons import path applies them with [applyNaRenamed].
+     */
+    private val naRenamed = mapOf(
+        "Terminal Solver" to mapOf(
+            // NoammAddons 4a429698: "FC delay, (In server ticks)" became "First Click delay" (0..8 ticks; ours is 0..16, same unit)
+            "First Click delay" to NaRename("Terminal Solver", "FC delay, (In server ticks)"),
+            // NoammAddons 5dff2334: that setting became a millisecond range saved as "FCD-Random"; LayBaltQOL keeps the
+            // ticks for its lag protection and has the millisecond range as First Click Protection
+            "FCD-Random" to NaRename("Terminal Solver", "First Click Protection"),
+            // NoammAddons c4364012: the simulator's Auto Next is a hidden Terminal Solver toggle there
+            "Simulator Auto Next" to NaRename("Terminal Simulator", "Auto Next"),
+        ),
+    )
+
+    private fun isNaRenamedKey(feature: String, key: String) = naRenamed[feature]?.containsKey(key) == true
+
+    /**
+     * Applies the [naRenamed] keys of NoammAddons feature [naFeature] ([settings]: its configSettings).
+     * [accept]: whether the target feature may be written (the incremental import only writes the features it imports).
+     */
+    private fun applyNaRenamed(naFeature: String, settings: JsonObject?, report: Report, accept: (Feature) -> Boolean = { true }) {
+        val renames = naRenamed[naFeature] ?: return
+        for ((key, rename) in renames) {
+            val value = settings?.get(key) ?: continue
+            val target = FeatureManager.getFeatureByName(rename.feature)?.takeIf(accept) ?: continue
+            val ctx = Ctx(Module(Source.NA, naFeature, false, settings), target, null, report, emptySet(), exact = true)
+            set(ctx, if (target.jsonName == naFeature) key else "$naFeature / $key", rename.setting, value)
+        }
+    }
 
     // endregion
 
@@ -1527,6 +1585,9 @@ object ForeignConfigImport: ICommandProvider {
         return when (setting) {
             is ToggleSetting -> JsonPrimitive(bool(raw))
             is SliderSetting<*> -> JsonPrimitive(number(raw))
+            // NoammAddons 5dff2334: [start, end]; a single value (Odin, or an older plain slider) is the fixed range n..n
+            is RangeSliderSetting<*> -> if (raw.isJsonArray && raw.asJsonArray.size() == 2) JsonArray().apply { raw.asJsonArray.forEach { add(number(it)) } }
+            else number(raw).let { n -> JsonArray().apply { add(n); add(n) } }
             is DropdownSetting -> JsonPrimitive(dropdownIndex(setting.options, raw))
             is ColorSetting -> JsonPrimitive(color(raw))
             is TextInputSetting -> JsonPrimitive(string(raw))

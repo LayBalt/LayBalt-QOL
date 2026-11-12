@@ -21,11 +21,16 @@ import com.mojang.brigadier.arguments.StringArgumentType
 object TerminalSimulator: Feature("Practice floor 7 terminals in a local simulator. Clicking the toggle opens it; also /lbq termsim [type] [ping].") {
     private val ping by SliderSetting("Ping", 0, 0, 500, 50, "ms").withDescription("Simulated delay before a click is applied, like playing with that ping.")
     val disableFirstClickProt by ToggleSetting("Disable First Click Prot").withDescription("Turns the solver's first click protection off while you are in the simulator.")
+    // NoammAddons c4364012 / 71bf8518 / 7aaf6371 ("Simulator Auto Next" under Terminal Solver there).
+    val autoNext by ToggleSetting("Auto Next").withDescription("After you finish a simulated terminal, immediately opens the next one (the same type, or a new random one if you picked Random) instead of returning to the start menu.")
     private val openButton by ButtonSetting("Open Simulator") { open() }.withDescription("Opens the terminal simulator start menu.")
     private val resetButton by ButtonSetting("Reset Simulator PBs") {
         TerminalPBs.reset(simulator = true)
         ChatUtils.modMessage("§6Terminal simulator PBs §fhave been reset.")
     }.withDescription("Deletes your terminal simulator personal bests.")
+
+    /** Whether the last terminal pick was Random, so Auto Next keeps rolling random terminals. */
+    var lastPickWasRandom = false
 
     override fun toggle() = open()
 
@@ -60,9 +65,11 @@ object TerminalSimulator: Feature("Practice floor 7 terminals in a local simulat
 
     private fun openType(name: String, ping: Int?) {
         name.toIntOrNull()?.let { return open(pingOverride = it) }
-        val type = if (name.equals("random", true)) SimType.random()
+        val random = name.equals("random", true)
+        val type = if (random) SimType.random()
         else SimType.entries.find { it.commandName.equals(name, true) }
             ?: return ChatUtils.modMessage("§cUnknown terminal type. Use one of: ${SimType.entries.joinToString { it.commandName }}, random")
+        lastPickWasRandom = random
         open(type, ping)
     }
 }

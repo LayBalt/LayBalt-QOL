@@ -54,6 +54,8 @@ object ScoreCalculation: ISelfInit {
     var mimicKilled = false
     var princeKilled = false
     var batKilled = false
+    /** NoammAddons 926632a2: number of bonus-score bats killed this run. */
+    val batCount get() = batKillers.size
     var deathCount = 0
     var foundSecrets = 0
     var cryptsCount = 0

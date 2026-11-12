@@ -45,6 +45,9 @@ public abstract class MixinMinecraft {
     @Inject(method = "startAttack", at = @At("HEAD"))
     private void onStartAttack(CallbackInfoReturnable<Boolean> cir) {
         InfoDisplay.addLeftClick();
+        //#if CHEAT
+        com.laybalt.features.impl.fishing.FishingRecorder.onClick(true);
+        //#endif
     }
 
     @Inject(
@@ -57,7 +60,25 @@ public abstract class MixinMinecraft {
     )
     private void onUseClick(CallbackInfo ci) {
         InfoDisplay.addRightClick();
+        //#if CHEAT
+        com.laybalt.features.impl.fishing.FishingRecorder.onClick(false);
+        //#endif
     }
+
+    //#if CHEAT
+    /** The use repeat while the use key is held (every 4 ticks): held abilities are recorded as clicks too. */
+    @Inject(
+        method = "handleKeybinds",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/Minecraft;startUseItem()V",
+            ordinal = 1
+        )
+    )
+    private void onUseHeld(CallbackInfo ci) {
+        com.laybalt.features.impl.fishing.FishingRecorder.onHeldUse();
+    }
+    //#endif
 
     @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
     private void preUseItem(CallbackInfo ci) {
@@ -119,17 +140,29 @@ public abstract class MixinMinecraft {
         //$ if (this.player ==null) return original;
         //$ if (!LegitEntityVisibility.isVisible(this.player, entity)) {
         //$ ((IGlowingEntity) entity).lbqmod$isGlowing(false);
+        //$ ((IGlowingEntity) entity).lbqmod$glowCheckTick(-1);
         //$ return original;
         //$}
         //#endif
 
-        var event = new CheckEntityGlowEvent(entity);
-        if (EventBus.post(event)) return false;
-
         var glow = (IGlowingEntity) entity;
-        glow.lbqmod$isGlowing(event.getShouldGlow());
-        glow.lbqmod$glowColor(event.getColor());
 
+        // NoammAddons 3549d1fc: post the glow check once per entity per tick (this runs every frame for every
+        // rendered entity) and reuse its result for the other frames of the tick.
+        if (this.player == null || glow.lbqmod$glowCheckTick() != this.player.tickCount) {
+            var event = new CheckEntityGlowEvent(entity);
+            var cancelled = EventBus.post(event);
+
+            if (! cancelled) {
+                glow.lbqmod$isGlowing(event.getShouldGlow());
+                glow.lbqmod$glowColor(event.getColor());
+            }
+
+            glow.lbqmod$glowCancelled(cancelled);
+            if (this.player != null) glow.lbqmod$glowCheckTick(this.player.tickCount);
+        }
+
+        if (glow.lbqmod$glowCancelled()) return false;
         return original || glow.lbqmod$isGlowing();
     }
 

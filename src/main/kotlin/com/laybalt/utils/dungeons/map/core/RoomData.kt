@@ -21,7 +21,8 @@ data class RoomData(
         val wither: List<BlockPos> = emptyList(),
         val bat: List<BlockPos> = emptyList(),
         val item: List<BlockPos> = emptyList(),
-        val chest: List<BlockPos> = emptyList()
+        val chest: List<BlockPos> = emptyList(),
+        val lever: List<BlockPos> = emptyList()
     )
 
     fun isUnknown() = name == "Unknown" && shape == RoomShape.UNKNOWN
@@ -60,6 +61,7 @@ data class RoomData(
                     bat = coords("bat"),
                     item = coords("item"),
                     chest = coords("chest"),
+                    lever = coords("lever"),
                 )
             }
         }

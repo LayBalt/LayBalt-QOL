@@ -13,8 +13,10 @@ import com.mojang.blaze3d.pipeline.RenderPipeline
 import com.mojang.blaze3d.platform.CompareOp
 import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.PoseStack
+import net.fabricmc.fabric.api.client.rendering.v1.SubmitRenderPhases
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.SubmitNodeCollector
+import net.minecraft.client.renderer.feature.CustomFeatureRenderer
 import net.minecraft.client.renderer.rendertype.RenderSetup
 import net.minecraft.client.renderer.rendertype.RenderType
 import net.minecraft.resources.Identifier
@@ -29,7 +31,7 @@ import java.util.*
  * [BlendFunction.LIGHTNING] (SRC_ALPHA, ONE) rather than [BlendFunction.ADDITIVE] (ONE, ONE) so vertex alpha
  * still scales the contribution: fades and soft edges work on additive sprites.
  *
- * Routed into the after-terrain / always-on-top phases by [com.laybalt.mixin.MixinSubmitNodeCollectionEffects].
+ * Submitted into Fabric's after-terrain / always-on-top phases by [EffectBatcher.flush].
  * Geometry is collected with [EffectBatcher] and must be flushed by the caller with [EffectBatcher.flush].
  */
 object EffectRenderTypes: ISelfInit {
@@ -55,8 +57,8 @@ object EffectRenderTypes: ISelfInit {
     val TRANSLUCENT: RenderType = RenderType.create("LBQ_EFFECT_TRANSLUCENT", RenderSetup.builder(TRANSLUCENT_PIPELINE).sortOnUpload().createRenderSetup())
     val TRANSLUCENT_SEE_THROUGH: RenderType = RenderType.create("LBQ_EFFECT_TRANSLUCENT_SEE_THROUGH", RenderSetup.builder(TRANSLUCENT_SEE_THROUGH_PIPELINE).sortOnUpload().createRenderSetup())
 
-    @JvmField val alwaysOnTopTypes = setOf(ADDITIVE_SEE_THROUGH, TRANSLUCENT_SEE_THROUGH)
-    @JvmField val afterTerrainTypes = setOf(ADDITIVE, TRANSLUCENT)
+    /** Submitted into Fabric's always-on-top phase; the depth-tested types go after terrain (see [EffectBatcher]). */
+    val alwaysOnTopTypes = setOf(ADDITIVE_SEE_THROUGH, TRANSLUCENT_SEE_THROUGH)
 
     fun of(additive: Boolean, seeThrough: Boolean) = when {
         additive && seeThrough -> ADDITIVE_SEE_THROUGH
@@ -90,12 +92,15 @@ object EffectBatcher {
         if (batches.isEmpty()) return
         for (batch in batches.values) {
             if (batch.data.isEmpty()) continue
-            collector.submitCustomGeometry(identity, batch.type) { _, consumer ->
+            // NoammAddons b9beda78 (same change as RenderBatcher): submit into Fabric's phases directly instead of
+            // rerouting submitCustomGeometry with a SubmitNodeCollection mixin.
+            val phase = if (batch.type in EffectRenderTypes.alwaysOnTopTypes) SubmitRenderPhases.ALWAYS_ON_TOP else SubmitRenderPhases.AFTER_TERRAIN
+            collector.submitCustom(phase, CustomFeatureRenderer.Submit(identity.last().copy(), batch.type) { _, consumer ->
                 for (v in batch.data) {
                     consumer.addVertex(v.x, v.y, v.z)
                     consumer.setColor(v.r, v.g, v.b, v.a)
                 }
-            }
+            })
         }
         batches.clear()
     }

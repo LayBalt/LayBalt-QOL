@@ -13,6 +13,7 @@ import com.laybalt.utils.ChatUtils.formattedText
 import com.laybalt.utils.ChatUtils.removeFormatting
 import com.laybalt.utils.ColorUtils.withAlpha
 import com.laybalt.utils.dungeons.DungeonListener
+import com.laybalt.utils.dungeons.map.utils.ScanUtils
 import com.laybalt.utils.equalsOneOf
 import com.laybalt.utils.location.LocationUtils
 import com.laybalt.utils.location.LocationUtils.inBoss
@@ -42,7 +43,12 @@ object StarMobESP: Feature(
 
     private val starMobColor by ColorSetting("Star Mob Color", Color.YELLOW, false).section("General Colors").withDescription("Default color for all Starred mobs.")
     private val batColor by ColorSetting("Bat Color", Color.GREEN, false).withDescription("The color used for highlighted bats.").showIf { espBats.value }
-    private val felColor by ColorSetting("Fel Color", Color.PINK, false).withDescription("The color used for fels.").showIf { espFels.value }
+    private val felColor by ColorSetting("Fel Color", Color.PINK, false).withDescription("The color used for fels (starred fels always, unstarred ones with Highlight Fels).")
+
+    private val batHealths = setOf(100f, 200f, 400f, 800f)
+
+    // NoammAddons bf719e8e / aa62e23e / cc6911b2: rooms whose miniboss-named players are dummies (list from clear sim)
+    private val fakeMiniRooms = setOf("Duncan", "Balcony", "Wizard", "Pit", "Waterfall", "Atlas", "Chambers", "Layers", "Perch", "Golden Oasis")
 
     private val minibossColors by ToggleSetting("Miniboss Colors", false).section("Minibosses")
         .withDescription("Gives each miniboss (Lost Adventurer, Shadow Assassin, Diamond Guy, King Midas) its own color instead of the Star Mob Color.")
@@ -99,9 +105,15 @@ object StarMobESP: Feature(
             }
             else if (entity is Player) {
                 val name = mc.connection?.getPlayerInfo(entity.uuid)?.profile?.name ?: return@register
-                if (name.equalsOneOf("Shadow Assassin", "Lost Adventurer", "Diamond Guy", "King Midas")) {
-                    starMobs.add(entity.id)
-                }
+                if (! name.equalsOneOf("Shadow Assassin", "Lost Adventurer", "Diamond Guy", "King Midas")) return@register
+                // NoammAddons bf719e8e: some rooms hold dummy minibosses (decoration, not real mobs); skip those.
+                // Until the room under the miniboss is scanned (or while it is only the map's "Unknown" placeholder)
+                // it is not added; a later data packet retries, and real minibosses also come in through their starred nametag.
+                val roomName = ScanUtils.getRoomFromPos(entity.position())?.name?.takeUnless { it == "Unknown" } ?: return@register
+                if (roomName in fakeMiniRooms) return@register
+                if (roomName == "Stairs" && entity.y > 80) return@register
+
+                starMobs.add(entity.id)
             }
         }
 
@@ -174,9 +186,12 @@ object StarMobESP: Feature(
                     if (minibossColors.value) return minibossColor(name)
                 }
             }
+            // NoammAddons c040c590: starred fels use Fel Color
+            if (entity is EnderMan) return felColor.value
             return starMobColor.value
         }
-        if (entity is Bat) return if (espBats.value && ! entity.isInvisible && ! entity.isPassenger) batColor.value else null
+        // NoammAddons 383abb19: real secret bats have 100/200/400/800 max health, Spirit Sceptre bats do not
+        if (entity is Bat) return if (espBats.value && entity.maxHealth in batHealths && ! entity.isInvisible && ! entity.isPassenger) batColor.value else null
         if (entity is EnderMan) return if (espFels.value && entity.customName?.string == "Dinnerbone") felColor.value else null
         return null
     }

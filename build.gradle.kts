@@ -13,6 +13,7 @@ plugins {
     id("lbq.variants")
     id("lbq.preprocessing")
     id("lbq.loom")
+    id("lbq.recorder")
     idea
 }
 
@@ -90,12 +91,36 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
+/** Whether dotted version [a] is newer than [b] (1.11.1 > 1.11.0, 2.0 > 1.99); a non-numeric part counts as 0. */
+fun isNewerVersion(a: String, b: String): Boolean {
+    val x = a.split('.', '-', '+').map { it.toIntOrNull() ?: 0 }
+    val y = b.split('.', '-', '+').map { it.toIntOrNull() ?: 0 }
+    for (i in 0 until maxOf(x.size, y.size)) {
+        val diff = x.getOrElse(i) { 0 } - y.getOrElse(i) { 0 }
+        if (diff != 0) return diff > 0
+    }
+    return false
+}
+
 afterEvaluate {
+    // NoammAddons 20a78018: Fabric Language Kotlin already ships the Kotlin stdlib and kotlinx (coroutines, serialization,
+    // io, ...), and fabric.mod.json requires at least the version built against, so those are not nested again.
+    // A library that ktor or another bundled one needs newer than Fabric Language Kotlin's is still nested
+    // (Fabric Loader then loads the newest copy), so dropping one never downgrades it at runtime.
+    val fabricKotlinVersions = configurations.detachedConfiguration(
+        dependencies.create("net.fabricmc:fabric-language-kotlin:$fabric_kotlin_version")
+    ).resolvedConfiguration.resolvedArtifacts.associate { it.moduleVersion.id.module to it.moduleVersion.id.version }
+
     bundled.resolvedConfiguration.resolvedArtifacts.forEach { artifact ->
         artifact.moduleVersion.id.let { id ->
             // WebSocket support was removed from LayBalt QOL; keep the transitive ktor
             // websocket artifacts off the shipped jar (nothing loads them at runtime).
             if (id.group == "io.ktor" && id.name.startsWith("ktor-websocket")) return@let
+            val fabricKotlinVersion = fabricKotlinVersions[id.module]
+            if (fabricKotlinVersion != null) {
+                if (! isNewerVersion(id.version, fabricKotlinVersion)) return@let
+                logger.info("Nesting ${id.module}:${id.version}: Fabric Language Kotlin only ships $fabricKotlinVersion")
+            }
             val include = dependencies.add("include", "${id.group}:${id.name}:${id.version}") as ModuleDependency
             if ("${id.group}:${id.name}" == "me.owdding:item-data-fixer") {
                 include.capabilities { requireCapability(datafixerCapability) }
@@ -195,4 +220,5 @@ listOf("jarLegit", "legitSourcesJar", "legitClasses", "compileLegitKotlin", "com
 
 tasks.named<Test>("test") {
     failOnNoDiscoveredTests = false
+    maxHeapSize = "2g"
 }

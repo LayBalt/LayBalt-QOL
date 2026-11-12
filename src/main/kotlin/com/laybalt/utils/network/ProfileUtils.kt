@@ -8,7 +8,9 @@ import com.laybalt.utils.JsonUtils.getString
 import com.laybalt.utils.dungeons.DungeonListener
 import com.laybalt.utils.location.LocationUtils
 import com.laybalt.utils.network.cache.*
+import com.laybalt.features.impl.dungeon.SecretsCounter
 import com.laybalt.utils.network.data.DungeonStats
+import com.laybalt.utils.network.data.HypixelProfile
 import com.laybalt.utils.network.data.MojangData
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.jsonObject
@@ -16,7 +18,7 @@ import java.util.*
 import java.util.concurrent.*
 
 object ProfileUtils {
-    class StatsUnavailableException: Exception("Player stats lookup is not available in LayBalt QOL")
+    class StatsUnavailableException: Exception("no stats server set (Secrets Counter > API URL)")
 
     private val apiCooldowns = ConcurrentHashMap<String, Long>()
 
@@ -36,17 +38,23 @@ object ProfileUtils {
         val key = name.lowercase()
         MojangCache.check(key)?.let { return it }
 
+        // only a resolver's "no such player" is kept (an hour): a timeout or a busy resolver is asked again next time
+        var notFound = false
         for (api in nameToUuidApis) {
             if (System.currentTimeMillis() < (apiCooldowns[api] ?: 0L)) continue
 
             val result = WebUtils.getAs<String>(api + key)
             if (result.isFailure) {
+                // the status line only ("HTTP <code>-..."): a timeout's message holds the URL
                 val msg = result.exceptionOrNull()?.message ?: ""
-                if (msg.contains("429")) {
+                if (msg.startsWith("HTTP 429")) {
                     apiCooldowns[api] = System.currentTimeMillis() + (5 * 60 * 1000)
                     continue
                 }
-                if (msg.containsOneOf("404", "204")) break
+                if (msg.startsWith("HTTP 404") || msg.startsWith("HTTP 204")) {
+                    notFound = true
+                    break
+                }
                 continue
             }
 
@@ -60,6 +68,7 @@ object ProfileUtils {
             return Result.success(data)
         }
 
+        if (! notFound) return Result.failure(Exception("could not resolve $name (name servers unreachable)"))
         return Result.failure<MojangData>(Exception("$name not found")).also { MojangCache.addFailedToCache(key) }
     }
 
@@ -94,40 +103,77 @@ object ProfileUtils {
         return Result.failure<MojangData>(Exception("$key not found")).also { MojangCache.addFailedToCache(key) }
     }
 
+    /**
+     * The stats server other players' secrets and profiles are read from: NoammAddons used its own (not part of LayBalt
+     * QOL), LayBalt the one /lbq cata and Secrets Counter use (Secrets Counter > API URL, Odin's public one by default).
+     */
+    private fun statsServer() = SecretsCounter.apiBaseUrl.ifEmpty { null }
+
+    /** The stats server answered 429 (too many requests): not asked again before this. */
+    @Volatile private var statsServerCooldownUntil = 0L
+
+    /** A GET to the stats server, with a minute's pause after it answered 429 (as NoammAddons paused its own API). */
+    private suspend fun statsGet(url: String): Result<String> {
+        val wait = statsServerCooldownUntil - System.currentTimeMillis()
+        if (wait > 0) return Result.failure(Exception("stats server rate limited, retry in ${wait / 1000 + 1}s"))
+        return WebUtils.getAs<String>(url).onFailure {
+            // the status line only ("HTTP 429-..."): a timeout's message holds the URL, whose UUID may contain "429"
+            if (it.message?.startsWith("HTTP 429") == true) statsServerCooldownUntil = System.currentTimeMillis() + 60_000L
+        }.recoverCatching { throw Exception("stats server: ${(it.message ?: it::class.simpleName)?.take(60)}") }
+    }
+
     suspend fun getSecrets(playerName: String): Result<Long> {
         val name = playerName.lowercase()
         if (name == mc.user.name.lowercase() && DungeonListener.thePlayer?.isDead == false) {
-            return runCatching { getSecretsCMD() }
+            return getSecretsCMD()
         }
 
         SecretCache.check(name)?.let { return it }
 
-        // LayBalt QOL has no stats backend (NoammAddons used its own api server), so other players
-        // secrets cannot be looked up. The failure is cached to avoid repeated lookups.
-        SecretCache.addFailedToCache(name)
-        return Result.failure(StatsUnavailableException())
+        // <url>/secrets/<uuid> answers the total as plain text (as Secrets Counter reads it); failures are not cached,
+        // the next run asks again
+        val base = statsServer() ?: return Result.failure(StatsUnavailableException())
+        val uuid = getUUIDbyName(name).getOrElse { return Result.failure(it) }.uuid
+        val secrets = statsGet("$base/secrets/$uuid").mapCatching { it.trim().toLongOrNull() ?: error("unexpected answer: ${it.take(40)}") }
+            .getOrElse { return Result.failure(it) }
+        SecretCache.addToCache(name, secrets)
+        return Result.success(secrets)
     }
 
     suspend fun getProfile(playerName: String): Result<DungeonStats> {
         val name = playerName.lowercase()
-        ProfileCache.check(name)?.let { return it }
+        ProfileCache.check(name, "the lookup failed less than a minute ago")?.let { return it }
 
-        // LayBalt QOL has no stats backend (NoammAddons used its own api server).
-        ProfileCache.addFailedToCache(name)
-        return Result.failure(StatsUnavailableException())
+        // <url>/get/<uuid> answers the player's Hypixel SkyBlock profiles; a failure (server down, rate limit, no
+        // profile, no server set) is kept a minute ([ProfileCache]), then asked again
+        val base = statsServer() ?: run {
+            ProfileCache.addFailedToCache(name)
+            return Result.failure(StatsUnavailableException())
+        }
+        val stats = getUUIDbyName(name).mapCatching { mojang ->
+            HypixelProfile.dungeonStats(statsGet("$base/get/${mojang.uuid}").getOrThrow(), mojang.uuid)
+        }.getOrElse {
+            ProfileCache.addFailedToCache(name)
+            return Result.failure(it)
+        }
+        ProfileCache.addToCache(name, stats)
+        return Result.success(stats)
     }
 
     // usually I don't like running commands in the background
     // but this one seems to behave exactly like /locraw.
     // meaning it does not affect the message spam cooldown
-    private suspend fun getSecretsCMD(): Long {
-        if (! LocationUtils.inSkyblock) error("Not in Skyblock")
+    // NoammAddons 3c810cdb: public and Result-based, so the run summary can read your own count even while you are dead
+    suspend fun getSecretsCMD(): Result<Long> {
+        if (! LocationUtils.inSkyblock) return Result.failure(Exception("Not in Skyblock"))
         _totalSecrets = null
         chatListener.register()
         ChatUtils.sendCommand("/secretcount")
         ThreadUtils.setTimeout(5000) { chatListener.unregister() }
         while (chatListener.isActive) delay(50)
-        return _totalSecrets ?: error("No secrets found")
+        val secrets = _totalSecrets ?: return Result.failure(Exception("Secrets count command timed out"))
+        SecretCache.addToCache(mc.user.name.lowercase(), secrets)
+        return Result.success(secrets)
     }
 
     private val regex = Regex("^\\w+: \\d+$")

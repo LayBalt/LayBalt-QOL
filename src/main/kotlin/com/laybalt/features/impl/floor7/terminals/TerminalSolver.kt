@@ -10,13 +10,16 @@ import com.laybalt.features.impl.floor7.terminals.impl.*
 import com.laybalt.init.types.ICustomMenu
 import com.laybalt.mixin.IAbstractContainerScreen
 import com.laybalt.ui.utils.Resolution
+import com.laybalt.utils.ColorUtils.chromaColor
 import com.laybalt.utils.ColorUtils.isVisable
 import com.laybalt.utils.ColorUtils.withAlpha
 import com.laybalt.utils.equalsOneOf
 import com.laybalt.utils.render.Render2D.drawBorder
 import com.laybalt.utils.render.Render2D.drawCenteredString
 import com.laybalt.utils.render.Render2D.drawFloatingRect
+import com.laybalt.utils.render.Render2D.drawHorizontalGradient
 import com.laybalt.utils.render.Render2D.drawRect
+import com.laybalt.utils.render.Render2D.drawVerticalGradient
 import gg.essential.universal.UGraphics
 import gg.essential.universal.USound
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
@@ -28,6 +31,7 @@ import net.minecraft.network.protocol.game.ServerboundContainerClickPacket
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.entity.player.Inventory
 import java.awt.Color
+import kotlin.math.ceil
 
 object TerminalSolver: Feature("Renders solutions for Floor 7 terminals."), ICustomMenu {
     private val redGreenTerm by ToggleSetting("Red-Green", true).section("Toggles")
@@ -51,6 +55,9 @@ object TerminalSolver: Feature("Renders solutions for Floor 7 terminals."), ICus
     private val slotStyle by DropdownSetting("Slot Style", 0, listOf("Rect", "Bordered-Rect", "Button"))
     private val backgroundColor by ColorSetting("Background Color", Color(0, 0, 0, 100)).withDescription("Background of the custom GUI, or the fill drawn over every terminal slot in Recolored Vanilla mode.").hideIf { renderMode.value == 1 }
     private val borderColor by ColorSetting("Border Color", Color(255, 255, 255)).showIf { renderMode.value == 0 }
+    // NoammAddons ad0bb0bb
+    private val rainbowBorder by ToggleSetting("Rainbow Border").withDescription("Animate a rainbow gradient around the terminal menu. Opacity follows Border Color.").showIf { renderMode.value == 0 }
+    private val rainbowBorderSpeed by SliderSetting("Rainbow Border Speed", 1.0, 0.1, 3.0, 0.1).withDescription("How fast the rainbow moves around the border.").showIf { renderMode.value == 0 && rainbowBorder.value }
     private val titleColor by ColorSetting("Title Text Color", Color.WHITE).showIf { renderMode.value == 0 }
     private val overlayTextColor by ColorSetting("Overlay Text Color", Color.WHITE)
     private val solutionColor by ColorSetting("Solution Color", Color(0, 255, 0, 130))
@@ -59,8 +66,12 @@ object TerminalSolver: Feature("Renders solutions for Floor 7 terminals."), ICus
     val breakTimeout by SliderSetting("Break Timeout", 500, 300, 800, 50, "ms").withDescription("How long should the solver wait for a click to be confirmed by hypixel")
     val rubixMode by DropdownSetting("Rubix Mode", 0, listOf("Fewest Clicks", "Left Clicks Only")).withDescription("Fewest Clicks mixes in right clicks to need the fewest clicks overall, Left Clicks Only never asks for a right click.")
     private val hotbarKeys by ToggleSetting("Hotbar Key Clicks", true).withDescription("Pressing a hotbar key (1-9) clicks the hovered terminal slot, like the drop key.")
+    // NoammAddons 7d9bfe7d / 757f38a1: held keys repeat faster than this, which floods the server with clicks.
+    private val maxCps by SliderSetting("Max CPS", 15, 1, 20, 1, " CPS").withDescription("How many drop (and hotbar) key presses can click per second; held keys repeat faster than this.")
 
-    val firstClickProt by SliderSetting("First Click Protection", 350, 0, 800, 10, "ms").withDescription("Clicks are blocked for this long after a terminal opens, to avoid getting kicked for clicking too early (recommended: 500 minus your ping).").section("First Click Protection")
+    // NoammAddons 5dff2334: a range; each terminal you open blocks clicks for a random time in it (both ends equal = fixed).
+    // Same json name as the old single-value slider, whose saved value reads as that fixed time.
+    val firstClickProt by RangeSliderSetting("First Click Protection", 350 to 350, 0, 800, 10, "ms").withDescription("Clicks are blocked for this long after a terminal opens, to avoid getting kicked for clicking too early (recommended: 500 minus your ping). Set two different ends to make it a random time between them for each terminal (normally distributed); Auto Terminal's first click then comes at a varying time.").section("First Click Protection")
     val lagProtection by ToggleSetting("Account For Server Lag", true).withDescription("Also block clicks until the server has ticked a few times since the terminal opened, so a lagging server cannot make your first click too early.")
     val fcDelay by SliderSetting("Lag Protection Ticks", 7, 0, 16, 1, " ticks").withDescription("Server ticks to wait after a terminal opens (1 tick = 50ms, Melody adds 3).").showIf { lagProtection.value }.jsonName("FC delay, (In server ticks)")
 
@@ -89,6 +100,7 @@ object TerminalSolver: Feature("Renders solutions for Floor 7 terminals."), ICus
     private var cachedMinRow: Int? = null
     private var hoveredSlot: Int? = null
     private var lastSoundTime = 0L
+    private var lastKeyClickTime = 0L
     private var completionPlayed = false
 
     override fun init() {
@@ -134,7 +146,10 @@ object TerminalSolver: Feature("Renders solutions for Floor 7 terminals."), ICus
 
             if (titleColor.value.isVisable()) event.context.drawCenteredString(handler.displayName, width / 2f, - 15f - pad, color = titleColor.value, scale = 1.2f)
             if (backgroundColor.value.isVisable()) event.context.drawRect(- pad, - pad, width + pad * 2, height + pad * 2, backgroundColor.value)
-            if (borderColor.value.isVisable()) event.context.drawBorder(- pad, - pad, width + pad * 2, height + pad * 2, borderColor.value)
+            if (borderColor.value.isVisable()) {
+                if (rainbowBorder.value) drawRainbowBorder(event.context, - pad, - pad, width + pad * 2, height + pad * 2)
+                else event.context.drawBorder(- pad, - pad, width + pad * 2, height + pad * 2, borderColor.value)
+            }
 
             val solutionSlots = handler.solution.map { it.slotId }
             val minCol = cachedMinCol ?: if (solutionSlots.isEmpty()) 0 else solutionSlots.minOf { it % 9 }.also { cachedMinCol = it }
@@ -213,6 +228,8 @@ object TerminalSolver: Feature("Renders solutions for Floor 7 terminals."), ICus
             val isDropKey = event.key == KeyMappingHelper.getBoundKeyOf(mc.options.keyDrop).value
             val isHotbarKey = hotbarKeys.value && mc.options.keyHotbarSlots.any { KeyMappingHelper.getBoundKeyOf(it).value == event.key }
             if (! isDropKey && ! isHotbarKey) return@register
+            if (System.currentTimeMillis() - lastKeyClickTime < 1000 / maxCps.value.coerceAtLeast(1)) return@register
+            lastKeyClickTime = System.currentTimeMillis()
             handler.click(event.screen)
         }
 
@@ -286,6 +303,32 @@ object TerminalSolver: Feature("Renders solutions for Floor 7 terminals."), ICus
         if (! enabled || renderMode.value == 0 || vanillaTermSize.value == 0) return - 1
         if (! TerminalListener.inTerm || TerminalListener.currentHandler?.enabled() != true) return - 1
         return if (vanillaTermSize.value >= 6) Options.AUTO_GUI_SCALE else vanillaTermSize.value
+    }
+
+    /** NoammAddons ad0bb0bb: a 1px border of 4px gradient segments whose hue runs around the perimeter. */
+    private fun drawRainbowBorder(ctx: GuiGraphicsExtractor, x: Float, y: Float, width: Float, height: Float) {
+        val time = System.currentTimeMillis() * rainbowBorderSpeed.value
+        val perimeter = 2f * (width + height)
+        val alpha = borderColor.value.alpha
+
+        fun colorAt(distance: Float) = chromaColor(time, period = 5000.0, offset = distance / perimeter).withAlpha(alpha)
+
+        fun edge(ex: Float, ey: Float, length: Float, start: Float, direction: Float, horizontal: Boolean) {
+            repeat(ceil(length / 4f).toInt()) { index ->
+                val offset = index * 4f
+                val size = minOf(4f, length - offset)
+                val first = colorAt(start + direction * offset)
+                val second = colorAt(start + direction * (offset + size))
+
+                if (horizontal) ctx.drawHorizontalGradient(ex + offset, ey, size, 1f, first, second)
+                else ctx.drawVerticalGradient(ex, ey + offset, 1f, size, first, second)
+            }
+        }
+
+        edge(x, y, width, 0f, 1f, true)
+        edge(x + width - 1f, y + 1f, height - 2f, width + 1f, 1f, false)
+        edge(x, y + height - 1f, width, 2f * width + height, - 1f, true)
+        edge(x, y + 1f, height - 2f, perimeter - 1f, - 1f, false)
     }
 
     fun spanFor(count: Int) = count * 16f + (count - 1) * slotGap.value

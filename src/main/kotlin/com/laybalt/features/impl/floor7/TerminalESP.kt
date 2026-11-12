@@ -27,6 +27,8 @@ object TerminalESP: Feature(
     private val phase by ToggleSetting("Phase", false).withDescription("Draws the hitboxes through walls.")
     private val fillColor by ColorSetting("Fill Color", Utils.favoriteColor).withDescription("Fill color of inactive terminal hitboxes.").hideIf { mode.value == 0 }
     private val outlineColor by ColorSetting("Outline Color", Utils.favoriteColor).withDescription("Outline color of inactive terminal hitboxes.").hideIf { mode.value == 1 }
+    // NoammAddons 0aa25a13: configurable outline thickness (Double bounds keep the 0.1 steps when the config is read back).
+    private val lineWidth by SliderSetting("Line Width", 2.5, 1.0, 10.0, 0.1).withDescription("Thickness of the hitbox outline.").hideIf { mode.value == 1 }
 
     private val flashOnHit by ToggleSetting("Flash On Click", true).withDescription("Briefly flashes a hitbox when you click its terminal, so you can see the click registered.")
     private val flashColor by ColorSetting("Flash Color", Color.RED).withDescription("Color the hitbox flashes to when clicked.").hideIf { ! flashOnHit.value }
@@ -95,7 +97,7 @@ object TerminalESP: Feature(
                     outline = drawOutline,
                     fill = drawFill,
                     phase = phase.value,
-                    lineWidth = 2.0
+                    lineWidth = lineWidth.value
                 )
             }
         }

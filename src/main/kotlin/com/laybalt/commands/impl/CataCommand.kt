@@ -54,7 +54,7 @@ object CataCommand: ICommandProvider {
 
     private fun lookup(name: String) {
         val base = SecretsCounter.apiBaseUrl
-        if (base.isEmpty()) return ChatUtils.modMessage("§c/lbq cata needs a stats server. Set one in Secrets Counter > API URL (Odin's is https://api.odtheking.com/hypixel/).")
+        if (base.isEmpty()) return ChatUtils.modMessage("§c/lbq cata needs a stats server. Set one in Secrets Counter > API URL (Odin's is https://hypixel.odtheking.com/).")
         ChatUtils.modMessage("§aFetching dungeon stats for §6$name§a...")
         LayBaltQOL.scope.launch(Dispatchers.IO) {
             runCatching { fetch(base, name) }.onFailure {
@@ -72,7 +72,8 @@ object CataCommand: ICommandProvider {
 
         val profiles = root.arr("profiles")?.mapNotNull { it as? JsonObject }.orEmpty()
         val profile = profiles.firstOrNull { it.bool("selected") } ?: profiles.firstOrNull()
-        val member = profile?.obj("members")?.obj(mojang.uuid)
+        // the members are keyed by the undashed UUID, while names seen in the tab list are cached with dashes
+        val member = profile?.obj("members")?.obj(mojang.uuid.replace("-", ""))
             ?: return ChatUtils.modMessage("§cNo SkyBlock profile found for §6${mojang.name}§c!")
         ChatUtils.chat(card(mojang.name, member))
     }

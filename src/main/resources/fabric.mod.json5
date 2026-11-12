@@ -47,7 +47,8 @@
     "minecraft": "26.2",
     "java": ">=25",
     "fabric-api": "*",
-    "fabric-language-kotlin": "*"
+    // NoammAddons 20a78018: the Kotlin libraries are not nested (Fabric Language Kotlin ships them), so require at least the version built against
+    "fabric-language-kotlin": ">=@FABRIC_KOTLIN_VERSION@"
   },
   "custom": {
     "modmenu": {

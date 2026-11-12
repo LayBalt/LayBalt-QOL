@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "com.laybalt.recorder.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "RecorderGameModeMixin",
+    "RecorderMinecraftMixin",
+    "RecorderPacketListenerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

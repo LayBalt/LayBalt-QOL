@@ -9,6 +9,7 @@ import com.laybalt.config.types.SliderSetting
 import com.laybalt.event.impl.PacketEvent
 import com.laybalt.event.impl.RenderWorldEvent
 import com.laybalt.event.impl.TickEvent
+import com.laybalt.event.impl.WorldChangeEvent
 import com.laybalt.features.Feature
 import com.laybalt.utils.ColorUtils.withAlpha
 import com.laybalt.utils.render.world.Render3D.renderBox
@@ -101,6 +102,12 @@ object PvpBlink: Feature("Desyncs your connection to eat knockback or spoof posi
                 }
             }
             else if (! key.isDown()) stopBlink()
+        }
+
+        // NoammAddons e4c83fcb: drop the queue on a world change, its packets belong to the old server
+        register<WorldChangeEvent> {
+            isBlinking = false
+            sentQueue.clear()
         }
     }
 

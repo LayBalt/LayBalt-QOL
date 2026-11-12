@@ -32,11 +32,13 @@ class UltrasequencerSolver(host: ExperimentHost): ExperimentSolver(host) {
                 order.clear()
                 resetRound()
                 scan(board)
+                stopIfPastTarget()
             }
 
             State.WATCH -> {
                 if (! status.startsWith(TIMER_PREFIX)) {
                     scan(board) // the numbers may arrive over several packets
+                    stopIfPastTarget()
                     return
                 }
                 val complete = order.isNotEmpty() && order.firstKey() == 1 && order.lastKey() == order.size
@@ -70,6 +72,17 @@ class UltrasequencerSolver(host: ExperimentHost): ExperimentSolver(host) {
         }
         else nextNumber = next
         return slot
+    }
+
+    /**
+     * A number past the target shows while the pattern is still being shown: the sequence is longer than the target, so
+     * the game stops now instead of after the memorize phase (SkyHanni alerts at the same moment: the round counter is
+     * the longest number shown).
+     */
+    private fun stopIfPastTarget() {
+        if (order.isEmpty() || stopped) return
+        val longest = order.lastKey()
+        if (host.reachedTarget(ExperimentGame.ULTRASEQUENCER, longest)) stop(longest)
     }
 
     private fun resetRound() {

@@ -1,5 +1,6 @@
 package com.laybalt.features.impl.visual
 
+import com.laybalt.config.ConfigManager
 import com.laybalt.config.types.DropdownSetting
 import com.laybalt.config.types.ToggleSetting
 import com.laybalt.event.impl.*
@@ -20,7 +21,9 @@ import kotlin.math.roundToInt
 
 object MaskTimers: Feature("Mask Cooldown Timers, Invulnerability Timers, and more") {
     private val onlyInDungeon by ToggleSetting("Dungeons Only").withDescription("enables this feature only while in a dungeon")
-    private val maskTimerStyle by DropdownSetting("Style", 0, listOf("LayBalt QOL", "Zyryon"))
+    private val maskTimerStyle by DropdownSetting("Style", 0, listOf("Default", "Zyryon"))
+    // NoammAddons 501c213e: masks off cooldown are hidden in every style unless this is on
+    private val alwaysShow by ToggleSetting("Always Show").withDescription("Shows the timer even if the mask is not on cooldown")
 
     private val invulnerabilityTimers by ToggleSetting("Invulnerability Timers").withDescription("Shows the invulnerability time of the mask")
     private val procNotification by ToggleSetting("Proc Notification").withDescription("Shows a title on screen when a mask has been used")
@@ -30,7 +33,14 @@ object MaskTimers: Feature("Mask Cooldown Timers, Invulnerability Timers, and mo
     private val loreCdRegex = Regex("^Cooldown: ([\\d.]+)s$")
 
     override fun init() {
-        hudElement("Mask Timers") { context, example ->
+        // The Zyryon style always listed the ready masks; configs saved with it keep that look through "Always Show".
+        ConfigManager.oneShotDefault("mask-timers-always-show") { if (maskTimerStyle.value == 1) alwaysShow.value = true }
+
+        // NoammAddons 501c213e: drawn only in Skyblock
+        hudElement(
+            "Mask Timers",
+            shouldDraw = { LocationUtils.inSkyblock }
+        ) { context, example ->
             if (onlyInDungeon.value && ! LocationUtils.inDungeon && ! example) return@hudElement 0f to 0f
 
             var maxWidth = 0
@@ -38,7 +48,8 @@ object MaskTimers: Feature("Mask Cooldown Timers, Invulnerability Timers, and mo
 
             Mask.entries.forEach { mask ->
                 val cd = if (example) mask.cooldownTicks / 2 else mask.cdLeft
-                if (maskTimerStyle.value == 0 && cd <= 0 && ! example) return@forEach
+                // NoammAddons 45679592 / 501c213e: hide masks off cooldown in all styles, unless "Always Show"
+                if (cd <= 0 && ! example && ! alwaysShow.value) return@forEach
 
                 val text = if (maskTimerStyle.value == 0) {
                     val time = if (example) mask.cooldownTicks / 40f else cd / 20f

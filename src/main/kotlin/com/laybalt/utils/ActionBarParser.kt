@@ -1,8 +1,10 @@
+// Secrets read guard ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking (parts of this file)
 package com.laybalt.utils
 
 import com.laybalt.LayBaltQOL
 import com.laybalt.LayBaltQOL.mc
 import com.laybalt.event.EventBus.register
+import com.laybalt.event.impl.DungeonEvent
 import com.laybalt.event.impl.MainThreadPacketReceivedEvent
 import com.laybalt.event.priority.EventPriority
 import com.laybalt.init.types.ISelfInit
@@ -44,7 +46,12 @@ object ActionBarParser: ISelfInit {
     var secrets: Int? = 0
     var maxSecrets: Int? = 0
 
+    private var skipNextSecrets = false
+    private var lastSecretsMax: Int? = null
+
     override fun init() {
+        register<DungeonEvent.RoomEvent.onEnter> { skipNextSecrets = true }
+
         register<MainThreadPacketReceivedEvent.Post>(EventPriority.HIGHEST) {
             if (! LocationUtils.inSkyblock) return@register
             if (event.packet is ClientboundSystemChatPacket && event.packet.overlay()) {
@@ -102,6 +109,16 @@ object ActionBarParser: ISelfInit {
         SECRETS_REGEX.takeIf { LocationUtils.inDungeon }?.find(input)?.let { match ->
             secrets = match.groupValues[1].remove(",").toIntOrNull() ?: secrets
             maxSecrets = match.groupValues[2].remove(",").toIntOrNull() ?: maxSecrets
+
+            // Odin f09e7645: right after entering a room the action bar can still show the previous room's count.
+            // When that room had the same total, the first read is ignored so the new room does not inherit it.
+            val sameMax = maxSecrets == lastSecretsMax
+            lastSecretsMax = maxSecrets
+            if (skipNextSecrets && sameMax) {
+                skipNextSecrets = false
+                return
+            }
+            skipNextSecrets = false
 
             ScanUtils.getRoomGraf(mc.player !!.position()).let { (gx, gy) ->
                 val roomTile = DungeonScanner.dungeonList[gy * 11 + gx] as? RoomTile ?: return

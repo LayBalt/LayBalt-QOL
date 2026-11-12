@@ -2,7 +2,6 @@ package com.laybalt.utils
 
 import com.laybalt.LayBaltQOL
 import com.laybalt.LayBaltQOL.MOD_ID
-import com.laybalt.LayBaltQOL.mc
 import com.laybalt.config.PogObject
 import com.laybalt.event.EventBus
 import com.laybalt.event.impl.*
@@ -22,6 +21,9 @@ import com.mojang.authlib.properties.Property
 import com.mojang.authlib.properties.PropertyMap
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.HoverEvent
+import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
+import net.minecraft.network.protocol.game.ClientboundOpenScreenPacket
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
@@ -39,6 +41,7 @@ object PetUtils: ISelfInit {
     private val colorCodePattern = Regex("§[0-9a-f]")
     private val loadoutsPetRegex = Regex("\\[Lvl (\\d+)] (.+)$")
     private val loadoutSlots = setOf(14, 15, 16, 23, 24, 25, 32, 33, 34, 41, 42, 43)
+    private var loadoutId: Int? = null
 
     private const val cache_version = 1
     private val petCache = PogObject("petsCache", PetCache(cache_version))
@@ -82,12 +85,21 @@ object PetUtils: ISelfInit {
 
             autopetPattern.matchEntire(event.formattedText)?.destructured?.let { (level, nameStr) ->
                 val level = level.toIntOrNull()
-                val name = nameStr.remove(Pet.levelRegex).removePrefix("§8")
+                // NoammAddons 1667d63a: a skinned pet's name ends with " ✦", which never matched a cached pet
+                val name = nameStr.remove(Pet.levelRegex).removePrefix("§8").substringBefore(" ✦")
                 val hasCustomSkin = nameStr.contains("✦")
                 val rarity = ItemRarity.byBaseColor(name.take(2))
+                val customSkinRarity = if (hasCustomSkin) customSkinRarity(name) else null
+
+                // NoammAddons ab758668: the rule's hover text names the held item, which tells same-name pets apart
+                val petItem = run {
+                    val lore = (event.component.style.hoverEvent as? HoverEvent.ShowText)?.value ?: return@run null
+                    val i = lore.siblings.indexOfFirst { it.string == "Held Item: " }.takeIf { it != - 1 } ?: return@run null
+                    lore.siblings.getOrNull(i + 1)?.string?.trim()
+                }
 
                 clickedPet = null
-                changePet(resolvePet(name, level, rarity, hasCustomSkin), PetEvent.Cause.AUTOPET)
+                changePet(resolvePet(name, level, rarity, hasCustomSkin, petItem, customSkinRarity), PetEvent.Cause.AUTOPET)
                 return@register
             }
 
@@ -99,48 +111,59 @@ object PetUtils: ISelfInit {
         EventBus.register<ContainerFullyOpenedEvent> {
             if (! LocationUtils.inSkyblock) return@register
             if (! petMenuPattern.matches(event.title.unformattedText)) return@register
-            ThreadUtils.async {
-                var equipped: Pet? = null
-                var found = 0
+            // NoammAddons b35d2dab: scan on the main thread so PetEvent is never posted from a worker
+            var equipped: Pet? = null
+            var found = 0
 
-                for (stack in event.items.values) {
-                    val pet = stack.pet() ?: continue
-                    cachePet(pet)
-                    found ++
+            for (stack in event.items.values) {
+                val pet = stack.pet() ?: continue
+                cachePet(pet)
+                found ++
 
-                    ChatUtils.debug("pet", pet.name)
+                ChatUtils.debug("pet", pet.name)
 
-                    if (equipped == null && stack.lore.any { it.removeFormatting().contains("Click to despawn!", ignoreCase = true) }) {
-                        equipped = pet
-                    }
+                if (equipped == null && stack.lore.any { it.removeFormatting().contains("Click to despawn!", ignoreCase = true) }) {
+                    equipped = pet
                 }
-
-                ChatUtils.debug("pet", "scanned $found pets from menu")
-
-                equipped?.let {
-                    if (equipped.uuid == null) return@let
-                    if (clickedPet?.uuid == equipped.uuid) return@let
-
-                    val current = currentPet
-
-                    when {
-                        current == null -> changePet(equipped, PetEvent.Cause.MENU)
-                        current.uuid == null && current.matches(equipped.name) -> updatePet(current.merge(equipped))
-                        current.uuid != equipped.uuid -> changePet(equipped, PetEvent.Cause.MENU)
-                        else -> updatePet(current.merge(equipped))
-                    }
-                }
-
-                petCache.save()
             }
+
+            ChatUtils.debug("pet", "scanned $found pets from menu")
+
+            equipped?.let {
+                if (equipped.uuid == null) return@let
+                if (clickedPet?.uuid == equipped.uuid) return@let
+
+                val current = currentPet
+
+                when {
+                    current == null -> changePet(equipped, PetEvent.Cause.MENU)
+                    current.uuid == null && current.matches(equipped.name) -> updatePet(current.merge(equipped))
+                    current.uuid != equipped.uuid -> changePet(equipped, PetEvent.Cause.MENU)
+                    else -> updatePet(current.merge(equipped))
+                }
+            }
+
+            ThreadUtils.async { petCache.save() }
         }
 
         EventBus.register<ContainerEvent.SlotClick> {
-            if (event.button != 0) return@register
+            if (event.button != 0 && event.button != 1) return@register
             if (event.clickType != ContainerInput.PICKUP) return@register
             if (event.slotId !in 10 .. 43 || event.slotId % 9 !in 1 .. 7) return@register
             if (! petMenuPattern.matches(event.screen.title.unformattedText)) return@register
-            clickedPet = mc.player?.containerMenu?.items?.getOrNull(event.slotId)?.pet()
+            val stack = event.screen.menu.items.getOrNull(event.slotId) ?: return@register
+            val pet = stack.pet()
+            if (event.button == 0) clickedPet = pet
+            else {
+                // NoammAddons b35d2dab: a right click turns the pet into an item, so forget it
+                val uuid = pet?.uuid ?: return@register
+                knownPets.remove(uuid)
+                if (clickedPet?.uuid == uuid) clickedPet = null
+                val current = currentPet ?: return@register
+                if (current.uuid == uuid || current.uuid == null && stack.lore.any { it.removeFormatting().contains("Click to despawn!", ignoreCase = true) }) {
+                    changePet(null, PetEvent.Cause.MENU)
+                }
+            }
         }
 
         EventBus.register<ContainerEvent.SlotClick> {
@@ -148,17 +171,48 @@ object PetUtils: ISelfInit {
             if (event.clickType != ContainerInput.PICKUP) return@register
             if (event.slotId !in loadoutSlots) return@register
             if (! event.screen.title.unformattedText.endsWith(") Loadouts")) return@register
-            mc.player?.containerMenu?.items[event.slotId]?.lore?.find { it.startsWith("§7Pet: ") }?.let {
+            loadoutId = event.screen.menu.containerId
+            event.screen.menu.items.getOrNull(event.slotId)?.lore?.find { it.startsWith("§7Pet: ") }?.let {
                 val match = loadoutsPetRegex.find(it)?.destructured ?: return@let
                 val level = match.component1().toIntOrNull()
                 var name = match.component2()
                 val hasCustomSkin = name.contains("✦")
                 name = name.remove(Pet.levelRegex).removePrefix("§8")
                 val rarity = ItemRarity.byBaseColor(name.take(2))
+                val customSkinRarity = if (hasCustomSkin) customSkinRarity(name) else null
 
                 clickedPet = null
-                changePet(resolvePet(name, level, rarity, hasCustomSkin), PetEvent.Cause.MENU)
+                changePet(resolvePet(name, level, rarity, hasCustomSkin, customSkinRarity = customSkinRarity), PetEvent.Cause.MENU)
             }
+        }
+
+        // NoammAddons 3a2777b5: slot 21 of the Loadouts menu holds the equipped pet with its full petInfo,
+        // so opening the menu or switching loadouts resyncs the active pet
+        EventBus.register<MainThreadPacketReceivedEvent.Pre> {
+            val packet = event.packet as? ClientboundOpenScreenPacket ?: return@register
+            if (! packet.title.unformattedText.endsWith(") Loadouts")) return@register
+            loadoutId = packet.containerId
+        }
+
+        EventBus.register<MainThreadPacketReceivedEvent.Pre> {
+            val packet = event.packet as? ClientboundContainerSetSlotPacket ?: return@register
+            if (packet.containerId != loadoutId) return@register
+            if (packet.slot != 21) return@register
+            val pet = packet.item.pet() ?: return@register
+            if (pet.uuid == null) return@register
+
+            ChatUtils.debug("pet", "updated from slot 21: ${pet.name}")
+
+            val current = currentPet
+
+            when {
+                current == null -> changePet(pet, PetEvent.Cause.MENU)
+                current.uuid == null && current.matches(pet.name) -> updatePet(current.merge(pet))
+                current.uuid != pet.uuid -> changePet(pet, PetEvent.Cause.MENU)
+                else -> updatePet(current.merge(pet))
+            }
+
+            loadoutId = null
         }
 
         EventBus.register<WorldChangeEvent> { clickedPet = null }
@@ -203,18 +257,32 @@ object PetUtils: ISelfInit {
         )
     }
 
-    private fun resolvePet(name: String, level: Int? = null, rarity: ItemRarity? = null, hasCustomSkin: Boolean = false): Pet {
-        val base = knownPets.values.find { it.matches(name, rarity, hasCustomSkin) }
+    // NoammAddons 1667d63a: the rarity colour written before the ✦ of a skinned pet's name
+    private fun customSkinRarity(name: String): ItemRarity? {
+        val i = name.indexOf('✦').takeUnless { it == - 1 } ?: return null
+        val code = "§" + name.substring(i - 3).take(3).trim().substringAfter("§")
+        return ItemRarity.byBaseColor(code)
+    }
+
+    private fun resolvePet(
+        name: String,
+        level: Int? = null,
+        rarity: ItemRarity? = null,
+        hasCustomSkin: Boolean = false,
+        heldItem: String? = null,
+        customSkinRarity: ItemRarity? = null
+    ): Pet {
+        val base = knownPets.values.find { it.matches(name, rarity, hasCustomSkin, heldItem, customSkinRarity) }
 
         return Pet(
             name = (base?.name ?: name).removeFormatting(),
             level = level ?: base?.level,
             rarity = rarity ?: base?.rarity,
             uuid = base?.uuid,
-            heldItem = base?.heldItem,
+            heldItem = heldItem ?: base?.heldItem,
             headSkin = base?.headSkin,
             hasCustomSkin = base?.hasCustomSkin ?: hasCustomSkin,
-            customSkinRarity = base?.customSkinRarity,
+            customSkinRarity = base?.customSkinRarity ?: customSkinRarity,
         )
     }
 
@@ -292,12 +360,20 @@ object PetUtils: ISelfInit {
             if (hasCustomSkin) append(" ${customSkinRarity?.baseColor?.toString().orEmpty()}✦")
         }
 
-        fun matches(name: String, rarity: ItemRarity? = null, hasCustomSkin: Boolean = false): Boolean {
+        fun matches(
+            name: String,
+            rarity: ItemRarity? = null,
+            hasCustomSkin: Boolean = false,
+            heldItem: String? = null,
+            customSkinRarity: ItemRarity? = null
+        ): Boolean {
             val withName = normalizeName(this.name) == normalizeName(name)
-            val withRarity = rarity == null || rarity == this.rarity
+            val withRarity = rarity == null || rarity.baseColor == this.rarity?.baseColor
             val withSkin = if (hasCustomSkin) this.hasCustomSkin else true
+            val withItem = heldItem == null || heldItem.trim().equals(this.heldItem?.trim(), ignoreCase = true)
+            val withSkinRarity = customSkinRarity == null || customSkinRarity == this.customSkinRarity
 
-            return withName && withRarity && withSkin
+            return withName && withRarity && withSkin && withItem && withSkinRarity
         }
 
         fun head(): ItemStack {

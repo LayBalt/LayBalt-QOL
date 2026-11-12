@@ -12,6 +12,7 @@ import com.laybalt.utils.ColorUtils.withAlpha
 import com.laybalt.utils.Utils.send
 import com.laybalt.utils.dungeons.DungeonUtils
 import com.laybalt.utils.dungeons.enums.SecretType
+import com.laybalt.utils.dungeons.map.utils.ScanUtils
 import com.laybalt.utils.location.LocationUtils
 import com.laybalt.utils.render.Render2D.drawString
 import com.laybalt.utils.render.RenderHelper.width
@@ -62,6 +63,18 @@ object Secrets: Feature() {
     @JvmStatic val mushroom by ToggleSetting("Mushroom").withDescription("Full block Mushroom hitbox.")
     @JvmStatic val chests by ToggleSetting("Chests").withDescription("Full block Chest hitbox for aiming and the block outline (collision stays vanilla).")
     private val onlyTrappedChests by ToggleSetting("Only Trapped Chests").withDescription("Only expand the hitbox of trapped chests.").showIf { chests.value }
+
+    // NoammAddons 7225b9a0
+    private val secretsTb by ToggleSetting("Secrets Triggerbot").section("Triggerbot")
+        .withDescription("Right-clicks the secret you are looking at (chests, levers, wither essence / redstone key skulls, mimic chests) outside the boss room. Pick the blocks in TB Options.")
+    private val clickDelay by SliderSetting("Interact Delay", 200, 0, 700, 1, "ms")
+        .withDescription("Minimum time between two clicks on the same block.")
+        .showIf { secretsTb.value }
+    private val tbOptions by MultiCheckboxSetting("TB Options", mutableMapOf("Chest" to false, "Lever" to false, "Skull" to false, "Mimic" to false))
+        .withDescription("Which blocks the triggerbot clicks. Chests are skipped in Three Weirdos and levers in Water Board.")
+        .showIf { secretsTb.value }
+
+    private val lastTbClicks = HashMap<BlockPos, Long>()
     //#endif
 
     private val secretClicked by ToggleSetting("Highlight Clicked Secret").withDescription("Highlights the block of a secret when you interact with it.").section("Secret Clicked")
@@ -167,6 +180,32 @@ object Secrets: Feature() {
         }
 
         register<GameStartEvent> { if (lever.value || button.value) ModCompatibility.disableBlockstateCulling() }
+
+        // NoammAddons 7225b9a0 (+ 1b64ba1f toggle check, c91096f8 boss check): right-clicks the secret you look at
+        register<TickEvent.Start> {
+            if (! secretsTb.value) return@register
+            if (! LocationUtils.inDungeon || LocationUtils.inBoss) return@register
+            if (mc.gui.screen() != null) return@register
+            val looking = PlayerUtils.getSelectionBlock() ?: return@register
+            val now = System.currentTimeMillis()
+            if (now - (lastTbClicks[looking] ?: 0L) < clickDelay.value) return@register
+
+            val block = WorldUtils.getBlockAt(looking)
+            val shouldClick = when {
+                block is SkullBlock -> tbOptions["Skull"] && DungeonUtils.isSecret(looking)
+                block == Blocks.CHEST -> tbOptions["Chest"] && ScanUtils.currentRoom?.name != "Three Weirdos"
+                block == Blocks.TRAPPED_CHEST -> tbOptions["Mimic"]
+                // our Water Board solver relies on the levers being flipped deliberately
+                block == Blocks.LEVER -> tbOptions["Lever"] && ScanUtils.currentRoom?.name != "Water Board"
+                else -> false
+            }
+            if (! shouldClick) return@register
+
+            PlayerUtils.rightClick()
+            lastTbClicks[looking] = now
+        }
+
+        register<WorldChangeEvent> { lastTbClicks.clear() }
         //#endif
     }
 

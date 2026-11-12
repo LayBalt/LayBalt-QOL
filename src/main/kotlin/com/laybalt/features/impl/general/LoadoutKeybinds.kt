@@ -2,6 +2,7 @@
 package com.laybalt.features.impl.general
 
 import com.laybalt.config.types.KeybindSetting
+import com.laybalt.config.types.MultiCheckboxSetting
 import com.laybalt.config.types.ToggleSetting
 import com.laybalt.event.impl.*
 import com.laybalt.features.Feature
@@ -15,10 +16,12 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.network.protocol.game.*
 import net.minecraft.world.inventory.Slot
 
-object LoadoutKeybinds: Feature("Allows you to bind SkyBlock loadout slots to your keyboard.") {
+object LoadoutKeybinds: Feature("Allows you to bind loadout slots to your keyboard/mouse.") {
     private val blockBarrierClick by ToggleSetting("Block Barrier Click")
     //#if CHEAT
     private val closeAfterUse by ToggleSetting("Auto Close On Use")
+    private val keepOpenSlots by MultiCheckboxSetting("Keep Open On", (1 .. 12).associate { "Slot $it" to false }.toMutableMap())
+        .withDescription("Loadout slots that won't auto close the menu").showIf { closeAfterUse.value }
     //#endif
     private val nextPageKey by KeybindSetting("Next Page", InputConstants.KEY_RIGHT).withDescription("Goes to the next loadout page (if there is one) while the Loadouts menu is open.").section("Pages")
     private val previousPageKey by KeybindSetting("Previous Page", InputConstants.KEY_LEFT).withDescription("Goes to the previous loadout page (if there is one) while the Loadouts menu is open.")
@@ -47,8 +50,16 @@ object LoadoutKeybinds: Feature("Allows you to bind SkyBlock loadout slots to yo
         41, 42, 43
     )
 
-    private val hotbarKeyMap by lazy {
-        mc.options.keyHotbarSlots.withIndex().associate { (i, key) -> (key as IKeyMapping).key.value to i }
+    /**
+     * The hotbar slot bound to [code], read live so rebinding takes effect without a restart.
+     * An unbound hotbar key (InputConstants.UNKNOWN) never matches, and a mouse bind never matches a keyboard code (Odin d2d267cd).
+     */
+    private fun hotbarIndex(code: Int, mouse: Boolean): Int? {
+        val type = if (mouse) InputConstants.Type.MOUSE else InputConstants.Type.KEYSYM
+        return mc.options.keyHotbarSlots.indexOfFirst {
+            val key = (it as IKeyMapping).key
+            key != InputConstants.UNKNOWN && key.type == type && key.value == code
+        }.takeUnless { it == - 1 }
     }
 
     override fun init() {
@@ -82,7 +93,7 @@ object LoadoutKeybinds: Feature("Allows you to bind SkyBlock loadout slots to yo
             if (System.currentTimeMillis() - lastClick < 300) return@register
             if (event.key.equalsOneOf(InputConstants.KEY_ESCAPE, KeyMappingHelper.getBoundKeyOf(mc.options.keyInventory).value)) return@register
             if (handlePageKey(event.screen, event.key, mouse = false)) return@register event.cancel()
-            val index = if (useHotbarBinds.value) hotbarKeyMap[event.key] ?: return@register
+            val index = if (useHotbarBinds.value) hotbarIndex(event.key, mouse = false) ?: return@register
             else keybinds.indexOfFirst(KeybindSetting::isDown).takeUnless { it == - 1 } ?: return@register
             event.isCanceled = true
             click(index)
@@ -93,7 +104,7 @@ object LoadoutKeybinds: Feature("Allows you to bind SkyBlock loadout slots to yo
             if (System.currentTimeMillis() - lastClick < 300) return@register
             if (event.button.equalsOneOf(InputConstants.MOUSE_BUTTON_LEFT, InputConstants.MOUSE_BUTTON_RIGHT)) return@register
             if (handlePageKey(event.screen, event.button, mouse = true)) return@register event.cancel()
-            val index = if (useHotbarBinds.value) hotbarKeyMap[event.button] ?: return@register
+            val index = if (useHotbarBinds.value) hotbarIndex(event.button, mouse = true) ?: return@register
             else keybinds.indexOfFirst { it.matches(event.button, mouse = true) }.takeUnless { it == - 1 } ?: return@register
             event.isCanceled = true
             click(index)
@@ -135,7 +146,7 @@ object LoadoutKeybinds: Feature("Allows you to bind SkyBlock loadout slots to yo
 
         lastClick = System.currentTimeMillis()
         //#if CHEAT
-        if (closeAfterUse.value) {
+        if (closeAfterUse.value && ! keepOpenSlots["Slot ${index + 1}"]) {
             player.closeContainer()
             ThreadUtils.setTimeout(3000) { pendingAutoClose = false }
             pendingAutoClose = true

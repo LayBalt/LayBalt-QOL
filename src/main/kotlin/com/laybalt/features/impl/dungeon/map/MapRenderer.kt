@@ -42,14 +42,28 @@ object MapRenderer: HudElement() {
     override fun draw(ctx: GuiGraphicsExtractor, example: Boolean): Pair<Float, Float> = draw(ctx, example, true)
 
     fun draw(ctx: GuiGraphicsExtractor, example: Boolean, extraInfo: Boolean): Pair<Float, Float> {
+        // NoammAddons 069b8ecb: corner 5 is drawn 1px further in so the layout is centred
+        val startX = MapUtils.renderStartX
+        val startY = MapUtils.renderStartY
+        // NoammAddons 961ca630 / 73177614: the HUD editor shows a sample dungeon, or the live map while in a run
+        val preview = example && ! LocationUtils.inDungeon
+
         renderBackground(ctx)
-        ctx.pose().translate(MapUtils.startCorner.first.toFloat(), MapUtils.startCorner.second.toFloat())
-        applyCheater()
-        renderRooms(ctx)
-        renderText(ctx)
-        ctx.pose().translate(- MapUtils.startCorner.first.toFloat(), - MapUtils.startCorner.second.toFloat())
-        renderPlayerHeads(ctx)
-        if (extraInfo) renderExtraInfo(ctx)
+        ctx.pose().translate(startX, startY)
+        if (preview) {
+            renderRooms(ctx, MapPreview.tiles, MapPreview.CONNECTOR_SIZE, true)
+            renderText(ctx, MapPreview.rooms, MapPreview.CONNECTOR_SIZE, MapUtils.mapRoomSize / 2, true)
+        }
+        else {
+            applyCheater()
+            renderRooms(ctx, DungeonScanner.dungeonList, HotbarMapScanner.quarterRoom.takeUnless { it == - 1 } ?: 4, false)
+            renderText(ctx, DungeonScanner.uniqueRooms.values, HotbarMapScanner.quarterRoom, HotbarMapScanner.halfRoom, false)
+        }
+        ctx.pose().translate(- startX, - startY)
+
+        if (preview) MapPreview.players.forEachIndexed { i, player -> drawPlayerHead(ctx, player, isSelf = i == 0) }
+        else renderPlayerHeads(ctx)
+        if (extraInfo) renderExtraInfo(ctx, example)
 
         return 128f to if (MapConfig.mapExtraInfo.value) 140f else 128f
     }
@@ -62,21 +76,22 @@ object MapRenderer: HudElement() {
         ctx.drawBorder(0, 0, width, height, MapConfig.mapBorderColor.value, MapConfig.mapBorderWidth.value)
     }
 
-    private fun renderExtraInfo(ctx: GuiGraphicsExtractor) {
+    private fun renderExtraInfo(ctx: GuiGraphicsExtractor, example: Boolean) {
         if (! MapConfig.mapExtraInfo.value) return
-        if (! MapConfig.dungeonMapCheater.value && ! DungeonListener.dungeonStarted) return
+        if (! example && ! MapConfig.dungeonMapCheater.value && ! DungeonListener.dungeonStarted) return
 
+        // NoammAddons 926632a2: compact crypts and the number of bonus bats killed
         val secretsStr = "&6Secrets: &b${ScoreCalculation.foundSecrets}&f/&b${ScoreCalculation.secretsUntil300}&f/&e${DungeonScanner.secretCount}"
-        val cryptsStr = colorCodeByPercent(ScoreCalculation.cryptsCount, 6) + "Crypts: ${ScoreCalculation.cryptsCount}"
+        val cryptsStr = colorCodeByPercent(ScoreCalculation.cryptsCount, 6) + "C${ScoreCalculation.cryptsCount}"
+        val batsStr = (if (ScoreCalculation.batCount > 0) "&aB" else "&cB") + ScoreCalculation.batCount
         val scoreStr = "&eScore: ${colorizeScore(ScoreCalculation.score)}&r"
         val deathsStr = "&cDeaths: ${colorCodeByPercent(ScoreCalculation.deathCount, 4, true)}${ScoreCalculation.deathCount}&r"
         val bonusStr = buildString {
             append(if (ScoreCalculation.mimicKilled) "&aM &f| " else "&cM &f| ")
-            append(if (ScoreCalculation.princeKilled) "&aP &f| " else "&cP &f| ")
-            append(if (ScoreCalculation.batKilled) "&aB" else "&cB")
+            append(if (ScoreCalculation.princeKilled) "&aP" else "&cP")
         }
 
-        val line1 = "$secretsStr    $cryptsStr"
+        val line1 = "$secretsStr    $cryptsStr &f| $batsStr"
         val line2 = "$scoreStr   $deathsStr   $bonusStr"
 
         ctx.pose().translate(width / 2f, 128f)
@@ -103,11 +118,9 @@ object MapRenderer: HudElement() {
         return RoomState.UNOPENED
     }
 
-    private fun renderRooms(ctx: GuiGraphicsExtractor) {
-        val connectorSize = (HotbarMapScanner.quarterRoom.takeUnless { it == - 1 } ?: 4)
-
+    private fun renderRooms(ctx: GuiGraphicsExtractor, tiles: Array<Tile>, connectorSize: Int, preview: Boolean) {
         for (y in 0 .. 10) for (x in 0 .. 10) {
-            val tile = DungeonScanner.dungeonList[y * 11 + x].takeUnless { it is Unknown } ?: continue
+            val tile = tiles[y * 11 + x].takeUnless { it is Unknown } ?: continue
             val hidden = tile.state == RoomState.UNDISCOVERED || (tile is DoorTile && getDoorState(tile) == RoomState.UNDISCOVERED)
             if (hidden && ! MapConfig.revealHidden) continue
 
@@ -127,16 +140,11 @@ object MapRenderer: HudElement() {
 
             val xEven = x and 1 == 0
             val yEven = y and 1 == 0
+            val predicted = getPredictedTypes(tile, y * 11 + x, preview)
 
             when {
-                xEven && yEven -> if (tile is RoomTile) {
-                    ctx.drawRect(
-                        xOffset,
-                        yOffset, MapUtils.mapRoomSize,
-                        MapUtils.mapRoomSize,
-                        color
-                    )
-                }
+                xEven && yEven -> if (predicted != null) drawPredictedRoom(ctx, xOffset, yOffset, predicted)
+                else if (tile is RoomTile) ctx.drawRect(xOffset, yOffset, MapUtils.mapRoomSize, MapUtils.mapRoomSize, color)
 
                 ! xEven && ! yEven -> {
                     ctx.drawRect(
@@ -152,30 +160,87 @@ object MapRenderer: HudElement() {
                 )
             }
 
-            if (tile is RoomTile && tile.data.isUnknown()) {
-                val checkmarkSize = MapConfig.checkmarkSize.value * 10
-                drawCheckmark(
-                    ctx, tile,
-                    xOffset + MapUtils.mapRoomSize / 2 - checkmarkSize / 2,
-                    yOffset + MapUtils.mapRoomSize / 2 - checkmarkSize / 2,
-                    checkmarkSize,
-                )
+            if (tile is RoomTile && tile.data.isUnknown() && predicted == null) {
+                drawRoomCheckmark(ctx, tile, xOffset, yOffset)
             }
         }
     }
 
-    private fun renderText(ctx: GuiGraphicsExtractor) {
+    /**
+     * NoammAddons 54224635: possible types of an unopened 1x1 (puzzle / trap / miniboss), worked out from the
+     * special column of the layout. Only on the legit map; a map that reveals hidden rooms has nothing to predict.
+     */
+    private fun getPredictedTypes(tile: Tile, index: Int, preview: Boolean): List<RoomType>? {
+        if (! MapConfig.predictRooms.value || MapConfig.revealHidden) return null
+        if (tile !is RoomTile || tile.state != RoomState.UNOPENED) return null
+        if (preview) return MapPreview.predictions[index]
+        return SpecialColumn.predict(index)
+    }
+
+    private fun drawPredictedRoom(ctx: GuiGraphicsExtractor, x: Int, y: Int, types: List<RoomType>) {
+        val roomSize = MapUtils.mapRoomSize
+        val colors = types.map {
+            when (it) {
+                RoomType.CHAMPION -> MapConfig.colorMiniboss
+                RoomType.TRAP -> MapConfig.colorTrap
+                else -> MapConfig.colorPuzzle
+            }.value
+        }.let { colors ->
+            // NoammAddons bdf5bfa1: a certain prediction keeps the room colour, a guess is darkened
+            colors.map { if (colors.size > 1) it.darker().darker() else it }
+        }
+
+        ctx.pose().pushMatrix()
+        ctx.pose().translate(x.toFloat(), y.toFloat())
+
+        when (colors.size) {
+            1 -> ctx.drawRect(0, 0, roomSize, roomSize, colors[0])
+            2 -> {
+                ctx.drawRect(0, 0, roomSize, roomSize / 2, colors[0])
+                ctx.drawRect(0, roomSize / 2, roomSize, roomSize - roomSize / 2, colors[1])
+            }
+
+            3 -> {
+                val outer = roomSize * 5 / 16
+                val center = roomSize - outer
+                val inner = center - 1
+
+                ctx.drawRect(0, 0, roomSize, outer, colors[0])
+                ctx.drawRect(0, 0, outer, inner, colors[0])
+                ctx.drawRect(inner, outer, roomSize - inner, roomSize - outer, colors[1])
+                ctx.drawRect(0, inner, roomSize, roomSize - inner, colors[1])
+                ctx.drawRect(outer, outer, center - outer, center - outer, colors[2])
+            }
+        }
+
+        ctx.pose().popMatrix()
+    }
+
+    private fun renderText(ctx: GuiGraphicsExtractor, rooms: Collection<UniqueRoom>, connectorSize: Int, halfRoomSize: Int, preview: Boolean) {
         val roomSize = MapUtils.mapRoomSize.toFloat()
-        val gapSize = HotbarMapScanner.quarterRoom.toFloat()
-        val halfRoom = HotbarMapScanner.halfRoom.toFloat()
+        val gapSize = connectorSize.toFloat()
+        val halfRoom = halfRoomSize.toFloat()
         val fullCellSize = roomSize + gapSize
 
-        DungeonScanner.uniqueRooms.values.forEach { unq ->
+        rooms.forEach { unq ->
             val roomTile = unq.mainRoom
 
             if (unq.data.isUnknown()) return@forEach
-            if (unq.data.type.equalsOneOf(RoomType.ENTRANCE, RoomType.FAIRY)) return@forEach
             if (MapConfig.hideBloodroomOvelay.value && unq.data.type == RoomType.BLOOD) return@forEach
+
+            // NoammAddons bfdb439f: a scanned room nobody has opened yet shows Hypixel's "?" on the legit map
+            val unopenedTile = unq.tiles.find { ! it.isSeparator && it.state == RoomState.UNOPENED }
+            if (! MapConfig.revealHidden && unopenedTile != null) {
+                val (row, column) = unopenedTile.getGridPos()
+                if (getPredictedTypes(unopenedTile, row * 11 + column, preview) != null) return@forEach
+
+                val xOffset = (column shr 1) * (MapUtils.mapRoomSize + connectorSize)
+                val yOffset = (row shr 1) * (MapUtils.mapRoomSize + connectorSize)
+                drawRoomCheckmark(ctx, unopenedTile, xOffset, yOffset)
+                return@forEach
+            }
+
+            if (unq.data.type.equalsOneOf(RoomType.ENTRANCE, RoomType.FAIRY)) return@forEach
             val showHiddenNames = MapConfig.revealHidden && MapConfig.cheaterShowNames.value
             if (! showHiddenNames && roomTile.state.equalsOneOf(RoomState.UNDISCOVERED, RoomState.UNOPENED)) return@forEach
 
@@ -271,7 +336,18 @@ object MapRenderer: HudElement() {
         ctx.drawTexture(checkmark, x, y, size, size)
     }
 
-    private fun drawPlayerHead(ctx: GuiGraphicsExtractor, teammate: DungeonPlayer) {
+    /** Draws [tile]'s checkmark centred in the room cell at [xOffset], [yOffset]. */
+    private fun drawRoomCheckmark(ctx: GuiGraphicsExtractor, tile: Tile, xOffset: Int, yOffset: Int) {
+        val checkmarkSize = MapConfig.checkmarkSize.value * 10
+        drawCheckmark(
+            ctx, tile,
+            xOffset + MapUtils.mapRoomSize / 2 - checkmarkSize / 2,
+            yOffset + MapUtils.mapRoomSize / 2 - checkmarkSize / 2,
+            checkmarkSize,
+        )
+    }
+
+    private fun drawPlayerHead(ctx: GuiGraphicsExtractor, teammate: DungeonPlayer, isSelf: Boolean = teammate == DungeonListener.thePlayer) {
         val entity = teammate.entity
 
         val (x, z, yaw) = if (entity == null || ! entity.isAlive) {
@@ -296,11 +372,13 @@ object MapRenderer: HudElement() {
         ctx.pose().rotate(headYaw)
         ctx.pose().scale(MapConfig.playerHeadScale.value)
 
-        if (MapConfig.mapVanillaMarker.value && teammate == DungeonListener.thePlayer) {
+        if (MapConfig.mapVanillaMarker.value && isSelf) {
             ctx.drawTexture(ownPlayerMarker, - 6, - 6, 12, 12, MapConfig.mapVanillaMarkerColor.value)
         }
         else {
-            ctx.drawBorder(- 7, - 7, 14, 14, borderColor)
+            // Odin 8580eb4e: adjustable border (class colour) thickness, 0 hides it
+            val border = MapConfig.playerHeadBorderSize.value
+            if (border > 0) ctx.drawBorder(- (6 + border), - (6 + border), 12 + 2 * border, 12 + 2 * border, borderColor, border)
             ctx.drawPlayerHead(- 6, - 6, 12, teammate.skin)
         }
 
@@ -322,8 +400,10 @@ object MapRenderer: HudElement() {
     private fun drawRoomConnector(
         matrices: GuiGraphicsExtractor, x: Int, y: Int, doorWidth: Int, doorway: Boolean, vertical: Boolean, color: Color,
     ) {
-        val doorwayOffset = if (MapUtils.mapRoomSize == 16) 5 else 6
-        val doorHeight = if (doorway) 6 else MapUtils.mapRoomSize
+        // NoammAddons b57e9e74: adjustable door width (6 matches the old fixed size)
+        val doorHeightSize = MapConfig.doorHeightSize.value
+        val doorwayOffset = (MapUtils.mapRoomSize - doorHeightSize) / 2
+        val doorHeight = if (doorway) doorHeightSize else MapUtils.mapRoomSize
         var x1 = if (vertical) x + MapUtils.mapRoomSize else x
         var y1 = if (vertical) y else y + MapUtils.mapRoomSize
         if (doorway) if (vertical) y1 += doorwayOffset else x1 += doorwayOffset

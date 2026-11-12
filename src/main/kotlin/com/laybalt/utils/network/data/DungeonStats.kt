@@ -21,7 +21,8 @@ data class DungeonStats(
     val magicalPower by lazy { ApiUtils.getMagicalPower(ApiUtils.decodeBase64ItemList(talismanBagData), this) }
     val cataLevel by lazy { ApiUtils.getCatacombsLevel(dungeons.catacombsExperience) }
     val classAverage by lazy { dungeons.playerClasses.values.map(ApiUtils::getCatacombsLevel).average() }
-    val secretAverage by lazy { dungeons.secrets.toDouble() / dungeons.totalRuns.toDouble() }
+    /** Secrets per F1-F7 run; 0 with no runs (not NaN or Infinity, as /lbq cata shows it). */
+    val secretAverage by lazy { if (dungeons.totalRuns > 0) dungeons.secrets.toDouble() / dungeons.totalRuns else 0.0 }
 
     @Serializable
     data class DungeonData(

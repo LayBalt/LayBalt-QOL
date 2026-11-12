@@ -53,9 +53,10 @@ object ArrowPoison: Feature("Shows on screen the amount of poison arrows you hav
         ThreadUtils.loop(1000) {
             if (enabled && mc.player != null) mc.execute {
                 PoisonArrow.entries.forEach { arrow ->
-                    arrow.count = player.inventory.nonEquipmentItems.sumOf {
+                    // NoammAddons 647e57e7: the player can be gone by the time this runs on the client thread
+                    arrow.count = mc.player?.inventory?.nonEquipmentItems?.sumOf {
                         it.takeIf { it.skyblockId == arrow.sbid }?.count ?: 0
-                    }
+                    } ?: arrow.count
                 }
             }
         }

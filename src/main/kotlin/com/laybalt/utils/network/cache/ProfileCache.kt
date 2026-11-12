@@ -15,6 +15,13 @@ object ProfileCache: NetworkCache<String, DungeonStats> {
 
     override fun get(key: String): CacheResult<DungeonStats> {
         val entry = storage.getIfPresent(key.lowercase()) ?: return CacheResult.NotFound
-        return if (entry.value == null) CacheResult.Failed else CacheResult.Success(entry.value)
+        if (entry.value != null) return CacheResult.Success(entry.value)
+        // a failed lookup (server down, rate limited) is answered from here a minute (the Party Finder tooltip asks every
+        // frame), then asked again
+        if (System.currentTimeMillis() - entry.timestamp < FAILED_MS) return CacheResult.Failed
+        storage.invalidate(key.lowercase())
+        return CacheResult.NotFound
     }
+
+    private const val FAILED_MS = 60_000L
 }

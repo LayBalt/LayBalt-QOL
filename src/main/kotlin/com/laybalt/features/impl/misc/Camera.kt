@@ -10,6 +10,7 @@ import com.laybalt.event.impl.GameStartEvent
 import com.laybalt.event.impl.MainThreadPacketReceivedEvent
 import com.laybalt.features.Feature
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket
+import net.minecraft.world.entity.Entity
 import kotlin.math.exp
 
 //#if LEGIT
@@ -97,5 +98,19 @@ object Camera: Feature(
 
         animatedDistance += (target - animatedDistance) * (1f - exp(- ZOOM_SPEED * delta))
         return animatedDistance
+    }
+
+    /**
+     * NoammAddons e80ddc84: the below-name (score) line of your own player is only extracted within [distance] blocks
+     * of the camera, so a custom camera distance hid it. Extends that range by the camera distance for your own player.
+     *
+     * @see com.laybalt.mixin.MixinLivingEntityRenderer
+     */
+    @JvmStatic
+    fun belowNameDistanceHook(entity: Entity, distance: Double): Double {
+        if (! enabled) return distance
+        if (! customCameraDistance.value) return distance
+        if (entity !== mc.player) return distance
+        return distance + cameraDistance.value.toDouble()
     }
 }

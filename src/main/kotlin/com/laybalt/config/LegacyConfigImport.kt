@@ -35,7 +35,6 @@ object LegacyConfigImport {
     private const val ESP_LIST_KEY = "CustomESP.txt"
 
     private val FISHING = listOf("Auto Fishing")
-    private val MOB_KILLER = listOf("Auto Mob Killer")
     private val AUTO_PATH = listOf("Auto Path")
     private val MELODY = listOf("Auto Harp", "Auto Melody")
     private val EXPERIMENTS = listOf("Auto Experiments", "Auto Enchanting", "Auto Experiment")
@@ -52,11 +51,7 @@ object LegacyConfigImport {
         Mapping("fishingStopMoveHead", FISHING, listOf("Lock Mouse")),
         Mapping("fishingShakeHead", FISHING, listOf("Shake Head")),
 
-        // Auto Mob Killer (WIP; settings only)
-        Mapping("fishingAttackDelay", MOB_KILLER, listOf("Attack Delay")),
-        Mapping("fishingMobDetectionRadius", MOB_KILLER, listOf("Detection Radius")),
-        Mapping("fishingSwordSlot", MOB_KILLER, listOf("Sword Slot")),
-        Mapping("fishingRodSlot", MOB_KILLER, listOf("Rod Slot")),
+        // Auto Mob Killer: the old slot/delay settings are replaced by the Sea Creature Rules and recorded behaviour (3.4.0)
 
         // Auto Path (WIP; same route order as the old selector)
         Mapping("largeSelector", AUTO_PATH, listOf("Route")),

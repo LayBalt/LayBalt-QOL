@@ -15,7 +15,10 @@ import net.minecraft.client.gui.navigation.ScreenRectangle
 import net.minecraft.client.gui.render.TextureSetup
 import net.minecraft.client.renderer.RenderPipelines
 import net.minecraft.client.renderer.state.gui.GuiElementRenderState
+import net.minecraft.locale.Language
+import net.minecraft.network.chat.FormattedText
 import net.minecraft.resources.Identifier
+import net.minecraft.util.FormattedCharSequence
 import net.minecraft.world.inventory.Slot
 import org.joml.Matrix3x2f
 import java.awt.Color
@@ -24,6 +27,24 @@ import kotlin.math.*
 
 object Render2D: ISelfInit {
     private val slotHighlights = mutableMapOf<Long, Int>()
+
+    // NoammAddons aac3abde: HUD and world text is redrawn every frame with mostly the same strings, so the bidi /
+    // formatting pass (Language.getVisualOrder) is cached per string (LRU, render thread only, reset on language change).
+    private var visualOrderLanguage: Language? = null
+    private val visualOrderCache = object: LinkedHashMap<String, FormattedCharSequence>(512, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, FormattedCharSequence>) = size > 512
+    }
+
+    /** The visual order of this string with `&` colour codes, as GuiGraphicsExtractor.text(Font, String, ...) builds it. */
+    fun String.visualOrder(): FormattedCharSequence {
+        val language = Language.getInstance()
+        if (language !== visualOrderLanguage) {
+            visualOrderCache.clear()
+            visualOrderLanguage = language
+        }
+
+        return visualOrderCache.getOrPut(this) { language.getVisualOrder(FormattedText.of(addColor())) }
+    }
 
     override fun init() {
         register<RenderOverlayEvent> { slotHighlights.clear() }
@@ -100,7 +121,7 @@ object Render2D: ISelfInit {
         pose().pushMatrix()
         pose().translate(fx, fy)
         if (fScale != 1f) pose().scale(fScale, fScale)
-        text(mc.font, str.addColor(), 0, 0, color.rgb, shadow)
+        text(mc.font, str.visualOrder(), 0, 0, color.rgb, shadow)
         pose().popMatrix()
     }
 

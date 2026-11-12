@@ -6,23 +6,27 @@ import com.laybalt.config.types.ColorSetting
 import com.laybalt.config.types.SliderSetting
 import com.laybalt.config.types.ToggleSetting
 import com.laybalt.event.impl.ActionBarMessageEvent
+import com.laybalt.event.impl.ParticleEvent
 import com.laybalt.event.impl.RenderWorldEvent
 import com.laybalt.event.impl.WorldChangeEvent
 import com.laybalt.features.Feature
 import com.laybalt.utils.ColorUtils.withAlpha
-import com.laybalt.utils.MathUtils
 import com.laybalt.utils.MathUtils.add
 import com.laybalt.utils.MathUtils.toVec
 import com.laybalt.utils.Utils
 import com.laybalt.utils.WorldUtils
 import com.laybalt.utils.dungeons.DungeonListener
 import com.laybalt.utils.dungeons.enums.DungeonClass
+import com.laybalt.utils.items.EtherwarpHelper
 import com.laybalt.utils.items.ItemUtils.skyblockId
 import com.laybalt.utils.location.LocationUtils
 import com.laybalt.utils.render.world.Render3D.renderBox
 import com.laybalt.utils.render.world.Render3D.renderCircle
+import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.tags.BlockTags
+import net.minecraft.world.phys.shapes.CollisionContext
 import java.awt.Color
+import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.roundToLong
 
@@ -42,12 +46,34 @@ object GyroHelper: Feature("Renders a circle where your gyro will be located.", 
     private const val BASE_COOLDOWN = 30_000L
     private var lastUse = 0L
 
+    // Odin b06b9d2a: Gravity Storm spawns a burst of motionless WITCH particles at one height
+    private data class Burst(val start: Long = 0L, val y: Double = 0.0, val count: Int = 0)
+    private var burst = Burst()
+
     override fun init() {
+        // Hypixel no longer sends this action bar message; kept as a harmless fallback.
         register<ActionBarMessageEvent> {
             if (gravityStormRegex.containsMatchIn(event.unformattedText)) lastUse = System.currentTimeMillis()
         }
 
-        register<WorldChangeEvent> { lastUse = 0L }
+        register<ParticleEvent> {
+            if (event.particle != ParticleTypes.WITCH || event.xd != 0.0 || event.yd != 0.0 || event.zd != 0.0) return@register
+            val now = System.currentTimeMillis()
+            if (now - lastUse < abilityCooldown(BASE_COOLDOWN)) return@register
+
+            burst = if (now - burst.start > 120L || abs(event.y - burst.y) > 0.02) Burst(now, event.y, 1)
+            else burst.copy(count = burst.count + 1)
+
+            if (burst.count >= 5) {
+                lastUse = now
+                burst = Burst()
+            }
+        }
+
+        register<WorldChangeEvent> {
+            lastUse = 0L
+            burst = Burst()
+        }
 
         register<RenderWorldEvent> {
             if (! drawRing.value && ! drawBox.value) return@register
@@ -57,11 +83,15 @@ object GyroHelper: Feature("Renders a circle where your gyro will be located.", 
             val ring = if (onCooldown) cooldownColor.value else ringColor.value
             if (box.alpha + ring.alpha == 0) return@register
 
-            val gyroPos = MathUtils.raytrace(player, 25) ?: return@register
-            val stateAtPos = WorldUtils.getStateAt(gyroPos)
-            val stateAbove = WorldUtils.getStateAt(gyroPos.above())
+            // NoammAddons 029687b6: Hypixel aims the gyro like a slightly changed Etherwarp, not like the vanilla block pick
+            val ray = EtherwarpHelper.getEtherPos(player.position(), player.lookAngle, 25.0)
+            val gyroPos = ray.pos?.immutable() ?: return@register
+            val gyroPosAbove = gyroPos.above()
 
-            if (stateAtPos.isAir || (! stateAbove.isAir && ! stateAbove.`is`(BlockTags.WOOL_CARPETS))) return@register
+            val stateAbove = WorldUtils.getStateAt(gyroPosAbove)
+            val empty = stateAbove.getCollisionShape(level, gyroPosAbove, CollisionContext.empty()).isEmpty
+
+            if (! ray.succeeded && ! empty || (! empty && ! stateAbove.`is`(BlockTags.WOOL_CARPETS))) return@register
 
             val phase = ! depthCheck.value
             if (drawBox.value) event.ctx.renderBox(gyroPos.x + 0.5, gyroPos.y, gyroPos.z + 0.5, 1, 1, box, phase = phase)

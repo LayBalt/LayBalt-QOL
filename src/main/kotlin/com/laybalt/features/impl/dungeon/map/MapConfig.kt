@@ -45,7 +45,11 @@ object MapConfig: SettingProvider {
 
     val textScale by SliderSetting("Map Text Scale", 1f, 0.4f, 1.5f, 0.1).section("Size")
     val checkmarkSize by SliderSetting("Map Checkmark Scale", 1f, 0.3f, 1.5f, 0.1f)
-    val playerHeadScale by SliderSetting("Player Heads Scale", 1f, 0.3f, 1.5f, 0.1f)
+    val doorHeightSize by SliderSetting("Door Width", 6, 6, 10, 1)
+        .withDescription("Width of the doorways between rooms on the map, in map pixels (6 is the vanilla size).")
+    val playerHeadScale by SliderSetting("Player Heads Scale", 1f, 0.3f, 2f, 0.1f)
+    val playerHeadBorderSize by SliderSetting("Head Border Size", 1, 0, 2, 1)
+        .withDescription("Thickness of the border (Head Border colour or class colour) around player heads, in pixels; 0 hides it.")
     val playerNameScale by SliderSetting("Player Name Scale", 0.5f, 0.3f, 1.5f, 0.1f)
 
     val mapBackground by ColorSetting("Map Background Color", Color(255, 255, 255, 50), true)
@@ -57,6 +61,8 @@ object MapConfig: SettingProvider {
     val hideBloodroomOvelay by ToggleSetting("Hide text/checkmark of Blood room", false)
     val hideQuestionCheckmarks by ToggleSetting("Hide Unknown Room Checkmark", false).showIf { dungeonMapCheckmarkStyle.value == 0 }
     val limitRoomNameSize by ToggleSetting("Limit Room Name Size", true).showIf { dungeonMapCheckmarkStyle.value in 2 .. 4 }
+    val predictRooms by ToggleSetting("Predict Unopened 1x1s", true).showIf { ! revealHidden }
+        .withDescription("Colours unopened 1x1 rooms you have seen a door into with the puzzle, trap or miniboss type they must be, worked out from the dungeon layout. Two or three darker colours mean it is one of those types.")
 
     //#if CHEAT
     val mimicEsp by ToggleSetting("Mimic ESP")
@@ -74,14 +80,14 @@ object MapConfig: SettingProvider {
     //#endif
 
     val colorUnopened by ColorSetting("Unopened Room", Color(65, 65, 65), true)
-    val colorBlood by ColorSetting("Blood Room", Color(178, 0, 0), true)
-    val colorFairy by ColorSetting("Fairy Room", Color(227, 155, 226), true)
+    val colorBlood by ColorSetting("Blood Room", Color(255, 0, 0), true)
+    val colorFairy by ColorSetting("Fairy Room", Color(242, 127, 165), true)
     val colorRare by ColorSetting("Rare Room", Color(178, 178, 178), true)
-    val colorMiniboss by ColorSetting("Miniboss Room", Color(255, 200, 0), true)
-    val colorPuzzle by ColorSetting("Puzzle Room", Color(123, 0, 123), true)
-    val colorTrap by ColorSetting("Trap Room", Color(255, 130, 0), true)
-    val colorRoom by ColorSetting("Normal Room", Color(121, 70, 0), true)
-    val colorEntrance by ColorSetting("Entrance Room", Color(0, 255, 0), true)
+    val colorMiniboss by ColorSetting("Miniboss Room", Color(229, 229, 51), true)
+    val colorPuzzle by ColorSetting("Puzzle Room", Color(178, 76, 216), true)
+    val colorTrap by ColorSetting("Trap Room", Color(216, 127, 51), true)
+    val colorRoom by ColorSetting("Normal Room", Color(114, 67, 27), true)
+    val colorEntrance by ColorSetting("Entrance Room", Color(0, 124, 0), true)
 
     val colorUnopenedDoor by ColorSetting("Unopened Door", colorUnopened.value, true)
     val colorBloodDoor by ColorSetting("Blood Door", colorBlood.value, true)

@@ -6,6 +6,7 @@ import com.laybalt.event.impl.ActionBarMessageEvent;
 import com.laybalt.event.impl.RenderOverlayEvent;
 import com.laybalt.features.impl.visual.DarkMode;
 import com.laybalt.features.impl.visual.PlayerHud;
+import com.laybalt.utils.ChatUtils;
 import com.laybalt.utils.location.LocationUtils;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -92,7 +93,9 @@ public abstract class MixinGui {
     @ModifyVariable(method = "setOverlayMessage", at = @At("HEAD"), argsOnly = true)
     private Component onSetOverlayMessage(Component string) {
         var event = new ActionBarMessageEvent(string);
-        if (EventBus.post(event)) return Component.empty();
+        // NoammAddons 28f5d49f: a cancelled message or one whose text was all stripped (e.g. by PlayerHud) is dropped,
+        // so vanilla does not draw the action bar background behind an empty line (it skips a null message).
+        if (EventBus.post(event) || ChatUtils.INSTANCE.removeFormatting(event.getMessage()).isBlank()) return null;
         return Component.literal(event.getMessage());
     }
 

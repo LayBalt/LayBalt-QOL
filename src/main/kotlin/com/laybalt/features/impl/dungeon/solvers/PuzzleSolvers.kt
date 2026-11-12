@@ -21,7 +21,10 @@ import com.laybalt.utils.location.LocationUtils
 import java.awt.Color
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
+import net.minecraft.core.particles.ParticleTypes
 import net.minecraft.network.protocol.game.ClientboundBlockEventPacket
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.monster.Blaze
 import net.minecraft.world.level.block.Blocks
 
 object PuzzleSolvers: Feature() {
@@ -30,7 +33,7 @@ object PuzzleSolvers: Feature() {
     val blazeLineNext by ToggleSetting("Blaze Next Line", true)
         .withDescription("Draws a line from each blaze to the one you have to kill after it.")
         .showIf { blaze.value }
-    val blazeLineAmount by SliderSetting("Blaze Lines", 1, 1, 10, 1)
+    val blazeLineAmount by SliderSetting("Blaze Lines", 2, 1, 10, 1)
         .withDescription("How many of the upcoming blazes are connected with lines.")
         .showIf { blaze.value && blazeLineNext.value }
     val blazeLineWidth by SliderSetting("Blaze Line Width", 2f, 0.5f, 5f, 0.1f)
@@ -60,6 +63,9 @@ object PuzzleSolvers: Feature() {
     val blazeCompleteMessage by TextInputSetting("Blaze Complete Message", "Blaze puzzle solved!")
         .withDescription("The party chat message sent when the Blaze puzzle is finished.")
         .showIf { blaze.value && blazeSendComplete.value }
+    val hideBlazes by ToggleSetting("Hide Blazes", true)
+        .withDescription("Hides the blazes while the solver is active.")
+        .showIf { blaze.value }
     val blazeReset by ButtonSetting("Reset Blaze") { BlazeSolver.reset() }
         .withDescription("Clears the Blaze solver state, use it if the solver gets stuck.")
         .showIf { blaze.value }
@@ -67,7 +73,8 @@ object PuzzleSolvers: Feature() {
     val boulder by ToggleSetting("Enabled ").section("Boulder Solver")
     val showAll by ToggleSetting("Show All Moves", false).showIf { boulder.value }
     val boxColor by ColorSetting("Boulder Box Color", Color.BLUE.withAlpha(100)).showIf { boulder.value }
-    val clickColor by ColorSetting("Click Color", Color.RED.withAlpha(100)).showIf { boulder.value }
+    // NoammAddons eea0d140: the three "Click Color" settings need distinct json names
+    val clickColor by ColorSetting("Click Color", Color.RED.withAlpha(100)).showIf { boulder.value }.jsonName("Boulder Click color")
 
     val creeper by ToggleSetting("Enabled  ").section("Creeper Beam Solver")
     val renderLines by ToggleSetting("Render Lines", true).showIf { creeper.value }
@@ -96,7 +103,7 @@ object PuzzleSolvers: Feature() {
     val predictionColor by ColorSetting("Prediction Color", Color.ORANGE).showIf { ttt.value && prediction.value }
 
     val water by ToggleSetting("Enabled       ").section("Water Board Solver")
-    val currentClickColor by ColorSetting("Click Color", Color.GREEN).showIf { water.value }
+    val currentClickColor by ColorSetting("Click Color", Color.GREEN).showIf { water.value }.jsonName("Water Board Click Color")
     val nextColor by ColorSetting("Next Click Color", Color.YELLOW).showIf { water.value }
     val waterRecovery by ToggleSetting("Water Recovery Guidance", true)
         .withDescription("Watches the real board (doors, water, lever blocks) and, when the run goes wrong - water in the wrong channel, water that stops short, flips off the timing, levers moved by teammates - shows how to finish from where the board is: a quick fix when one is known to work, otherwise turn the water off, let it drain and run the solutions that open the doors still closed. The first run is always the plain timer display; the recovery takes over once a run ended with doors still closed or someone else's run changed the doors, and only while the board can be read reliably. Off: the plain 3.2.2 timer display only.")
@@ -127,7 +134,7 @@ object PuzzleSolvers: Feature() {
         .showIf { water.value }
 
     val icefill by ToggleSetting("Enabled        ").section("Ice Fill Solver")
-    val icefillColor by ColorSetting("Click Color", Color.GREEN).showIf { icefill.value }
+    val icefillColor by ColorSetting("Line Color", Color.GREEN).showIf { icefill.value }.jsonName("Ice Fill Line Color")
 
     val icepath by ToggleSetting("Enabled         ").section("Ice Path Solver")
     val icePathFirstColor by ColorSetting("Next Segment Color", Color.GREEN).showIf { icepath.value }
@@ -151,6 +158,9 @@ object PuzzleSolvers: Feature() {
         "Lower Blaze" to 6, "Higher Blaze" to 6, "Creeper Beams" to 6, "Three Weirdos" to 2,
         "Water Board" to 10, "Teleport Maze" to 6, "Boulder" to 6, "Ice Fill" to 10, "Quiz" to 10
     )
+
+    private fun shouldHideBlaze(entity: Entity) = blaze.value && hideBlazes.value && LocationUtils.inDungeon && ! inBoss &&
+        (entity is Blaze || BlazeSolver.isBlazeTag(entity))
 
     /**
      * Called when a puzzle is detected as solved, either by a solver (Blaze) or by the room turning green on the map.
@@ -220,6 +230,17 @@ object PuzzleSolvers: Feature() {
         register<DungeonEvent.RoomEvent.RotationFound> { puzzles.forEach { if (it.enabled && ! inBoss) it.onRotationFound(event) } }
         register<BlockChangeEvent> { if (water.value) WaterBoardSolver.onBlockChange(event) }
         register<MainThreadPacketReceivedEvent.Post> { if (water.value) WaterBoardSolver.onPacketPost(event.packet) }
+
+        // Odin 1acdc46d: blaze name tags are tracked from entity data packets, the puzzle ends on the last blaze's death
+        register<MainThreadPacketReceivedEvent.Post> { if (blaze.value) BlazeSolver.onPacketPost(event.packet) }
+        register<EntityUnloadEvent> { if (blaze.value) BlazeSolver.onEntityRemove(event.entity) }
+        // Odin 1acdc46d / b412ad1c: Hide Blazes hides the blazes, their name tags and the blaze room's smoke
+        register<CheckEntityRenderEvent> { if (shouldHideBlaze(event.entity)) event.isCanceled = true }
+        register<ParticleEvent> {
+            if (! blaze.value || ! hideBlazes.value) return@register
+            if (event.particle != ParticleTypes.LARGE_SMOKE || ! BlazeSolver.inBlazeRoom) return@register
+            event.isCanceled = true
+        }
         register<RenderWorldEvent> { puzzles.forEach { if (it.enabled) it.onRenderWorld(event.ctx) } }
         register<DungeonEvent.RoomEvent.onExit> { puzzles.forEach { if (it.enabled) it.onRoomExit() } }
         register<ChatMessageEvent> { puzzles.forEach { if (it.enabled) it.onChat(event) } }

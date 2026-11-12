@@ -1,10 +1,12 @@
 package com.laybalt.features.impl.general.teleport
 
-// Singleplayer Etherwarp, Use Server Position and the "hide in menus" check are ported from Odin
+// Singleplayer Etherwarp, Use Server Position (with its server sneak state) and the "hide in menus" check are ported from Odin
 // (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 
 import com.laybalt.config.types.*
+import com.laybalt.event.EventBus
 import com.laybalt.event.impl.*
+import com.laybalt.event.priority.EventPriority
 import com.laybalt.features.Feature
 import com.laybalt.mixin.ILocalPlayer
 import com.laybalt.utils.*
@@ -37,10 +39,11 @@ object Etherwarp: Feature("Etherwarp overlay and sound.") {
     private val useServerPosition by ToggleSetting("Use Server Position").withDescription("Predicts the Etherwarp from the last position the server knows about instead of your client position. Matches the server exactly while you are moving").showIf { overlay.value }
 
     private val fillColor by ColorSetting("Fill Color", Utils.favoriteColor.withAlpha(50)).withDescription("Fill color of a valid Etherwarp target").showIf { overlay.value && mode.value != 0 }.section("Colors")
-    private val outlineColor by ColorSetting("Outline Color", Utils.favoriteColor, false).withDescription("Outline color of a valid Etherwarp target").showIf { overlay.value && mode.value != 1 }
+    // NoammAddons 15b4468b: the outline colours have an opacity slider too (saved colours are opaque, so nothing changes until it is moved)
+    private val outlineColor by ColorSetting("Outline Color", Utils.favoriteColor).withDescription("Outline color of a valid Etherwarp target").showIf { overlay.value && mode.value != 1 }
 
     private val invalidFillColor by ColorSetting("Invalid Fill Color ", Color.RED.withAlpha(50)).withDescription("Fill color of a target you cannot Etherwarp to").showIf { overlay.value && mode.value != 0 && showFail.value }
-    private val invalidOutlineColor by ColorSetting("Invalid Outline Color ", Color.RED, false).withDescription("Outline color of a target you cannot Etherwarp to").showIf { overlay.value && mode.value != 1 && showFail.value }
+    private val invalidOutlineColor by ColorSetting("Invalid Outline Color ", Color.RED).withDescription("Outline color of a target you cannot Etherwarp to").showIf { overlay.value && mode.value != 1 && showFail.value }
 
     private val etherwarpSound by ToggleSetting("Etherwarp Sound").withDescription("Replaces the Etherwarp teleport sound with the sound chosen below").section("Sound")
     private val zeroPingSound by ToggleSetting("Zero-Ping Sound").withDescription("Plays the Etherwarp sound client-side instead of waiting for the server to send the sound packet").showIf { etherwarpSound.value }
@@ -57,20 +60,34 @@ object Etherwarp: Feature("Etherwarp overlay and sound.") {
 
     private const val ETHERWARP_PITCH = 0.53968257f
 
+    /** Shift state of the last input packet sent, i.e. LocalPlayer.lastSentInput.shift(): the sneak the server knows. */
+    private var serverSneaking = false
+
     private fun startPosition(): Vec3 {
         if (! useServerPosition.value) return player.position()
         val local = player as ILocalPlayer
         return Vec3(local.serverX, local.serverY, local.serverZ)
     }
 
+    /** Odin ad521154: with Use Server Position the eye height follows the sneak state the server knows, not the client's. */
+    private fun startSneaking() = if (useServerPosition.value) serverSneaking else player.isCrouching
+
     override fun init() {
+        // Not feature scoped, so the state is right the moment the feature is turned on.
+        EventBus.register<PacketEvent.Sent>(EventPriority.LOWEST) {
+            val packet = event.packet as? ServerboundPlayerInputPacket ?: return@register
+            serverSneaking = packet.input().shift()
+        }
+        // A new LocalPlayer starts from Input.EMPTY
+        EventBus.register<WorldChangeEvent> { serverSneaking = false }
+
         register<RenderWorldEvent> {
             if (! overlay.value) return@register
             if (UMinecraft.currentScreenObj != null) return@register
             val heldItem = player.mainHandItem.takeUnless { it.isEmpty } ?: return@register
             if (! mc.options.keyShift.isDown && heldItem.skyblockId != "ETHERWARP_CONDUIT") return@register
             val distance = EtherwarpHelper.getEtherwarpDistance(heldItem) ?: return@register
-            val (valid, pos) = EtherwarpHelper.getEtherPos(startPosition(), player.lookAngle, distance)
+            val (valid, pos) = EtherwarpHelper.getEtherPos(startPosition(), player.lookAngle, distance, startSneaking())
             if (! valid && ! showFail.value) return@register
             pos ?: return@register
 
@@ -130,7 +147,7 @@ object Etherwarp: Feature("Etherwarp overlay and sound.") {
             val heldItem = player.mainHandItem.takeUnless { it.isEmpty } ?: return@register
             if (! mc.options.keyShift.isDown && heldItem.skyblockId != "ETHERWARP_CONDUIT") return@register
             val distance = EtherwarpHelper.getEtherwarpDistance(heldItem) ?: return@register
-            val (succeeded, pos) = EtherwarpHelper.getEtherPos(startPosition(), player.lookAngle, distance)
+            val (succeeded, pos) = EtherwarpHelper.getEtherPos(startPosition(), player.lookAngle, distance, startSneaking())
             if (! succeeded || pos == null) return@register
 
             val x = pos.x + 0.5

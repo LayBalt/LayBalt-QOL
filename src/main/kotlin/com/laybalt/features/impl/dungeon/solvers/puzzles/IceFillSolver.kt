@@ -28,7 +28,8 @@ object IceFillSolver: PuzzleSolver {
         if (event.room.name != "Ice Fill") return
         LayBaltQOL.scope.launch {
             val time = measureTimeMillis { solve(event.room.centerPos, 360 - event.room.rotation !!) }
-            ChatUtils.modMessage("&bIce Fill took ${time}ms to solve")
+            // NoammAddons 25a954e5: the solve time is debug output now (upstream flag "icefill"; LayBaltQOL keeps its "ice" flag)
+            ChatUtils.debug("ice", "&bIce Fill took ${time}ms to solve")
         }
     }
 
@@ -105,9 +106,15 @@ object IceFillSolver: PuzzleSolver {
         var path = mutableListOf<BlockPos>()
             private set
 
+        // NoammAddons c031365f: neighbours are stored with their positions, and the connectivity check reuses its buffers
         private val graph = spaces.associateWith { pos ->
-            Direction.Plane.HORIZONTAL.filter { pos.relative(it) in spaces }
+            Direction.Plane.HORIZONTAL.mapNotNull { dir ->
+                val next = pos.relative(dir)
+                if (next in spaces) dir to next else null
+            }
         }
+        private val seen = HashSet<BlockPos>(spaces.size)
+        private val stack = ArrayDeque<BlockPos>()
 
         private val NO_WALL_PENALTY = 5
         private val DOUBLE_TURN_PENALTY = 2
@@ -126,17 +133,23 @@ object IceFillSolver: PuzzleSolver {
             val remaining = spaces.size - visited.size + 1
             if (remaining <= 1) return true
 
-            val seen = HashSet<BlockPos>(remaining)
-            val stack = ArrayDeque<BlockPos>()
+            seen.clear()
+            stack.clear()
             stack.add(current)
             seen.add(current)
 
             while (stack.isNotEmpty()) {
                 val cur = stack.removeLast()
-                for (dir in graph[cur] ?: emptyList()) {
-                    val n = cur.relative(dir)
-                    if ((n == current || n !in visited) && seen.add(n)) stack.add(n)
+                var degree = 0
+                for ((_, next) in graph.getValue(cur)) {
+                    if (next == current || next !in visited) {
+                        degree ++
+                        if (seen.add(next)) stack.add(next)
+                    }
                 }
+                // NoammAddons c031365f: an unvisited tile (other than the end) with fewer than two free neighbours
+                // is a dead end the path could enter but never leave, so this branch cannot cover every tile.
+                if (cur != current && cur != end && degree < 2) return false
             }
             return seen.size == remaining
         }
@@ -180,12 +193,11 @@ object IceFillSolver: PuzzleSolver {
                 }
                 if (current == end) return false
 
-                val candidates = (graph[current] ?: emptyList())
-                    .map { it to current.relative(it) }
+                val candidates = graph.getValue(current)
                     .filter { (_, pos) -> pos !in visited }
                     .sortedWith(
                         compareBy(
-                            { (_, pos) -> (graph[pos] ?: emptyList()).count { pos.relative(it) !in visited } },
+                            { (_, pos) -> graph.getValue(pos).count { (_, next) -> next !in visited } },
                             { (dir, _) -> if (dir == lastDir) 0 else 1 }
                         )
                     )

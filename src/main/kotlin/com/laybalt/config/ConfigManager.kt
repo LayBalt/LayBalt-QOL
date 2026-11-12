@@ -1,6 +1,7 @@
 package com.laybalt.config
 
 import com.laybalt.LayBaltQOL
+import com.laybalt.features.Feature
 import com.laybalt.features.FeatureManager
 import com.laybalt.features.impl.dev.ClickGui
 import com.laybalt.features.impl.visual.Scoreboard
@@ -32,6 +33,26 @@ object ConfigManager: ISelfInit {
 
     /** Registers a one-shot default change (call from a feature's init, which runs before [load]). */
     fun oneShotDefault(id: String, change: () -> Unit) = oneShotDefaults.register(id, change)
+
+    /** Per feature: rewrites of its saved settings that run before they are read ([migrateSettings]). */
+    private val settingMigrations = mutableMapOf<Feature, MutableList<(JsonObject) -> Unit>>()
+
+    /**
+     * Registers a rewrite of [feature]'s saved `configSettings` (call from the feature's init, which runs before [load]).
+     * It runs on every load, before the values are read, so it must be idempotent: for settings that were replaced by one
+     * of another shape (several old keys -> one new key), it turns the old keys into the new one. Unlike a config version
+     * bump, older jars can still read the file (they just miss the replaced keys).
+     */
+    fun migrateSettings(feature: Feature, migration: (JsonObject) -> Unit) {
+        settingMigrations.getOrPut(feature, ::mutableListOf) += migration
+    }
+
+    /** Applies [feature]'s [migrateSettings] rewrites to [settings] (its saved or imported `configSettings`) in place. */
+    fun applySettingMigrations(feature: Feature, settings: JsonObject) {
+        settingMigrations[feature]?.forEach { migration ->
+            runCatching { migration(settings) }.onFailure { LayBaltQOL.logger.warn("[ConfigManager] could not migrate the settings of ${feature.jsonName}", it) }
+        }
+    }
 
     /** Applies the one-shot defaults [root] has not had yet; true when something was applied. */
     private fun applyOneShotDefaults(root: JsonObject?): Boolean {
@@ -176,7 +197,10 @@ object ConfigManager: ISelfInit {
             // WIP features stay disabled whatever the file says (toggle() would refuse and notify anyway).
             if (! feature.wip && featureElement.get("enabled")?.asBoolean != feature.enabled) feature.toggle()
             // Unknown features/settings (e.g. from a NoammAddons config) are skipped; a value of the wrong shape only logs.
-            featureElement.getAsJsonObject("configSettings")?.entrySet()?.forEach { (name, value) ->
+            // (NoammAddons 5dff2334 logs which setting failed; this loader always logged it and goes on with the rest.)
+            val settings = featureElement.getAsJsonObject("configSettings")
+            if (settings != null) applySettingMigrations(feature, settings)
+            settings?.entrySet()?.forEach { (name, value) ->
                 runCatching { (feature.getSettingByName(name) as? Savable)?.read(value) }
                     .onFailure { LayBaltQOL.logger.warn("[ConfigManager] could not read ${feature.jsonName} / $name = $value: ${it.message}") }
             }

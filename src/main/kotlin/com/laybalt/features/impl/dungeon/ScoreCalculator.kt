@@ -24,9 +24,12 @@ import java.awt.Color
 
 object ScoreCalculator: Feature("Shows the score of the dungeon run, plus Odin's Map Info score and secret HUDs.") {
     val forcePaul by ToggleSetting("Force Paul")
-        .withDescription("Always count Paul's +10 bonus score, even if the election data does not show him as mayor")
+        .withDescription("Always count Paul's +10 bonus score, even if the election data does not show him as mayor. /lbq paul <auto|on|off> overrides this until you restart the game")
     private val hudElement by ToggleSetting("HUD Element")
         .withDescription("Shows a small \"Score: X\" HUD element (move it with the HUD editor)")
+    // NoammAddons 6322fcb2
+    private val hideInBoss by ToggleSetting("Hide in Boss").showIf { hudElement.value }
+        .withDescription("Hides the small score HUD element in the dungeon boss room")
     val sendMimic by ToggleSetting("Send Mimic Message", true)
         .withDescription("Sends \"Mimic Killed\" in party chat when you see the mimic die (only while the Mimic feature is off, which has its own messages)")
     val sendPrince by ToggleSetting("Send Prince Message", true)
@@ -68,7 +71,7 @@ object ScoreCalculator: Feature("Shows the score of the dungeon run, plus Odin's
         .withDescription("Minimum: secrets still needed for 300 score. Remaining: total secrets needed for 300 score")
     private val deathsLine by DropdownSetting("Deaths", 0, listOf("Deaths", "Unfound")).showIf { fullHud.value }
         .withDescription("Second line shows the team deaths, or the secrets in rooms nobody has opened yet")
-    private val fullWidth by SliderSetting("Width", 160, 160, 200, 1).showIf { fullHud.value }
+    private val fullWidth by SliderSetting("Width", 150, 140, 200, 1).showIf { fullHud.value }
         .withDescription("Width of the full HUD in pixels")
     private val fullBackground by ColorSetting("Background Color", Color(24, 20, 36, 150)).showIf { fullHud.value }
         .withDescription("Background of the full HUD; set the alpha to 0 to hide it")
@@ -92,7 +95,12 @@ object ScoreCalculator: Feature("Shows the score of the dungeon run, plus Odin's
     private var portalAABB: AABB? = null
 
     override fun init() {
-        hudElement("ScoreCalculator", enabled = { hudElement.value }, shouldDraw = { LocationUtils.inDungeon }) { ctx, demoMode ->
+        // NoammAddons 6322fcb2 / b9301688: optionally hidden in the boss room
+        hudElement(
+            "ScoreCalculator",
+            enabled = hudElement::value,
+            shouldDraw = { LocationUtils.inDungeon && (! hideInBoss.value || ! LocationUtils.inBoss) }
+        ) { ctx, demoMode ->
             val text = if (demoMode) "&eScore: &a300"
             else "&eScore: " + ColorUtils.colorizeScore(ScoreCalculation.score)
 
@@ -187,14 +195,18 @@ object ScoreCalculator: Feature("Shows the score of the dungeon run, plus Odin's
         if (fullBackground.value.alpha > 0) ctx.drawRect(0, 0, width, 20, fullBackground.value)
         if (accentStripe.value) ctx.drawRect(0, 0, 2, 20, if (score >= 300) Color(85, 255, 85) else if (score >= 270) Color(255, 255, 85) else Color(158, 119, 237))
 
+        // Odin 47efad1f: score top-right, crypts bottom-right, the bonus text centred in the gap between deaths and crypts
+        val scoreWidth = scoreText.width()
         ctx.drawString(secretText, left, 1)
-        ctx.drawString(cryptText, width - 1 - cryptText.width(), 1)
+        ctx.drawString(scoreText, width - 1 - scoreWidth, 1)
         val secondWidth = secondText.width()
         ctx.drawString(secondText, left, 11)
-        val scoreWidth = scoreText.width()
+        val cryptWidth = cryptText.width()
         val bonusWidth = bonusText.width()
-        ctx.drawString(bonusText, left + secondWidth + (width - 1 - left - secondWidth - scoreWidth) / 2 - bonusWidth / 2, 11)
-        ctx.drawString(scoreText, width - 1 - scoreWidth, 11)
+        val gapStart = left + secondWidth
+        val gapEnd = width - 1 - cryptWidth
+        ctx.drawString(bonusText, gapStart + (gapEnd - gapStart - bonusWidth) / 2, 11)
+        ctx.drawString(cryptText, gapEnd, 11)
         return width to 20
     }
 

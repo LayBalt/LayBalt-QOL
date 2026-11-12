@@ -44,14 +44,22 @@ object PartyFinder: Feature(), ICommandProvider {
     private val autoKickFloor by DropdownSetting("Floor", 6, listOf("F1", "F2", "F3", "F4", "F5", "F6", "F7")).showIf { autoKick.value }
     private val masterMode by ToggleSetting("Master Mode", true).showIf { autoKick.value }
     private val informKicked by ToggleSetting("Inform Kicked", false).withDescription("Send a party chat message before kicking.").showIf { autoKick.value }
-    private val maximumSeconds by SliderSetting("Maximum Seconds", 400, 60, 480, 10, suffix = "s").withDescription("Maximum S+ PB time in seconds.").showIf { autoKick.value }
+    private val maximumSeconds by SliderSetting("Maximum Seconds", 400, 60, 480, 1, suffix = "s").withDescription("Maximum S+ PB time in seconds.").showIf { autoKick.value }
     private val minimumSecrets by SliderSetting("Minimum Secrets", 0, 0, 200, 1, suffix = "k").withDescription("Minimum secrets in thousands.").showIf { autoKick.value }
     private val minimumMagicalPower by SliderSetting("Minimum MP", 0, 0, 3000, 10).withDescription("Minimum MP Set to 0 to disable. Skipped when Inventory API is off.").showIf { autoKick.value }
+    // NoammAddons 26984c13 syncs unconditionally; the toggle is ours, so a group note that is not a time can be ignored.
+    private val syncFromGroup by ToggleSetting("Sync From Group Builder", true)
+        .withDescription("Opening your group in Mort's Group Builder sets Floor and Master Mode from it, and Maximum Seconds from a time in the group note (e.g. \"s+ 5:30\", \"sub 6\").")
+        .showIf { autoKick.value }
 
     private val dungeonGroupJoinRegex = Regex("^Party Finder > (\\w{1,16}) joined the dungeon group! \\((\\w+) Level (\\d+)\\)$")
-    private val kickedPlayers = mutableSetOf<String>()
+    // NoammAddons a677e32a: written from the coroutine and the 60s timeout, cleared on the client thread.
+    private val kickedPlayers = Collections.synchronizedSet(HashSet<String>())
+    @Volatile private var leaderHintAt = 0L
 
     private val partyMembersRegex = Regex("^\\s*(\\w{1,16}):?\\s+(Archer|Tank|Berserk|Healer|Mage)\\s*\\((\\d+)\\)\\s*$")
+    // NoammAddons 26984c13: a time in a group note: "5:30", "5.30", "530", "4:3x", "sub 6" (minutes) https://regex101.com/r/cFt0mB/1
+    private val pfTimeRegex = Regex("(?<![\\w:.])(?:sub\\s*)?(?:(\\d+)[:.]?([0-5])([\\dx])|(\\d{1,2}))(?![\\w:]|\\.\\d)", RegexOption.IGNORE_CASE)
     private val levelRequiredRegex = Regex("Dungeon Level Required:\\s*(\\d+)")
     private val floorRegex = Regex("Floor:\\s*Floor\\s+(\\w+)")
     private val selectedClassRegex = Regex("Currently Selected: (.+)")
@@ -175,13 +183,38 @@ object PartyFinder: Feature(), ICommandProvider {
 
         register<WorldChangeEvent> { kickedPlayers.clear() }
 
+        // NoammAddons 26984c13: Auto Kick follows the group you are building at Mort.
+        register<PartyEvent.FinderGroupSettings> {
+            if (! syncFromGroup.value) return@register
+            if (event.floor !in 1 .. autoKickFloor.options.size) return@register
+            autoKickFloor.value = event.floor - 1
+            masterMode.value = event.masterMode
+
+            parseNoteSeconds(event.note)?.let { seconds ->
+                // the slider's range (upstream writes the raw value); a note time outside it leaves the setting alone
+                if (seconds in maximumSeconds.min .. maximumSeconds.max) maximumSeconds.value = seconds
+            }
+
+            if (autoKick.value) ChatUtils.modMessage(
+                "&eUpdated Auto Kick settings. (${(if (event.masterMode) "M" else "F") + event.floor} ${formatTime(maximumSeconds.value * 1000)})"
+            )
+        }
+
         register<ChatMessageEvent> {
             if (! autoKick.value && ! showJoinStats.value) return@register
             val name = dungeonGroupJoinRegex.find(event.unformattedText)?.groupValues?.getOrNull(1) ?: return@register
             if (name == mc.user.name) return@register
 
             scope.launch {
-                if (autoKick.value && PartyUtils.isLeader()) autoKickPlayer(name)
+                if (autoKick.value) when {
+                    PartyUtils.isLeader() -> autoKickPlayer(name)
+                    // only the leader kicks; with no leader known that is a guess Auto Kick does not make silently (but not
+                    // in someone else's group you joined, and at most once a minute)
+                    PartyUtils.partyLeader == null && ! PartyUtils.joinedOthersGroup && System.currentTimeMillis() - leaderHintAt > 60_000L -> {
+                        leaderHintAt = System.currentTimeMillis()
+                        ChatUtils.modMessage("&9AutoKick &f> &7Not checking &e$name&7: LayBalt does not know you lead this party (&e/pl&7 tells it).")
+                    }
+                }
                 if (showJoinStats.value) printPlayerStats(name)
             }
         }
@@ -305,9 +338,13 @@ object PartyFinder: Feature(), ICommandProvider {
             return
         }
 
-        val reasons = mutableListOf<String>().apply {
-            val profile = ProfileUtils.getProfile(name).getOrNull() ?: return@apply
+        // NoammAddons a677e32a: a failed lookup used to leave no reasons and silently not kick; now it says so.
+        val profile = ProfileUtils.getProfile(name).getOrElse {
+            ChatUtils.modMessage("&9AutoKick &f> &cCouldn't check &e$name &c(${it.message?.take(60) ?: "lookup failed"}), not kicking")
+            return
+        }
 
+        val reasons = mutableListOf<String>().apply {
             val dungeons = profile.dungeons
             val floor = autoKickFloor.value + 1
             val dungeonType = if (masterMode.value) dungeons.masterCatacombs else dungeons.catacombs
@@ -396,6 +433,14 @@ object PartyFinder: Feature(), ICommandProvider {
         level >= 10 -> "§e"
         level >= 5 -> "§f"
         else -> "§7"
+    }
+
+    /** NoammAddons 26984c13: the first time in a group note, in seconds ("x" as the last digit counts as 0). */
+    private fun parseNoteSeconds(note: String): Int? {
+        val (minutes, tens, ones, minutesOnly) = pfTimeRegex.find(note.trim())?.destructured ?: return null
+        if (minutesOnly.isNotEmpty()) return minutesOnly.toIntOrNull()?.times(60)
+        val wholeMinutes = minutes.toIntOrNull() ?: return null
+        return wholeMinutes * 60 + tens.toInt() * 10 + (ones.toIntOrNull() ?: 0)
     }
 
     private fun formatTime(milliseconds: Number): String {

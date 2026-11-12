@@ -2,7 +2,6 @@ package com.laybalt.utils
 
 import com.laybalt.LayBaltQOL.mc
 import com.laybalt.utils.render.RenderHelper.renderVec
-import net.minecraft.client.player.LocalPlayer
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Vec3i
 import net.minecraft.util.Mth
@@ -96,10 +95,7 @@ object MathUtils {
         return AABB(x1.toDouble(), y1.toDouble(), z1.toDouble(), x2.toDouble(), y2.toDouble(), z2.toDouble())
     }
 
-    fun raytrace(player: LocalPlayer, range: Number): BlockPos? {
-        val hit = player.pick(range.toDouble(), 1f, false)
-        return (hit as? BlockHitResult)?.takeIf { it.type == HitResult.Type.BLOCK }?.blockPos
-    }
+    // NoammAddons 029687b6: raytrace(player, range) is gone, GyroHelper aims with EtherwarpHelper.getEtherPos
 
     fun getLookVec(yaw: Float, pitch: Float) = Vec3.directionFromRotation(pitch, yaw)
 }

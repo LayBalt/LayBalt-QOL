@@ -4,7 +4,6 @@ import com.laybalt.config.types.ColorSetting
 import com.laybalt.config.types.DropdownSetting
 import com.laybalt.config.types.SliderSetting
 import com.laybalt.config.types.ToggleSetting
-import com.laybalt.event.impl.RenderWorldEvent
 import com.laybalt.features.Feature
 import com.laybalt.features.impl.render.WorldBoxKit
 import com.laybalt.features.impl.render.WorldBoxKit.drawBox
@@ -13,16 +12,18 @@ import com.laybalt.utils.Utils
 import com.laybalt.utils.equalsOneOf
 import com.laybalt.utils.items.ItemUtils.customData
 import com.laybalt.utils.items.ItemUtils.skyblockId
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents
+import com.laybalt.utils.render.world.RenderContext
+import net.minecraft.client.renderer.state.level.BlockOutlineRenderState
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.phys.AABB
 
 /**
  * Replaces the vanilla block selection outline with a configurable box.
  *
- * The vanilla outline is cancelled through Fabric's BEFORE_BLOCK_OUTLINE (which runs after the submit pass), and the
- * box itself is drawn in [RenderWorldEvent] from the outline render state vanilla extracted for this frame, so it only
- * shows when vanilla would show an outline and never lags a frame behind.
+ * NoammAddons 0c926c3b (Lunar Client compatibility): [com.laybalt.mixin.MixinLevelRenderer] cancels the vanilla outline
+ * at the head of LevelRenderer.submitBlockOutline and calls [renderOverlay] there with the outline render state vanilla
+ * extracted for this frame (this used to be Fabric's BEFORE_BLOCK_OUTLINE plus a RenderWorldEvent listener), so the box
+ * only shows when vanilla would show an outline and never lags a frame behind.
  */
 object BlockOverlay: Feature("Replaces the block selection outline with your own outline, fill, colours and animation.") {
     private val mode by DropdownSetting("Mode", 2, listOf("Outline", "Fill", "Filled Outline"))
@@ -50,36 +51,33 @@ object BlockOverlay: Feature("Replaces the block selection outline with your own
     private val hideDuringEtherwarp by ToggleSetting("Hide with Etherwarp")
         .withDescription("Hides the overlay while you sneak holding an item that can etherwarp, so it does not cover etherwarp helpers.")
 
-    override fun init() {
-        LevelRenderEvents.BEFORE_BLOCK_OUTLINE.register { _, _ ->
-            if (! enabled) return@register true
-            if (mc.gui.hud.isHidden) return@register true
-            false
-        }
+    /**
+     * Called by [com.laybalt.mixin.MixinLevelRenderer] at the head of LevelRenderer.submitBlockOutline while the feature
+     * is enabled. Returns true when the vanilla outline must be cancelled (false leaves it alone, e.g. with F1).
+     */
+    @JvmStatic
+    fun renderOverlay(ctx: RenderContext, state: BlockOutlineRenderState): Boolean {
+        if (mc.gui.hud.isHidden) return false
+        if (hideDuringEtherwarp.value && shouldHide()) return true
 
-        register<RenderWorldEvent> {
-            if (mc.gui.hud.isHidden) return@register
-            val state = mc.gameRenderer.gameRenderState().levelRenderState.blockOutlineRenderState ?: return@register
-            if (hideDuringEtherwarp.value && shouldHide()) return@register
+        val pos = state.pos()
+        val shape = state.shape()
+        val local = if (fullBlock.value || shape.isEmpty) AABB(0.0, 0.0, 0.0, 1.0, 1.0, 1.0) else shape.bounds()
+        val box = local.move(pos).inflate(expand.value)
 
-            val pos = state.pos()
-            val shape = state.shape()
-            val local = if (fullBlock.value || shape.isEmpty) AABB(0.0, 0.0, 0.0, 1.0, 1.0, 1.0) else shape.bounds()
-            val box = local.move(pos).inflate(expand.value)
-
-            val speed = animationSpeed.value.toFloat()
-            event.ctx.drawBox(
-                box,
-                WorldBoxKit.animated(outlineColor.value, colorMode.value, speed),
-                WorldBoxKit.animated(fillColor.value, colorMode.value, speed, 0.1f),
-                outline = mode.value.equalsOneOf(0, 2),
-                fill = mode.value.equalsOneOf(1, 2),
-                phase = phase.value,
-                lineWidth = lineWidth.value.toFloat(),
-                corners = outlineStyle.value == 1,
-                cornerFraction = cornerLength.value / 100f
-            )
-        }
+        val speed = animationSpeed.value.toFloat()
+        ctx.drawBox(
+            box,
+            WorldBoxKit.animated(outlineColor.value, colorMode.value, speed),
+            WorldBoxKit.animated(fillColor.value, colorMode.value, speed, 0.1f),
+            outline = mode.value.equalsOneOf(0, 2),
+            fill = mode.value.equalsOneOf(1, 2),
+            phase = phase.value,
+            lineWidth = lineWidth.value.toFloat(),
+            corners = outlineStyle.value == 1,
+            cornerFraction = cornerLength.value / 100f
+        )
+        return true
     }
 
     private fun shouldHide(): Boolean {

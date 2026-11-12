@@ -7,6 +7,8 @@ LayBaltQOL contains code and ideas from the projects listed below. This file lis
 - Project: [NoammAddons](https://github.com/Noamm9/NoammAddons) by Noamm9
 - Licence: CC0-1.0 (public domain dedication)
 - Use: LayBaltQOL 3.x is built on the NoammAddons code base. The mod core (feature system, config, HUD system, event bus, mixins, dungeon utilities and most of the original features) comes from NoammAddons. Removed NoammAddons features were restored from its source in later releases, for example F4 Features, Hidden Mobs, I Hate Doors, Teammate Highlight, Leap Counter, Melody Display, Terminal Highlight, Item Rarity, Item Overlays, Item Tooltip, Inventory Search, Protect Item, Pet Display, Scoreboard, Block Overlay, Box3D, Damage Splash and Mono Audio. The NoammAddons click GUI is no longer used: the LayBalt GUI (window, sidebar, cards, settings panel, widgets, HUD editor and toasts) is LayBaltQOL's own code. CC0-1.0 does not require attribution; it is given here as thanks. The CC0-1.0 text is in [LICENSE](LICENSE).
+- 3.3.0 sync (NoammAddons 1.3.4): party tracking rewrite and Party Helper/Auto Requeue changes, Leap Menu Render Mode (Wheel), core highlight and saved leap order, M7 Relics Spawn Timer, Relic Place Triggerbot and Full Block Anvil, Necron death detection, Blood Camp per-floor timings and Blood Mobs Triggerbot, Secrets Triggerbot, Blaze solver and Hide Blazes, Dungeon Map changes (Hypixel textures and colours, Door Width, Head Border Size, HUD editor sample dungeon from `assets/lbqmod/map-preview.json`), Dungeon Waypoints per-type secret toggles, Terminal Simulator Auto Next and Melody behaviour, Pet Display, Protect Item, Storage Overlay and Tweaks No AOTV Paths.
+- The AOTV landing prediction in `utils/items/InstantTransmissionHelper.kt` comes from NoammAddons (3047b631), which credits it as adapted from Shizo by ImJoyler.
 
 ## Odin
 
@@ -20,6 +22,9 @@ LayBaltQOL contains code and ideas from the projects listed below. This file lis
   - Dungeon run tools: Map Info HUDs and portal highlight (in Score Calculator), Secrets Counter, Positional Messages (with /lbq posmsg), Puzzle HUD, Room Clear, Dungeon Queue, Inactive Waypoints, Extra Stats, Run Splits personal bests, Kuudra splits and current split HUD, and the Odin dungeon waypoint pack import.
   - Chat waypoints (Waypoints, with /lbq waypoint and /lbq wp), No Cursor Reset, Hide Players and Player Size, including the mixins `MixinMouseHandlerNoCursorReset` and `MixinAvatarRendererPlayerSize`.
   - Settings import: `/lbq import odin` maps these Odin modules to their LayBaltQOL features, and `/lbq dwp importodin` imports Odin dungeon waypoint packs.
+  - Tick Timers Fire Freeze timer (F3/M3).
+  - 3.3.0 sync (Odin 0.4.0 and later main commits): Terminal Solver Max CPS and Rainbow Border, Auto Terminal Off Tick Clicks, Score Calculator Full HUD layout and `/lbq paul`, Party Helper chat command Response Delay, the new Secrets Counter stats server, Etherwarp server-side sneak state, and the Loadout/Wardrobe hotbar bind fixes.
+  - Client particle event (`ParticleEvent` with the mixin `MixinClientLevelParticle`), used by the Blaze solver's Hide Blazes option and the Gyro Helper cooldown (Odin 1acdc46d / b06b9d2a).
   - Water Board solver data: the solution timings in `data/waterSolutions.json` (Odin's non-optimised set), and the lever, door and pattern-indicator block positions of the Water Board room. The board reader, water simulator, door algebra and recovery planner are LayBaltQOL's own.
 
 ## OdinClient
@@ -27,6 +32,18 @@ LayBaltQOL contains code and ideas from the projects listed below. This file lis
 - Project: [OdinClient](https://github.com/skies-starred/OdinClient)
 - Licence: BSD-3-Clause, Copyright (c) 2026 Starred (full text below)
 - Use: code ported and adapted to LayBaltQOL, mainly: Secrets (hitboxes, close chest, clicked secret highlight), Breaker Helper, Auto GFS, Auto Superboom, Ghost Block, Auto Sell, Auto Abilities, Camera Helper options, Cheater Map options, I Hate Diorite options, Auto Clicker, Auto Enchanting and Auto Harp parts, World Scanner, Trajectories, Escrow Fix, Farm Keys, Ghosts and No Glow. No new OdinClient code was added in the 3.x GUI and feature-restore round.
+
+## dtMap
+
+- Project: [dtMap](https://github.com/ricedotwho/dtMap) by rice.who
+- Licence: BSD-3-Clause, Copyright (c) 2026, rice.who ([LICENSE.txt](https://github.com/ricedotwho/dtMap/blob/main/LICENSE.txt), full text below)
+- Use: the Dungeon Map's 1x1 room prediction (`utils/dungeons/map/handlers/SpecialColumn.kt`, 'Predict Unopened 1x1s') is NoammAddons' modified version of dtMap's SpecialColumn.kt (NoammAddons 54224635). The file keeps the upstream header naming dtMap, its licence and copyright.
+
+## SkyHanni-REPO
+
+- Project: [SkyHanni-REPO](https://github.com/hannibal2/SkyHanni-REPO) (data repository of the SkyHanni mod) by hannibal2 and contributors
+- Licence: MIT, Copyright (c) 2022 hannibal2 (full text below)
+- Use: `assets/lbqmod/sea-creatures.json` (sea creature names, location groups, rarities, rare flags and catch messages, read by Auto Mob Killer and the Fishing Recorder) is converted from SkyHanni-REPO `constants/SeaCreatures.json` (as of 2026-11-03). No SkyHanni code is included; the file names its source in its `source` field.
 
 ## Skyblocker and ThunderHack-Recode
 
@@ -108,6 +125,65 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+## Licence text: dtMap
+
+```
+BSD 3-Clause License
+
+Copyright (c) 2026, rice.who
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+```
+
+## Licence text: SkyHanni-REPO
+
+```
+MIT License
+
+Copyright (c) 2022 hannibal2
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 ## Licence text: Inter

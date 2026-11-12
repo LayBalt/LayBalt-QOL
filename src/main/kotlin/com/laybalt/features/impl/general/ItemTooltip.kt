@@ -28,7 +28,7 @@ object ItemTooltip: Feature("Adds item information and controls to item tooltips
     private val showItemQuality by ToggleSetting("Item Quality").withDescription("Shows the base stat boost (quality) of dungeon items and the floor they dropped from")
 
     private val scrollableTooltips by ToggleSetting("Scrollable Tooltips").section("Scrollable Tooltips").withDescription("Allows item tooltips to be moved and scaled with the scroll wheel")
-    @JvmStatic val tooltipScale by SliderSetting("Tooltip Scale", 100, 30, 150, 0.1).withDescription("The size of the tooltip").showIf { scrollableTooltips.value }
+    @JvmStatic val tooltipScale by SliderSetting("Tooltip Scale", 100, 30, 150, 1).withDescription("The size of the tooltip").showIf { scrollableTooltips.value }
     private val scrollSpeed by SliderSetting("Scroll Speed", 3, 1, 10, 1).withDescription("How fast the tooltip scrolls").showIf { scrollableTooltips.value }
     private val scaleSpeed by SliderSetting("Scale Speed", 3, 1, 10, 1).withDescription("How fast the tooltip scales").showIf { scrollableTooltips.value }
 
@@ -86,7 +86,7 @@ object ItemTooltip: Feature("Adds item information and controls to item tooltips
                 }
 
                 count
-            } ?: return@register
+            } ?: event.stack.count // NoammAddons e58be2f0: shards outside the Hunting Box are priced by stack count
 
             NetworkLoop.getBazaarPrice(itemId)?.let { price ->
                 addPriceLine(event.lore, "Bazaar Buy", price.buy, quantity)

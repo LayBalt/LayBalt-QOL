@@ -21,6 +21,8 @@ import com.laybalt.utils.PlayerUtils
 import com.laybalt.utils.dungeons.DungeonListener
 import com.laybalt.utils.dungeons.enums.WitherRelic
 import com.laybalt.utils.location.LocationUtils
+import com.laybalt.utils.render.Render2D.drawCenteredString
+import com.laybalt.utils.render.RenderHelper.width
 import com.laybalt.utils.render.world.Render3D.renderBlock
 import com.laybalt.utils.render.world.Render3D.renderTracer
 import kotlinx.coroutines.launch
@@ -36,6 +38,7 @@ import java.awt.Color
 
 object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics features") {
     private val relicBox by ToggleSetting("Box Relics").withDescription("Draws a box on where the relics are spawning and the cauldron you need to place.")
+    private val relicSpawnTimer by ToggleSetting("Spawn Timer").withDescription("Shows on screen when the relics will spawn (61 server ticks after Necron dies).")
     private val relicTimer by ToggleSetting("Place Timer").withDescription("When all 5 relics are placed, sends in chat how long after the start of P5 each one was placed.")
     private val instantPlaceTime by ToggleSetting("Instant Place Time", true)
         .withDescription("Prints your own relic place time (from the start of P5, now the Wither King's boss bar; PBs saved before the dungeon update counted from Necron's last line) with a personal-best comparison as soon as you click the cauldron, without waiting for all 5 relics.")
@@ -48,7 +51,9 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
     private val relicLook by ToggleSetting("Relic Look").withDescription("Automatically rotate to the relic cauldron after you pick it up.")
     private val relicLookTime by SliderSetting("Relic Look Time", 150L, 10, 300, 1).showIf { relicLook.value }.withDescription("How fast should the auto rotate (in milliseconds)")
     private val blockWrongRelic by ToggleSetting("Block Wrong Relic").withDescription("Prevents you from placing your relic at the wrong cauldron.")
-    private val relicTriggerbot by ToggleSetting("Relic Triggerbot").withDescription("Automatically picks up the relic when you're aiming at it.")
+    private val relicTriggerbot by ToggleSetting("Relic Pickup Triggerbot").withDescription("Automatically picks up the relic when you're aiming at it.").jsonName("Relic Triggerbot")
+    private val relicPlaceTriggerbot by ToggleSetting("Relic Place Triggerbot").withDescription("Automatically selects hotbar slot 9 and places your relic when you're aiming at its cauldron or the anvil below it.")
+    private val anvil by ToggleSetting("Full Block Anvil").withDescription("Makes the anvil under the relic cauldrons a full block hitbox during P5, so it is easier to aim at.")
     private var lastRelicClick = 0L
     //#endif
 
@@ -58,6 +63,8 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
     private var p5StartTime = 0L
     /** Server tick at which your relic landed in hotbar slot 9 (Odin 1cf5805); -1 until then. */
     private var relicPickupTick = - 1L
+    /** Server tick at which the relics spawn (NoammAddons 6a656831: 61 ticks after Necron's death sound); 0 if none. */
+    private var spawnTimerTicks = 0L
 
     /** Relics you placed yourself this run -> whether that place time was a new PB (from Instant Place Time). */
     private val ownPlaceResults = mutableMapOf<WitherRelic, Boolean>()
@@ -76,6 +83,7 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
             relicTimes.clear()
             p5StartTime = 0L
             relicPickupTick = - 1L
+            spawnTimerTicks = 0L
             ownPlaceResults.clear()
             //#if CHEAT
             lastRelicClick = 0L
@@ -88,6 +96,25 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
             if (LocationUtils.dungeonFloor != "M7") return@register
             p5StartTime = DungeonListener.currentTime
             ownPlaceResults.clear()
+        }
+
+        // NoammAddons 6a656831 / bd22e1cb (M7 only, F7 has no relics). Upstream also starts P5 here; LayBaltQOL keeps
+        // the Wither King boss bar above as the start of P5, which the place time PBs count from.
+        register<DungeonEvent.NecronDeathEvent> {
+            if (LocationUtils.dungeonFloor != "M7") return@register
+            if (relicSpawnTimer.value) spawnTimerTicks = DungeonListener.currentTime + 61
+        }
+
+        hudElement(
+            "Relic Spawn Timer",
+            enabled = { relicSpawnTimer.value },
+            shouldDraw = { spawnTimerTicks - DungeonListener.currentTime > 0 },
+            centered = { true }
+        ) { ctx, example ->
+            val ticksLeft = if (example) 25 else spawnTimerTicks - DungeonListener.currentTime
+            val displayTime = (ticksLeft / 20.0).toFixed(2)
+            ctx.drawCenteredString(displayTime, 0, 0, DungeonListener.thePlayer?.clazz?.color ?: Color.WHITE)
+            return@hudElement displayTime.width() to 9f
         }
 
         register<ChatMessageEvent> {
@@ -207,6 +234,23 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
             lastRelicClick = now
         }
 
+        // NoammAddons 9f8fc6ac (with 5f298ef6, 37b98124): the vanilla use click still fires PlayerInteractEvent, so
+        // Instant Place Time and Block Wrong Relic see it like a manual click.
+        register<TickEvent.Start> {
+            if (! relicPlaceTriggerbot.value || LocationUtils.F7Phase != 5) return@register
+            if (mc.gui.screen() != null || DungeonListener.thePlayer?.isDead == true) return@register
+            val now = System.currentTimeMillis()
+            if (now - lastRelicClick < 200) return@register
+            val relic = WitherRelic.fromName(player.inventory.getItem(8).hoverName.string) ?: return@register
+            val looking = PlayerUtils.getSelectionBlock() ?: return@register
+            val cauldron = relic.cauldronPos.toPos()
+            if (looking != cauldron && looking != cauldron.below()) return@register
+
+            PlayerUtils.swapToSlot(8)
+            PlayerUtils.rightClick()
+            lastRelicClick = now
+        }
+
         fun onInteract(event: PlayerInteractEvent, pos: BlockPos) {
             if (! blockWrongRelic.value || LocationUtils.F7Phase != 5) return
             val item = event.item?.hoverName?.string ?: return
@@ -246,6 +290,12 @@ object M7Relics: Feature(name = "M7 Relics", description = "A bunch of M7 Relics
         }
         return " §8| §7pickup → place §6${seconds}s$pbText"
     }
+
+    //#if CHEAT
+    /** NoammAddons a096a6ee: the full-block anvil outline (MixinAnvilBlock), only during P5. */
+    @JvmStatic
+    fun isFullBlockAnvil(): Boolean = enabled && anvil.value && LocationUtils.F7Phase == 5
+    //#endif
 
     private val placeBlocks = setOf(Blocks.CAULDRON, Blocks.ANVIL)
 

@@ -1,6 +1,7 @@
 package com.laybalt.mixin;
 
-import com.laybalt.features.impl.general.ChatFeatures;
+import com.laybalt.event.EventBus;
+import com.laybalt.event.impl.PrintMessageEvent;
 import com.laybalt.interfaces.IChatComponent;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
@@ -30,7 +31,7 @@ public abstract class MixinChatComponent implements IChatComponent {
 
     @Inject(method = "addServerSystemMessage", at = @At("HEAD"), cancellable = true)
     private void clearMessages(Component message, CallbackInfo ci) {
-        ChatFeatures.addMassageHook(message, ci);
+        if (EventBus.post(new PrintMessageEvent(message))) ci.cancel();
     }
 
     @Override

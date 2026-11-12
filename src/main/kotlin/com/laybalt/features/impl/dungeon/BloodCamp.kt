@@ -9,6 +9,7 @@ import com.laybalt.utils.ChatUtils.unformattedText
 import com.laybalt.utils.MathUtils.add
 import com.laybalt.utils.NumbersUtils.toFixed
 import com.laybalt.utils.dungeons.DungeonListener
+import com.laybalt.utils.dungeons.enums.DungeonClass
 import com.laybalt.utils.items.ItemUtils
 import com.laybalt.utils.location.LocationUtils
 import com.laybalt.utils.render.Render2D.drawString
@@ -84,15 +85,42 @@ object BloodCamp: Feature("Features for Blood Room.") {
     private val killTitle by ToggleSetting("Kill Title").section("Alerts").withDescription("Displays a Title when the blood mobs are ready to be killed. &bNOTE: Not always accurate, you will get better move times by learning when to kill the mobs yourself.")
     private val moveHud by ToggleSetting("Move Timer HUD", true)
         .withDescription("Shows a HUD countdown until the Watcher moves (and the blood mobs can be killed). Move it with the HUD editor.")
+    // NoammAddons 8b01571e
+    private val mageOnly by ToggleSetting("Mage Only")
+        .withDescription("Only shows the Move Timer HUD and the Kill Title (with its chat line) when you are playing Mage.")
+        .showIf { killTitle.value || moveHud.value }
 
     private val watcherBar by ToggleSetting("Watcher Bar", true).section("Watcher Bar")
         .withDescription("Appends the Watcher's remaining health (current/max blood mobs) to its boss bar.")
+
+    //#if CHEAT
+    // NoammAddons f1f73680 / 8c3dfc23
+    private val bloodTb by ToggleSetting("Blood Mobs Triggerbot").section("Triggerbot")
+        .withDescription("Automatically clicks when a blood mob's timer reaches 0 while you are looking at its box.")
+        .showIf { bloodCamp.value }
+    private val rotate by ToggleSetting("Snap to center")
+        .withDescription("Flicks to the center of the blood camp box before clicking. Other players won't see the flick.")
+        .showIf { bloodCamp.value && bloodTb.value }
+    private val clickType by DropdownSetting("Click Type", 0, listOf("Left Click", "Right Click"))
+        .withDescription("Which click the triggerbot sends.")
+        .showIf { bloodCamp.value && bloodTb.value }
+    private val pingCompensation by ToggleSetting("Ping Compensation")
+        .withDescription("Clicks earlier based on your ping so the click reaches the server when the timer ends.")
+        .showIf { bloodCamp.value && bloodTb.value }
+    //#endif
 
     private val bloodMobs = ConcurrentHashMap<ArmorStand, BloodEntity>()
     private var watcherEntity: Zombie? = null
     private var firstSpawns = true
     private var moveEndTime: Long? = null
-    private const val WATCHER_MOVE_TICKS = 410
+    // NoammAddons 8b01571e: the move alerts can be limited to the Mage, who usually camps blood
+    private val shouldShowAlerts get() = ! mageOnly.value || DungeonListener.thePlayer?.clazz == DungeonClass.Mage
+
+    // NoammAddons ad8f81bc: server ticks from the blood room opening until the Watcher moves,
+    // indexed by floor (0 = Entrance .. 7 = F7/M7).
+    private val moveTimes = intArrayOf(480, 600, 500, 500, 500, 470, 470, 420)
+    // Odin's flat 410 ticks (20.5s), used only while the floor is unknown.
+    private const val FALLBACK_MOVE_TICKS = 410
 
     private data class BloodEntity(
         var startVec: Vec3,
@@ -105,13 +133,14 @@ object BloodCamp: Feature("Features for Blood Room.") {
         var lastEndVector: Vec3? = null,
         var endUpdated: Long = 0L,
         var speedVector: Vec3 = Vec3.ZERO,
+        var tbClicked: Boolean = false,
     )
 
     override fun init() {
         hudElement(
             "Watcher Move Timer",
             enabled = { moveHud.value },
-            shouldDraw = { LocationUtils.inDungeon && ! LocationUtils.inBoss && moveTicksLeft() > 0 }
+            shouldDraw = { LocationUtils.inDungeon && ! LocationUtils.inBoss && moveTicksLeft() > 0 && shouldShowAlerts }
         ) { ctx, example ->
             val seconds = if (example) 0.5f else moveTicksLeft() / 20f
             val text = "§cMove Timer: ${seconds.toFixed(2)}s"
@@ -125,15 +154,17 @@ object BloodCamp: Feature("Features for Blood Room.") {
             firstSpawns = false
         }
 
-        // Since the dungeon update the Watcher always moves a fixed time after the blood room opens
-        // (NoammAddons: 400 server ticks; Odin later moved its kill alert to 410 ticks / 20.5s, used here).
+        // Since the dungeon update the Watcher moves a fixed, floor-dependent time after the blood room opens.
+        // NoammAddons ad8f81bc times it per floor (moveTimes, e.g. F1 600 ticks = 30s, F7 420 = 21s);
+        // Odin still uses a flat 410 ticks (20.5s), kept here only as the fallback for an unknown floor.
         register<DungeonEvent.BloodOpenEvent> {
             if (LocationUtils.inBoss) return@register
-            moveEndTime = DungeonListener.currentTime + WATCHER_MOVE_TICKS
+            val moveTicks = moveTimes.getOrNull(LocationUtils.dungeonFloorNumber ?: - 1) ?: FALLBACK_MOVE_TICKS
+            moveEndTime = DungeonListener.currentTime + moveTicks
             if (! killTitle.value) return@register
-            ChatUtils.modMessage("Watcher will move in ${(WATCHER_MOVE_TICKS / 20f).toFixed(2)}s.")
-            ThreadUtils.scheduledTaskServer(WATCHER_MOVE_TICKS) {
-                ChatUtils.showTitle("&c&lKill Mobs")
+            if (shouldShowAlerts) ChatUtils.modMessage("Watcher will move in ${(moveTicks / 20f).toFixed(2)}s.")
+            ThreadUtils.scheduledTaskServer(moveTicks) {
+                if (shouldShowAlerts) ChatUtils.showTitle("&c&lKill Mobs")
             }
         }
 
@@ -186,6 +217,31 @@ object BloodCamp: Feature("Features for Blood Room.") {
             data.endVector = endpoint
             data.endUpdated = System.currentTimeMillis()
         }
+
+        //#if CHEAT
+        // NoammAddons f1f73680 / 8c3dfc23: click a blood mob's spawn box when its timer runs out.
+        register<TickEvent.Server> {
+            if (! bloodCamp.value || ! bloodTb.value) return@register
+            if (! LocationUtils.inDungeon || LocationUtils.inBoss) return@register
+            if (mc.gui.screen() != null) return@register
+            if (bloodMobs.isEmpty()) return@register
+            val clickTicks = if (pingCompensation.value) ServerUtils.averagePing / 50.0 else 1.0
+            val eye = player.eyePosition
+
+            val (data, box) = bloodMobs.values.firstNotNullOfOrNull {
+                if (it.tbClicked) return@firstNotNullOfOrNull null
+                val endVector = it.endVector ?: return@firstNotNullOfOrNull null
+                if (ticksLeft(it) > clickTicks) return@firstNotNullOfOrNull null
+                val box = boxAt(endVector, 1.0)
+                val look = player.lookAngle.scale(eye.distanceTo(box.center) + 2)
+                if (box.clip(eye, eye.add(look)).isPresent) it to box else null
+            } ?: return@register
+
+            if (rotate.value) rotateTo(box.center)
+            ThreadUtils.scheduledTaskServer(1) { if (clickType.value == 0) PlayerUtils.leftClick() else PlayerUtils.rightClick() }
+            data.tbClicked = true
+        }
+        //#endif
 
         register<EntityUnloadEvent> {
             if (! bloodCamp.value) return@register
@@ -248,6 +304,15 @@ object BloodCamp: Feature("Features for Blood Room.") {
             }
         }
     }
+
+    //#if CHEAT
+    private fun ticksLeft(data: BloodEntity) = (if (data.firstSpawn) 40 else 0) + spawnTick.value - (DungeonListener.currentTime - data.started)
+
+    private fun rotateTo(pos: Vec3) {
+        val rot = MathUtils.calcYawPitch(pos)
+        PlayerUtils.rotate(rot.yaw, rot.pitch)
+    }
+    //#endif
 
     private fun moveTicksLeft() = moveEndTime?.let { it - DungeonListener.currentTime } ?: 0L
 

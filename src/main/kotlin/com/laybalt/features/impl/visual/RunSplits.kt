@@ -13,7 +13,9 @@ import com.laybalt.utils.NumbersUtils.toFixed
 import com.laybalt.utils.dungeons.DungeonListener
 import com.laybalt.utils.dungeons.DungeonListener.DualTime
 import com.laybalt.utils.dungeons.DungeonListener.DualTime.Companion.minus
+//#if CHEAT
 import com.laybalt.utils.dungeons.map.handlers.DungeonScanner
+//#endif
 import com.laybalt.utils.kuudra.KuudraUtils
 import com.laybalt.utils.location.LocationUtils
 import com.laybalt.utils.render.Render2D.drawString
@@ -44,6 +46,12 @@ object RunSplits: Feature("A Splits HUD for Dungeons (and Kuudra), with personal
     private val floorSplits = DataDownloader.loadJson<Map<String, List<DialogueEntry>>>("runSplits.json")
     private val runEndRegex = Regex("^\\s*☠ Defeated (.+) in 0?([\\dhms ]+?)\\s*(\\(NEW RECORD!\\))?$")
     private val currentFloorSplits = linkedMapOf<String, Split>()
+
+    // NoammAddons f1d6f584 / c662e871 / e2f5d4bc: like upstream's legit build, the legit jar does not show the wither door
+    // total from the world scan; it counts the "opened a WITHER door!" chat lines as the doors open.
+    //#if LEGIT
+    //$private var witherDoors = 0
+    //#endif
 
     private var score300Timer: DualTime? = null
     private var runEndHandled = false
@@ -113,6 +121,9 @@ object RunSplits: Feature("A Splits HUD for Dungeons (and Kuudra), with personal
             currentSplit = null
             currentText = emptyList()
             Kuudra.reset()
+            //#if LEGIT
+            //$witherDoors = 0
+            //#endif
         }
 
         register<TickEvent.Server> { Kuudra.ticks ++ }
@@ -184,7 +195,13 @@ object RunSplits: Feature("A Splits HUD for Dungeons (and Kuudra), with personal
             }
 
             val clearInfo = mutableListOf<String>()
-            if (showWitherDoors.value) clearInfo.add("§8Wither Doors: §7${DungeonScanner.witherDoors}")
+            if (showWitherDoors.value) {
+                //#if LEGIT
+                //$clearInfo.add("§8Wither Doors: §7$witherDoors")
+                //#else
+                clearInfo.add("§8Wither Doors: §7${DungeonScanner.witherDoors}")
+                //#endif
+            }
             clearInfo.add("§4Blood Open: $bloodOpen")
             clearInfo.add("§cWatcher Clear: $watcherClear")
             clearInfo.add("§dPortal: $portalTime")
@@ -213,6 +230,9 @@ object RunSplits: Feature("A Splits HUD for Dungeons (and Kuudra), with personal
             if (! LocationUtils.inDungeon) return@register
 
             val msg = event.unformattedText.trim()
+            //#if LEGIT
+            //$if (msg.matches(DungeonListener.witherDoorOpenedRegex)) witherDoors ++
+            //#endif
             if (DungeonListener.dungeonStarted && runEndRegex.matches(msg)) defeatedSeen = true
             onDungeonLine(msg)
         }

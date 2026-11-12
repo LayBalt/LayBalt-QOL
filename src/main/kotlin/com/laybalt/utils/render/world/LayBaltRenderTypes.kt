@@ -68,7 +68,7 @@ object LayBaltRenderTypes: ISelfInit {
     )
 
     // 26.2 has no OIT pipeline sets, so the render types use the plain pipelines only and
-    // MixinSubmitNodeCollection routes them into phases drawn after translucent terrain.
+    // RenderBatcher submits them into Fabric's phases drawn after translucent terrain (NoammAddons b9beda78).
     val DEBUG_CIRCLE_FILLED = RenderType.create("LBQ_DEBUG_CIRCLE_FILLED", RenderSetup.builder(MC_CIRCLE_FILLED_THROUGH_WALLS).sortOnUpload().createRenderSetup())
     val DEBUG_FILLED = RenderType.create("LBQ_DEBUG_FILLED", RenderSetup.builder(MC_FILLED_THROUGH_WALLS).sortOnUpload().createRenderSetup())
     val DEBUG_LINES = RenderType.create("LBQ_DEBUG_LINES", RenderSetup.builder(MC_LINES_THROUGH_WALLS).createRenderSetup())
@@ -77,11 +77,12 @@ object LayBaltRenderTypes: ISelfInit {
     val FILLED = RenderType.create("LBQ_FILLED", RenderSetup.builder(MC_FILLED).sortOnUpload().createRenderSetup())
     val LINES = RenderType.create("LBQ_LINES", RenderSetup.builder(MC_LINES).createRenderSetup())
 
-    @JvmField val alwaysOnTopTypes = setOf(DEBUG_FILLED, DEBUG_CIRCLE_FILLED, DEBUG_LINES)
-    @JvmField val afterTerrainTypes = setOf(FILLED, CIRCLE_FILLED, LINES)
+    /** Submitted into Fabric's always-on-top phase; every other type goes after terrain (see [RenderBatcher]). */
+    val alwaysOnTopTypes = setOf(DEBUG_FILLED, DEBUG_CIRCLE_FILLED, DEBUG_LINES)
 
     override fun init() {
-        IrisCompatibility.registerPipeline(MC_FILLED, IrisShaderType.LINES)
+        // NoammAddons b9beda78: the filled pipeline uses Iris' basic shader like the other filled ones, not the lines one.
+        IrisCompatibility.registerPipeline(MC_FILLED, IrisShaderType.BASIC)
         IrisCompatibility.registerPipeline(MC_FILLED_THROUGH_WALLS, IrisShaderType.BASIC)
 
         IrisCompatibility.registerPipeline(MC_CIRCLE_FILLED, IrisShaderType.BASIC)

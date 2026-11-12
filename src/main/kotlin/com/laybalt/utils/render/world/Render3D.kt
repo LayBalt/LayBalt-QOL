@@ -3,11 +3,11 @@ package com.laybalt.utils.render.world
 import com.laybalt.LayBaltQOL.mc
 import com.laybalt.utils.ChatUtils.addColor
 import com.laybalt.utils.NumbersUtils.times
+import com.laybalt.utils.render.Render2D.visualOrder
 import com.laybalt.utils.render.RenderHelper.width
 import net.minecraft.client.gui.Font
 import net.minecraft.core.BlockPos
 import net.minecraft.core.Direction
-import net.minecraft.network.chat.Component
 import net.minecraft.util.LightCoordsUtil
 import net.minecraft.world.level.block.Blocks
 import net.minecraft.world.phys.AABB
@@ -231,11 +231,14 @@ object Render3D {
             fillColor.green / 255f, fillColor.blue / 255f, fillColor.alpha / 255f
         )
 
+        // NoammAddons 47874ae9: a separate outline colour keeps its alpha. A single colour (also in outline-only mode,
+        // e.g. Door ESP / Mimic / Blaze / Secrets / Dragon boxes) keeps the old opaque outline.
+        val outlineAlpha = if (fillColor === outlineColor) 1f else outlineColor.alpha / 255f
         if (outline) RenderBatcher.lineBatch(phase).addLineBoxVertices(
             pose,
             minX,
             minY, minZ, maxX, maxY, maxZ, outlineColor.red / 255f,
-            outlineColor.green / 255f, outlineColor.blue / 255f, 1f, lineWidth.toFloat()
+            outlineColor.green / 255f, outlineColor.blue / 255f, outlineAlpha, lineWidth.toFloat()
         )
 
         matrixStack.popPose()
@@ -268,8 +271,9 @@ object Render3D {
         matrixStack.mulPose(camera.orientation)
         matrixStack.scale(toScale, - toScale, toScale)
 
+        // NoammAddons aac3abde: the visual order of each line comes from Render2D's per-string cache
         for ((i, line) in text.addColor().lineSequence().withIndex()) collector.submitText(
-            matrixStack, - line.width() / 2f, i * 9f, Component.literal(line).visualOrderText, true,
+            matrixStack, - line.width() / 2f, i * 9f, line.visualOrder(), true,
             if (phase) Font.DisplayMode.SEE_THROUGH else Font.DisplayMode.NORMAL,
             LightCoordsUtil.FULL_BRIGHT, color.rgb, 0, 0
         )

@@ -35,6 +35,7 @@ enum class SimType(val label: String, val terminal: Terminal, val factory: () ->
 
 /** Red-Green ("Correct all the panes!"). */
 class PanesSim: TermSimGUI("Correct all the panes!", 45) {
+    override val simType get() = SimType.PANES
     override fun create() = setSlots {
         if (it.index / 9 in 1 .. 3 && it.index % 9 in 2 .. 6) pane(if (Math.random() > 0.75) DyeColor.LIME else DyeColor.RED)
         else blackPane
@@ -49,6 +50,7 @@ class PanesSim: TermSimGUI("Correct all the panes!", 45) {
 
 /** Rubix ("Change all to same color!"): left click advances the colour, right click goes back. */
 class RubixSim: TermSimGUI("Change all to same color!", 45) {
+    override val simType get() = SimType.RUBIX
     private val order = listOf(DyeColor.ORANGE, DyeColor.YELLOW, DyeColor.GREEN, DyeColor.BLUE, DyeColor.RED)
     private val indices = listOf(12, 13, 14, 21, 22, 23, 30, 31, 32)
 
@@ -70,6 +72,7 @@ class RubixSim: TermSimGUI("Change all to same color!", 45) {
 
 /** Numbers ("Click in order!"): 10 panes in a 5x2 grid since the Hypixel dungeon update. */
 class NumbersSim: TermSimGUI("Click in order!", 36) {
+    override val simType get() = SimType.NUMBERS
     override fun create() {
         val numbers = (1 .. 10).shuffled().toMutableList()
         setSlots {
@@ -93,6 +96,7 @@ class NumbersSim: TermSimGUI("Click in order!", 36) {
 
 /** Starts With ("What starts with: 'X'?"). */
 class StartsWithSim(private val letter: String = listOf("A", "B", "C", "G", "D", "M", "N", "R", "S", "T", "W").random()): TermSimGUI("What starts with: '$letter'?", 45) {
+    override val simType get() = SimType.STARTS_WITH
     private val clickedOverrides = mutableListOf<Int>()
 
     override fun create() {
@@ -137,6 +141,7 @@ class StartsWithSim(private val letter: String = listOf("A", "B", "C", "G", "D",
 class SelectAllSim(private val color: DyeColor = DyeColor.entries.random()): TermSimGUI(
     "Select all the ${color.name.replace("LIGHT_GRAY", "SILVER").replace("_", " ")} items!", 54
 ) {
+    override val simType get() = SimType.SELECT
     override fun create() {
         val guaranteed = ((10 .. 16) + (19 .. 25) + (28 .. 34) + (37 .. 43)).random()
         setSlots { slot ->
@@ -182,6 +187,7 @@ class SelectAllSim(private val color: DyeColor = DyeColor.entries.random()): Ter
  * Three rows since the Hypixel dungeon update, with the purple column marker above and below them.
  */
 class MelodySim: TermSimGUI("Click the button on time!", 54) {
+    override val simType get() = SimType.MELODY
     private var magentaColumn = 1
     private var limeColumn = 1
     private var currentRow = 1
@@ -193,22 +199,31 @@ class MelodySim: TermSimGUI("Click the button on time!", 54) {
         magentaColumn = (1 .. 5).random()
         limeColumn = 1
         limeDirection = 1
+        counter = 0
         setSlots { it.generateItemStack() }
     }
 
     override fun containerTick() {
         super.containerTick()
-        if (counter ++ % 10 != 0 || currentRow > ROWS) return
+        if (currentRow > ROWS || ++ counter < MOVE_INTERVAL) return
+        counter = 0
         limeColumn += limeDirection
         if (limeColumn == 1 || limeColumn == 5) limeDirection *= - 1
         updateRow(currentRow)
     }
 
     override fun slotClick(slot: Slot, button: Int) {
-        if (slot.index % 9 != 7 || limeColumn != magentaColumn || slot.index / 9 != currentRow) return
+        if (slot.index % 9 != 7 || slot.index / 9 != currentRow) return
+        // NoammAddons 142709f0: a click at the wrong time pauses the lane for an extra move interval, like Hypixel.
+        if (limeColumn != magentaColumn) {
+            counter = - MOVE_INTERVAL
+            return
+        }
 
         val oldRow = currentRow
-        magentaColumn = (1 until 5).random()
+        // NoammAddons 142709f0 / cff93729: the next target can be any of the 5 columns, and the new row waits ~13 ticks before moving.
+        magentaColumn = (1 .. 5).random()
+        counter = - MOVE_INTERVAL / 3
         currentRow ++
         updateRow(0)
         updateRow(ROWS + 1)
@@ -239,5 +254,6 @@ class MelodySim: TermSimGUI("Click the button on time!", 54) {
 
     private companion object {
         const val ROWS = 3
+        const val MOVE_INTERVAL = 10
     }
 }

@@ -42,12 +42,13 @@ object EtherwarpHelper {
         return null
     }
 
-    fun getEtherPos(pos: Vec3, lookVec: Vec3, distance: Double): EtherPos {
+    /** [sneaking] picks the eye height; Use Server Position passes the sneak state the server knows (Odin ad521154). */
+    fun getEtherPos(pos: Vec3, lookVec: Vec3, distance: Double, sneaking: Boolean = mc.player?.isCrouching == true): EtherPos {
         val player = mc.player ?: return EtherPos.NONE
         // swimming eye height from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
         val eyeHeight = when {
             player.pose == Pose.SWIMMING -> SWIM_EYE_HEIGHT
-            player.isCrouching -> EYE_HEIGHT - SNEAK_OFFSET
+            sneaking -> EYE_HEIGHT - SNEAK_OFFSET
             else -> EYE_HEIGHT
         }
         val startPos = getZeroPingCameraPos(pos).add(y = eyeHeight)

@@ -1,6 +1,5 @@
 package com.laybalt.features.impl.floor7.terminals
 
-import com.laybalt.LayBaltQOL.mc
 import com.laybalt.event.EventBus
 import com.laybalt.event.impl.TerminalEvent
 import com.laybalt.features.impl.floor7.terminals.impl.Terminal
@@ -39,12 +38,11 @@ object HumanClickOrder: ISelfInit {
         }
     }
 
+    // NoammAddons cff93729: computed from the slot index (18px chest grid) instead of player.containerMenu,
+    // which is the player's inventory while the terminal simulator is open. Same result on Hypixel.
     private fun getDistanceSqr(id1: Int, id2: Int): Double {
-        val pos1 = mc.player?.containerMenu?.getSlot(id1) ?: return Double.MAX_VALUE
-        val pos2 = mc.player?.containerMenu?.getSlot(id2) ?: return Double.MAX_VALUE
-
-        val dx = (pos1.x - pos2.x).toDouble()
-        val dy = (pos1.y - pos2.y).toDouble()
+        val dx = ((id1 % 9 - id2 % 9) * 18).toDouble()
+        val dy = ((id1 / 9 - id2 / 9) * 18).toDouble()
 
         return dx * dx + dy * dy
     }

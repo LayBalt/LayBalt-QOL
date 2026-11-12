@@ -6,6 +6,7 @@ import com.laybalt.event.EventBus
 import com.laybalt.event.impl.TerminalActionEvent
 import com.laybalt.features.impl.floor7.terminals.TerminalListener
 import com.laybalt.features.impl.floor7.terminals.TerminalPBs
+import com.laybalt.features.impl.floor7.terminals.TerminalSimulator
 import com.laybalt.features.impl.floor7.terminals.TerminalSolver
 import com.laybalt.utils.ThreadUtils
 import gg.essential.universal.USound
@@ -47,8 +48,12 @@ open class TermSimGUI(
     protected val blackPane: ItemStack get() = named(ItemStack(Items.STAINED_GLASS_PANE.pick(DyeColor.BLACK)))
     protected val guiInventorySlots: List<Slot> get() = menu.slots.subList(0, size)
     protected var ping = 0L
+    private var completed = false
 
     fun simMenu(): ChestMenu = menu
+
+    /** The terminal type this screen simulates (null for the start menu); Auto Next reopens it. */
+    open val simType: SimType? get() = null
 
     open fun create() {
         setSlots { blackPane }
@@ -66,13 +71,32 @@ open class TermSimGUI(
         playTermSimSound()
     }
 
-    /** Called by a simulator once the terminal is done: records the solve and goes back to the start menu. */
+    /**
+     * Called by a simulator once the terminal is done: records the solve, then goes back to the start menu, or with
+     * Auto Next opens the next terminal: the same type, or a new random one when Random was picked
+     * (NoammAddons c4364012, 71bf8518, 7aaf6371).
+     */
     protected fun complete() {
         val handler = TerminalListener.currentHandler
         if (handler != null && TerminalListener.simScreen === this) {
             TerminalPBs.recordSolve(handler, TerminalListener.initialOpenTime, simulated = true, announce = true)
             EventBus.post(TerminalActionEvent.Solve(handler, TerminalListener.initialOpenTime, true))
         }
+        val type = simType
+        if (! TerminalSimulator.autoNext.value || type == null) return StartGUI().open(ping)
+        val next = if (TerminalSimulator.lastPickWasRandom) SimType.random() else type
+        // A tick later, so the finishing click (recorded and posted by TerminalClick.send() after this returns at
+        // ping 0) is judged against this board, not replayed as a prediction on the next one. The finished board
+        // takes no more clicks meanwhile.
+        completed = true
+        ThreadUtils.scheduledTask(1) {
+            if (mc.gui.screen() === this) next.factory().open(ping)
+        }
+    }
+
+    /** Escape (or the inventory key) in a running simulator goes back to the start menu instead of closing it. */
+    override fun onClose() {
+        if (this is StartGUI) return super.onClose()
         StartGUI().open(ping)
     }
 
@@ -94,10 +118,10 @@ open class TermSimGUI(
 
     private fun delaySlotClick(slot: Slot, button: Int) {
         if (this is StartGUI) return slotClick(slot, button)
-        if (slot.container !== inv || slot.item.item == Items.STAINED_GLASS_PANE.pick(DyeColor.BLACK)) return
+        if (completed || slot.container !== inv || slot.item.item == Items.STAINED_GLASS_PANE.pick(DyeColor.BLACK)) return
         if (ping <= 0L) return slotClick(slot, button)
         ThreadUtils.scheduledTask((ping / 50).toInt().coerceAtLeast(0)) {
-            if (mc.gui.screen() === this) slotClick(slot, button)
+            if (mc.gui.screen() === this && ! completed) slotClick(slot, button)
         }
     }
 

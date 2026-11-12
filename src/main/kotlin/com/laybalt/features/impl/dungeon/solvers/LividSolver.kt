@@ -22,6 +22,7 @@ import net.minecraft.core.BlockPos
 import net.minecraft.sounds.SoundEvents
 import net.minecraft.world.entity.decoration.ArmorStand
 import net.minecraft.world.level.block.Blocks
+import java.util.UUID
 
 object LividSolver: Feature() {
     private val showHp by ToggleSetting("Show HP", true)
@@ -46,7 +47,8 @@ object LividSolver: Feature() {
     )
 
     private val ceilingWoolBlock = BlockPos(5, 108, 40)
-    private var lividId: Int? = null
+    // NoammAddons 4df108eb: tracked by UUID, numeric entity id 0 threw an IllegalStateException
+    private var lividId: UUID? = null
 
     private const val ticks = 340
     private var timer = - 1
@@ -66,7 +68,7 @@ object LividSolver: Feature() {
         }
 
         register<CheckEntityGlowEvent> {
-            if (lividId == event.entity.id) {
+            if (lividId == event.entity.uuid) {
                 event.color = highlightColor.value
             }
         }
@@ -75,7 +77,7 @@ object LividSolver: Feature() {
             if (! hideWrong.value) return@register
             if (LocationUtils.dungeonFloorNumber != 5) return@register
             if (! LocationUtils.inBoss) return@register
-            if (lividId == event.entity.id) return@register
+            if (lividId == event.entity.uuid) return@register
             if (lividId.livid?.isSleeping == true) return@register
             if (dungeonTeammates.any { it.entity?.uuid == event.entity.uuid }) return@register
             if (event.entity is ArmorStand && ! event.entity.name.unformattedText.contains("Livid")) return@register
@@ -99,7 +101,7 @@ object LividSolver: Feature() {
             if (currentLivid?.gameProfile?.name == targetLivid && currentLivid.isRemoved) return@register
             lividId = level.entitiesForRendering().asSequence().filterIsInstance<AbstractClientPlayer>().find {
                 it.gameProfile.name == targetLivid
-            }?.id
+            }?.uuid
         }
 
         register<ChatMessageEvent> {
@@ -124,5 +126,5 @@ object LividSolver: Feature() {
         }
     }
 
-    private val Int?.livid get() = this?.let { level.getEntity(it) as? AbstractClientPlayer }
+    private val UUID?.livid get() = this?.let { level.getEntity(it) as? AbstractClientPlayer }
 }

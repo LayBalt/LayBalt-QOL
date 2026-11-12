@@ -99,7 +99,9 @@ object PetDisplay: Feature("Pet Features") {
             }
         }
 
+        // NoammAddons bbf56511: with the highlight off, leave pet menus (and SkyblockAddons' pet menu) alone
         register<ContainerFullyOpenedEvent> {
+            if (! activePetHighlight.value) return@register
             selectedPetSlot = - 1
             if (! event.title.unformattedText.matches(petMenuRegex)) return@register
             for ((i, stack) in event.items) {
@@ -111,21 +113,19 @@ object PetDisplay: Feature("Pet Features") {
         }
 
         register<ContainerEvent.Render.Slot.Pre> {
-            if (! enabled) return@register
             if (! activePetHighlight.value) return@register
+            if (selectedPetSlot == - 1) return@register
             if (event.slot.index != selectedPetSlot) return@register
             event.slot.highlight(event.context, petHighlightColor.value, 1)
         }
 
         register<PacketEvent.Sent> {
-            if (! enabled) return@register
             if (! activePetHighlight.value) return@register
             if (event.packet !is ServerboundContainerClosePacket) return@register
             selectedPetSlot = - 1
         }
 
         register<MainThreadPacketReceivedEvent.Pre> {
-            if (! enabled) return@register
             if (! activePetHighlight.value) return@register
             if (event.packet !is ClientboundContainerClosePacket) return@register
             selectedPetSlot = - 1

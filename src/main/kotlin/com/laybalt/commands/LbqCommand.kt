@@ -13,6 +13,7 @@ import com.laybalt.ui.hud.HudEditorScreen
 import com.laybalt.utils.*
 import com.laybalt.utils.ChatUtils.addColor
 import com.laybalt.utils.dungeons.DungeonListener
+import com.laybalt.utils.dungeons.DungeonUtils
 import com.laybalt.utils.dungeons.enums.DungeonClass
 import com.laybalt.utils.items.ItemUtils.skyblockId
 import com.mojang.brigadier.arguments.StringArgumentType
@@ -189,6 +190,24 @@ object LbqCommand: ICommandProvider {
         }
 
         //#if CHEAT
+        literal("fishing") {
+            category(Category.MISC)
+            description("Auto Mob Killer: /lbq fishing <rules|record|relearn> (opens the Sea Creature Rules, starts/stops the Fishing Recorder, relearns from recordings)")
+            runs { GuiUtils.setScreen(com.laybalt.ui.gui.SeaCreatureRulesScreen()) }
+            literal("rules") {
+                description("Opens the Sea Creature Rules window")
+                runs { GuiUtils.setScreen(com.laybalt.ui.gui.SeaCreatureRulesScreen()) }
+            }
+            literal("record") {
+                description("Starts or stops the Fishing Recorder")
+                runs { com.laybalt.features.impl.fishing.FishingRecorder.toggle() }
+            }
+            literal("relearn") {
+                description("Learns your fishing behaviour again from every recording")
+                runs { com.laybalt.features.impl.fishing.BehaviorProfile.rebuildAsync(report = true) }
+            }
+        }
+
         literal("swapmask") {
             category(Category.ITEMS)
             description("Equips either Bonzo Mask or Spirit Mask")
@@ -239,6 +258,16 @@ object LbqCommand: ICommandProvider {
             }
         }
         //#endif
+
+        // Odin ffcea4cf
+        literal("paul") {
+            category(Category.DUNGEONS)
+            description("Paul's +10 bonus score: /lbq paul <auto|on|off> (auto = Force Paul / mayor data, not saved)")
+            runs { ChatUtils.modMessage("§aPaul bonus: §f${when (DungeonUtils.paulOverride) { null -> "auto"; true -> "on"; false -> "off" }}§a. §7(/lbq paul <auto|on|off>)") }
+            listOf("auto", "on", "off").forEach { mode ->
+                literal(mode) { runs { DungeonUtils.setPaulOverride(mode)?.let(ChatUtils::modMessage) } }
+            }
+        }
     }
 
     private fun setLeapOrder(ctx: CommandContext<FabricClientCommandSource>, count: Int) {
@@ -253,6 +282,7 @@ object LbqCommand: ICommandProvider {
 
         LeapMenu.customLeapOrder = validPlayers
         LeapMenu.customLeapType = sortingType
+        ConfigManager.save() // NoammAddons 9780376e: the order is a saved (hidden) setting now
         ChatUtils.modMessage("§aCustom leap order set to: §f$sortingType §awith players: §f${validPlayers.joinToString(", ")}")
     }
 }

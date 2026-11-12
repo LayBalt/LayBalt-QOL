@@ -26,7 +26,12 @@ object WebUtils {
 
     val client = HttpClient(CIO) {
         install(UserAgent) { agent = "$MOD_NAME/$MOD_VERSION (+https://github.com/LayBalt/LayBalt-QOL)" }
-        install(HttpTimeout) { connectTimeoutMillis = 10_000 }
+        // NoammAddons de642ff7 timeouts (we keep CIO): a stalled response would otherwise hang every shared caller of the URL.
+        install(HttpTimeout) {
+            connectTimeoutMillis = 30_000
+            socketTimeoutMillis = 30_000
+            requestTimeoutMillis = 30_000
+        }
         install(ContentNegotiation) { json(JsonUtils.json) }
         install(ContentEncoding) {
             gzip(1.0F)

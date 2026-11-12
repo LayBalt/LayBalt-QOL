@@ -12,7 +12,6 @@ import com.laybalt.utils.dungeons.map.core.RoomType
 import com.laybalt.utils.equalsOneOf
 import com.laybalt.utils.render.Render2D.drawCenteredString
 import com.laybalt.utils.render.RenderHelper.width
-import gg.essential.universal.USound
 import net.minecraft.sounds.SoundEvents
 import kotlin.math.roundToLong
 
@@ -20,11 +19,13 @@ object RoomAlerts: Feature("Alerts when certain stuff happens in your current ro
     private val clear by ToggleSetting("Cleared", true)
     private val secrets by ToggleSetting("Secrets Done", true)
     private val displayTime by SliderSetting("Display Time", 2.0, 0.5, 3.0, 0.1, "s")
+    // NoammAddons c0dc1ea3: the alert sound is configurable (sound key, volume, pitch, test button)
+    private val sound = createSoundSettings("Sound", SoundEvents.NOTE_BLOCK_PLING.value()) { clear.value || secrets.value }
 
     private var alertText = "Cleared"
         set(value) {
             field = value
-            USound.playSoundStatic(SoundEvents.NOTE_BLOCK_PLING, 0.25f, 1f)
+            sound()
             alertUntil = System.currentTimeMillis() + (displayTime.value * 1000).roundToLong()
         }
 

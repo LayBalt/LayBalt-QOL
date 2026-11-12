@@ -39,7 +39,9 @@ object StorageOverlay: Feature("Shows all storage pages in an overlay when openi
     val storageNames by MapSetting<Int, String>("Custom Names")
 
     private val storageDir = File(mc.gameDirectory, "config/${LayBaltQOL.CONFIG_DIR}/storage").also(File::mkdirs)
-    private val dataFile get() = File(storageDir, "${UPlayer.getUUID()}.nbt")
+    // NoammAddons b2ac69a8: one file per SkyBlock profile; the old per-account file stays the fallback until a profile id is known
+    private val dataFile get() = File(storageDir, dataProfile?.let { "${UPlayer.getUUID()}_$it.nbt" } ?: "${UPlayer.getUUID()}.nbt")
+    private var dataProfile: String? = null
     @Volatile var storageMenuData: SortedMap<StoragePage, NBTInventory?> = TreeMap()
     private val saveMutex = Mutex()
 
@@ -109,6 +111,13 @@ object StorageOverlay: Feature("Shows all storage pages in an overlay when openi
     fun onScreenChange(oldScreen: Screen?, newScreen: Screen?): Screen? {
         if (! LocationUtils.inSkyblock) return null
         if (oldScreen == null && newScreen == null) return null
+
+        if (LocationUtils.profileId != dataProfile) {
+            dataProfile = LocationUtils.profileId
+            storageMenuData = TreeMap()
+            // load now: if the first screen of the new profile is a storage menu, saving it must not overwrite that profile's file
+            loadData()
+        }
 
         val screen = newScreen as? ContainerScreen
         val menu = StorageMenu.get(screen)
@@ -206,7 +215,7 @@ object StorageOverlay: Feature("Shows all storage pages in an overlay when openi
 
     private fun loadData() {
         if (storageMenuData.isNotEmpty()) return
-        val file = dataFile.takeIf(File::exists) ?: return
+        val file = dataFile.takeIf(File::exists) ?: adoptLegacyFile() ?: return
         val root = catch { NbtIo.readCompressed(file.toPath(), NbtAccounter.uncompressedQuota()) }
             ?: return
 
@@ -222,5 +231,17 @@ object StorageOverlay: Feature("Shows all storage pages in an overlay when openi
         }
 
         storageMenuData = data
+    }
+
+    /**
+     * Upgrade path from the per-account file (3.2.5 and older, also where NoammAddons previews are imported):
+     * the first profile seen without its own file takes the legacy file over once, by moving it,
+     * so other profiles do not inherit its stale pages. Returns the file to read, or null if there is none.
+     */
+    private fun adoptLegacyFile(): File? {
+        if (dataProfile == null) return null
+        val legacy = File(storageDir, "${UPlayer.getUUID()}.nbt").takeIf(File::exists) ?: return null
+        val target = dataFile
+        return catch { Files.move(legacy.toPath(), target.toPath()); target } ?: legacy
     }
 }

@@ -1,7 +1,9 @@
 // Ported from Odin (https://github.com/odtheking/Odin), BSD-3-Clause, Copyright (c) 2025 odtheking
 package com.laybalt.features.impl.floor7.terminals.termsim
 
+import com.laybalt.config.ConfigManager
 import com.laybalt.features.impl.floor7.terminals.TerminalPBs
+import com.laybalt.features.impl.floor7.terminals.TerminalSimulator
 import com.laybalt.utils.ChatUtils
 import com.laybalt.utils.NumbersUtils.toFixed
 import com.laybalt.utils.ThreadUtils
@@ -38,6 +40,7 @@ class StartGUI: TermSimGUI("Terminal Simulator", 27) {
                 13 -> named(ItemStack(Items.DYE.pick(DyeColor.WHITE)), "§7Random")
                 in 10 .. 12 -> termItems[it.index - 10]
                 in 14 .. 16 -> termItems[it.index - 11]
+                22 -> autoNextItem()
                 else -> blackPane
             }
         }
@@ -62,13 +65,31 @@ class StartGUI: TermSimGUI("Terminal Simulator", 27) {
                 confirmReset = false
             }
 
-            10 -> PanesSim().open(ping)
-            11 -> RubixSim().open(ping)
-            12 -> NumbersSim().open(ping)
-            13 -> SimType.random().factory().open(ping)
-            14 -> StartsWithSim().open(ping)
-            15 -> SelectAllSim().open(ping)
-            16 -> MelodySim().open(ping)
+            10 -> pick(SimType.PANES)
+            11 -> pick(SimType.RUBIX)
+            12 -> pick(SimType.NUMBERS)
+            13 -> pick(SimType.random(), random = true)
+            14 -> pick(SimType.STARTS_WITH)
+            15 -> pick(SimType.SELECT)
+            16 -> pick(SimType.MELODY)
+
+            22 -> {
+                TerminalSimulator.autoNext.value = ! TerminalSimulator.autoNext.value
+                ConfigManager.save()
+                create()
+            }
+        }
+    }
+
+    private fun pick(type: SimType, random: Boolean = false) {
+        TerminalSimulator.lastPickWasRandom = random
+        type.factory().open(ping)
+    }
+
+    private fun autoNextItem(): ItemStack {
+        val on = TerminalSimulator.autoNext.value
+        return named(ItemStack(Items.DYE.pick(if (on) DyeColor.LIME else DyeColor.GRAY)), "§eAuto Next: ${if (on) "§aON" else "§cOFF"}").apply {
+            set(DataComponents.LORE, ItemLore(listOf(Component.literal("§7Opens the next terminal when you finish one."))))
         }
     }
 

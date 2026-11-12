@@ -14,6 +14,8 @@ import com.laybalt.ui.notification.NotificationManager
 import com.laybalt.utils.ChatUtils
 import com.laybalt.utils.ChatUtils.formattedText
 import com.laybalt.utils.ChatUtils.unformattedText
+import com.laybalt.utils.PlayerUtils
+import com.laybalt.utils.equalsOneOf
 import com.laybalt.utils.dungeons.DungeonListener
 import com.laybalt.utils.items.ItemUtils.customData
 import com.laybalt.utils.items.ItemUtils.itemUUID
@@ -23,8 +25,10 @@ import com.laybalt.utils.location.LocationUtils
 import com.laybalt.utils.render.Render2D.drawString
 import gg.essential.universal.UMinecraft
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.client.gui.screens.Screen
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.network.chat.Component
+import net.minecraft.world.inventory.ChestMenu
 import net.minecraft.world.inventory.ContainerInput
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
@@ -56,6 +60,23 @@ object ProtectItem: Feature("Prevents dropping or selling important items via /p
             }
 
             if (stack.isEmpty) return@register
+
+            // NoammAddons 8ed019ee / 47d782b6: salvaging moves the item into the menu (allowed) and then clicks a button
+            // that is not protected itself, so the button is blocked while a protected item sits in the menu's slots.
+            if (isSalvageMenu(event.screen, stack)) {
+                val rows = (menu as? ChestMenu)?.rowCount ?: return@register
+                val protectedStack = menu.slots.filter { it.index < rows * 9 }.firstOrNull { slot ->
+                    getProtectType(slot.item).let { it != ProtectType.None && it != ProtectType.HypixelBullshit }
+                }?.item ?: return@register
+
+                event.isCanceled = true
+                if (protectNotification.value) NotificationManager.push(
+                    "Salvage Blocked", "${protectedStack.hoverName.formattedText} §fis protected!", 2500L
+                )
+
+                return@register
+            }
+
             val type = getProtectType(stack).takeUnless { it == ProtectType.None } ?: return@register
 
             val isThrowing = event.clickType == ContainerInput.THROW || event.slotId == - 999
@@ -109,6 +130,7 @@ object ProtectItem: Feature("Prevents dropping or selling important items via /p
         alsoUnderLbq("protectitem")
         category(com.laybalt.commands.LbqHelp.Category.ITEMS)
         description("Protects the held item from being dropped or sold (run again to unprotect)")
+        requires("Enable $name to protect items.") { enabled }
         runs {
             val heldItem = player.mainHandItem.takeUnless { it.isEmpty }
                 ?: return@runs ChatUtils.modMessage("&cYou need to be holding an item.")
@@ -133,7 +155,8 @@ object ProtectItem: Feature("Prevents dropping or selling important items via /p
         val name = stack.hoverName.unformattedText
         if (protectStarred.value && (data.getInt("upgrade_level").getOrDefault(0) > 0 || name.contains("✪"))) return ProtectType.Starred
         if (protectRarity.value && data.getInt("rarity_upgrades").getOrDefault(0) > 0) return ProtectType.RarityUpgraded
-        if (data.getStringOr("quiver_arrow", "false").toBoolean()) return ProtectType.HypixelBullshit
+        // NoammAddons 92518b0c: the quiver display item in the last hotbar slot stays usable
+        if (data.getStringOr("quiver_arrow", "false").toBoolean() && PlayerUtils.getHotbarSlot(8) != stack) return ProtectType.HypixelBullshit
 
         return ProtectType.None
     }
@@ -147,6 +170,14 @@ object ProtectItem: Feature("Prevents dropping or selling important items via /p
 
             isHopper || hasBuyback
         }
+    }
+
+    /** NoammAddons 8ed019ee / 47d782b6: the salvage / altar confirm button of the Salvage Items or Draconic Sacrifice menu. */
+    private fun isSalvageMenu(screen: Screen, stack: ItemStack): Boolean {
+        val inGui = screen.title.string.equalsOneOf("Salvage Items", "Draconic Sacrifice")
+        val confirmStack = stack.hoverName.unformattedText.equalsOneOf("Salvage Items", "Confirm Salvage", "Draconic Altar")
+
+        return inGui && confirmStack
     }
 
     fun onSlotDraw(context: GuiGraphicsExtractor, stack: ItemStack, x: Int, y: Int) {
@@ -168,8 +199,15 @@ object ProtectItem: Feature("Prevents dropping or selling important items via /p
         val data = data.get()
 
         val (list, id) = when {
-            stack.itemUUID.isNotBlank() -> data.uuids to stack.itemUUID
-            stack.skyblockId.isNotBlank() -> data.ids to stack.skyblockId
+            // NoammAddons d50d1b38: a list that is not enforced would only pretend to protect the item
+            stack.itemUUID.isNotBlank() -> if (protectUUID.value) data.uuids to stack.itemUUID else {
+                NotificationManager.push("&cProtection Disabled", "Enable ${protectUUID.name} to protect this item.")
+                return
+            }
+            stack.skyblockId.isNotBlank() -> if (protectID.value) data.ids to stack.skyblockId else {
+                NotificationManager.push("&cProtection Disabled", "Enable ${protectID.name} to protect this item.")
+                return
+            }
             else -> return NotificationManager.push("Error", "Item has no protectable ID/UUID.")
         }
 

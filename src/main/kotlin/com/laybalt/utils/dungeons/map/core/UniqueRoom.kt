@@ -71,8 +71,8 @@ class UniqueRoom(arrX: Int, arrY: Int, roomTile: RoomTile) {
                 if (tile.z > maxZ) maxZ = tile.z
             }
 
-            val tilesWide = maxX - minX + 1
-            val tilesTall = maxZ - minZ + 1
+            val tilesWide = (maxX - minX) / DungeonScanner.roomSize + 1
+            val tilesTall = (maxZ - minZ) / DungeonScanner.roomSize + 1
             maxWidth = (tilesWide * roomSize) + (max(0, tilesWide - 1) * gapSize)
             maxHeight = (tilesTall * roomSize) + (max(0, tilesTall - 1) * gapSize)
         }
@@ -200,6 +200,7 @@ class UniqueRoom(arrX: Int, arrY: Int, roomTile: RoomTile) {
             addSecrets(data.secretCoords.bat, SecretType.BAT)
             addSecrets(data.secretCoords.item, SecretType.ITEM)
             addSecrets(data.secretCoords.chest, SecretType.CHEST)
+            addSecrets(data.secretCoords.lever, SecretType.LEVER)
         }
 
         EventBus.post(DungeonEvent.RoomEvent.RotationFound(this, rotation !!, clayPos !!))

@@ -16,7 +16,9 @@ import com.laybalt.utils.location.LocationUtils
 object AutoRequeue: Feature("Automatically starts the next dungeon run when the current one ends.") {
     private val requeueCmd by DropdownSetting("Requeue Command", 0, listOf("/joininstance", "/instancerequeue"))
         .withDescription("/joininstance re-enters the same floor directly; /instancerequeue uses Hypixel's requeue command.")
-    private val checkParty by ToggleSetting("Check Party", true).withDescription("Only requeue when you lead a full 5-player party and nobody asked for downtime (!dt).")
+    private val checkParty by ToggleSetting("Check Party", true).withDescription("Only requeue when you are the party leader and the party has at least the minimum size.")
+    // NoammAddons 792df928
+    private val minPartySize by SliderSetting("Minimum Party Size", 5, 1, 5, 1).withDescription("Requeue only when the party has at least this many players (Check Party).").showIf { checkParty.value }
     private val delay by SliderSetting("Delay", 5L, 1L, 10L, 1L).withDescription("Seconds to wait after the run ends before requeueing.")
     private val feedback by ToggleSetting("Feedback", true).withDescription("Prints in chat why a requeue was skipped.")
 
@@ -26,7 +28,7 @@ object AutoRequeue: Feature("Automatically starts the next dungeon run when the 
 
     private fun feedBackMessage(msg: String) {
         if (! feedback.value) return
-        ThreadUtils.setTimeout(1000) { ChatUtils.modMessage("$prefix $msg") }
+        ThreadUtils.scheduledTask(20) { ChatUtils.modMessage("$prefix $msg") }
     }
 
     override fun init() {
@@ -34,13 +36,17 @@ object AutoRequeue: Feature("Automatically starts the next dungeon run when the 
         register<DungeonEvent.RunEndedEvent>(EventPriority.HIGH) {
             if (checkParty.value) {
                 if (! PartyUtils.isInParty) return@register feedBackMessage("Not in a party!")
-                if (PartyUtils.members.size != 5) return@register feedBackMessage("Not enough players in party!")
-                if (PartyHelper.downtimeList.isNotEmpty()) return@register feedBackMessage("There are players in downtime!")
+                if (! PartyUtils.isLeader()) return@register feedBackMessage("You are not leader.")
+                if (PartyUtils.partySize < minPartySize.value) return@register feedBackMessage("Not enough players in party! (${PartyUtils.partySize}/${minPartySize.value})")
             }
+            // NoammAddons 9be8b3b1: a pending !dt blocks the requeue even with Check Party off.
+            if (PartyHelper.downtimeList.isNotEmpty()) return@register feedBackMessage("There are players in downtime!")
 
-            val command = if (requeueCmd.value == 0) "/joininstance ${masterMode}CATACOMBS_FLOOR_${floor}" else "/instancerequeue"
-            ThreadUtils.setTimeout(delay.value * 1000) {
-                if (checkParty.value && ! PartyUtils.isLeader()) return@setTimeout feedBackMessage("You are not the party leader!")
+            // Entrance is CATACOMBS_ENTRANCE, the floors are CATACOMBS_FLOOR_<N> (NoammAddons 792df928).
+            val floorPrefix = if ((LocationUtils.dungeonFloorNumber ?: 0) > 0) "_FLOOR" else ""
+            val command = if (requeueCmd.value == 0) "/joininstance ${masterMode}CATACOMBS${floorPrefix}_$floor" else "/instancerequeue"
+            ThreadUtils.scheduledTask(delay.value * 20) {
+                if (checkParty.value && ! PartyUtils.isLeader()) return@scheduledTask feedBackMessage("You are not the party leader!")
                 ChatUtils.sendMessage(command)
             }
         }

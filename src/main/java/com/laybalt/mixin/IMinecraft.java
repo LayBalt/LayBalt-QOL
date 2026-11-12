@@ -15,4 +15,8 @@ public interface IMinecraft {
 
     @Accessor("fontManager")
     FontManager getFontManager();
+
+    // the attack cooldown after a swing at air, or with a screen open: an attack started meanwhile does nothing
+    @Accessor("missTime")
+    int getMissTime();
 }

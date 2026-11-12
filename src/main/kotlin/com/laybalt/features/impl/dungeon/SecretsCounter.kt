@@ -2,6 +2,7 @@
 package com.laybalt.features.impl.dungeon
 
 import com.laybalt.LayBaltQOL
+import com.laybalt.config.ConfigManager
 import com.laybalt.config.types.TextInputSetting
 import com.laybalt.config.types.ToggleSetting
 import com.laybalt.event.impl.ChatMessageEvent
@@ -20,14 +21,31 @@ import java.util.concurrent.ConcurrentHashMap
 object SecretsCounter: Feature("Counts the secrets each player found and prints them at the end of a dungeon run.") {
     private val includeSelf by ToggleSetting("Include Yourself")
         .withDescription("Also counts your own secrets (read silently with /secretcount)")
-    private val apiUrl by TextInputSetting("API URL", "https://api.odtheking.com/hypixel/")
-        .withDescription("Server that returns a player's total secrets at <url>secrets/<uuid> (Odin's public API). Teammates' Minecraft UUIDs are sent to it; leave empty to count only yourself")
+    // Odin 50b5fe72 moved its Hypixel API from https://api.odtheking.com/hypixel/ to https://hypixel.odtheking.com/ (same paths).
+    private const val DEFAULT_API_URL = "https://hypixel.odtheking.com/"
+    private const val OLD_API_URL = "https://api.odtheking.com/hypixel"
+
+    private val apiUrl by TextInputSetting("API URL", DEFAULT_API_URL)
+        .withDescription("Server that returns a player's total secrets at <url>secrets/<uuid> and SkyBlock profiles at <url>get/<uuid> (Odin's public API). Minecraft UUIDs sent to it: your dungeon teammates (Secrets Counter, Dungeon Map's clear info), players joining a Party Finder group you are in and listed members you hover (Auto Kick, join and tooltip stats), and names you look up with /pfs or /lbq cata. Names are first turned into UUIDs by mowojang.matdoes.dev or Mojang. Leave empty to send none: then only your own secret count works (/secretcount).")
 
     private val dungeonStartRegex = Regex("^\\[NPC] Mort: Good luck\\.$")
     private val dungeonEndRegex = Regex("^\\s*(?:Master Mode )?(?:The )?Catacombs - (?:Entrance|Floor .{1,3})$")
 
     /** The configured stats server without a trailing slash, or "" when none is set (also used by /lbq cata). */
-    val apiBaseUrl: String get() = apiUrl.value.trim().removeSuffix("/")
+    val apiBaseUrl: String get() = migratedApiUrl().trim().removeSuffix("/")
+
+    /**
+     * Saved configs that still hold Odin's old default are moved to the new host once (the config only loads
+     * after the features are initialised, so this runs on first use and on world change instead of in [init]).
+     */
+    private fun migratedApiUrl(): String {
+        val current = apiUrl.value
+        if (! current.trim().removeSuffix("/").equals(OLD_API_URL, ignoreCase = true)) return current
+        apiUrl.value = DEFAULT_API_URL
+        runCatching { ConfigManager.save() }.onFailure { LayBaltQOL.logger.warn("[SecretsCounter] could not save the migrated API URL", it) }
+        LayBaltQOL.logger.info("[SecretsCounter] moved the API URL from $current to $DEFAULT_API_URL")
+        return DEFAULT_API_URL
+    }
 
     private val baseline = ConcurrentHashMap<String, Long>()
     private var snapshotDone = false
@@ -37,6 +55,7 @@ object SecretsCounter: Feature("Counts the secrets each player found and prints 
         // so teammates already known are not requested from the API again.
         register<WorldChangeEvent> {
             snapshotDone = false
+            migratedApiUrl()
         }
 
         register<ChatMessageEvent>(receiveCancelled = true) {
@@ -79,7 +98,7 @@ object SecretsCounter: Feature("Counts the secrets each player found and prints 
 
     private suspend fun pullSecrets(name: String): Result<Long> {
         if (name.equals(LayBaltQOL.mc.user.name, true)) return ProfileUtils.getSecrets(name)
-        val base = apiUrl.value.trim().ifEmpty { return Result.failure(IllegalStateException("no API URL set")) }
+        val base = apiBaseUrl.ifEmpty { return Result.failure(IllegalStateException("no API URL set")) }
         val uuid = ProfileUtils.getUUIDbyName(name).getOrElse { return Result.failure(it) }.uuid
         return WebUtils.getAs<String>("${base.removeSuffix("/")}/secrets/$uuid").mapCatching {
             it.trim().toLongOrNull() ?: error("unexpected answer: $it")

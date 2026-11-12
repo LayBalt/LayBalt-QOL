@@ -20,9 +20,16 @@ object MapUtils: ISelfInit {
         EventBus.register<WorldChangeEvent> { reset() }
     }
 
+    /**
+     * NoammAddons 069b8ecb: Hypixel puts the layout at corner 5, which is 1px off-centre in the 128px map,
+     * so the rendered map is shifted by 1px there. Only for drawing; [startCorner] keeps the raw Hypixel corner.
+     */
+    val renderStartX get() = startCorner.first.toFloat().let { if (it == 5f) it + 1f else it }
+    val renderStartY get() = startCorner.second.toFloat().let { if (it == 5f) it + 1f else it }
+
     fun coordsToMap(vec: Vec3): Pair<Float, Float> {
-        val x = ((vec.x - DungeonScanner.startX + 15) * coordMultiplier + startCorner.first).toFloat()
-        val z = ((vec.z - DungeonScanner.startZ + 15) * coordMultiplier + startCorner.second).toFloat()
+        val x = ((vec.x - DungeonScanner.startX + 15) * coordMultiplier + renderStartX).toFloat()
+        val z = ((vec.z - DungeonScanner.startZ + 15) * coordMultiplier + renderStartY).toFloat()
         return Pair(x, z)
     }
 

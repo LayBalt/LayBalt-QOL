@@ -16,7 +16,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /** Line-style vector icons for the LayBalt GUI, designed on a 16x16 grid and scaled to any size. */
-enum class Icon { GEAR, SEARCH, CLOSE, CHEVRON_UP, CHEVRON_DOWN, CHEVRON_LEFT, CHEVRON_RIGHT, PLUS, MINUS, GRIP, CHECK, LAYOUT, CHAT, LINK, RESET, GRID, TRASH, INFO, DOT, PLAY, VOLUME, ARROW_RIGHT, PIN, COMMAND, WARNING }
+enum class Icon { GEAR, SEARCH, CLOSE, CHEVRON_UP, CHEVRON_DOWN, CHEVRON_LEFT, CHEVRON_RIGHT, PLUS, MINUS, GRIP, CHECK, LAYOUT, CHAT, LINK, RESET, GRID, TRASH, INFO, DOT, PLAY, VOLUME, ARROW_RIGHT, PIN, COMMAND, WARNING, FISH }
 
 object Icons {
     /** Default stroke width on the 16-unit grid. */
@@ -117,6 +117,11 @@ object Icons {
                 ctx.polyline(pts(8f, 2.4f, 14f, 13f, 2f, 13f), w, color, closed = true)
                 ctx.line(px(8f), py(6.4f), px(8f), py(9.2f), w, color)
                 ctx.circle(px(8f), py(11.1f), 0.95f * k, color)
+            }
+            Icon.FISH -> {
+                ctx.polyline(pts(1.8f, 8f, 3.8f, 5.4f, 7f, 4.4f, 10.2f, 5.4f, 11.8f, 8f, 10.2f, 10.6f, 7f, 11.6f, 3.8f, 10.6f), w, color, closed = true)
+                ctx.polyline(pts(11.6f, 8f, 14.4f, 5.2f, 14.4f, 10.8f), w, color, closed = true)
+                ctx.circle(px(5f), py(7.3f), 0.9f * k, color)
             }
         }
     }

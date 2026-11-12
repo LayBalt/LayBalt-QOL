@@ -16,6 +16,9 @@ import java.awt.*;
 public abstract class MixinEntity implements IGlowingEntity {
     @Unique private Color glowColor = Color.WHITE;
     @Unique private boolean glowForced = false;
+    // NoammAddons 3549d1fc: tick of the last CheckEntityGlowEvent for this entity and whether it was cancelled
+    @Unique private int glowCheckTick = -1;
+    @Unique private boolean glowCancelled = false;
 
     @Inject(method = "getTeamColor", at = @At("HEAD"), cancellable = true)
     private void onGetTeamColorValue(CallbackInfoReturnable<Integer> cir) {
@@ -42,5 +45,25 @@ public abstract class MixinEntity implements IGlowingEntity {
     @Override
     public void lbqmod$isGlowing(boolean value) {
         glowForced = value;
+    }
+
+    @Override
+    public int lbqmod$glowCheckTick() {
+        return glowCheckTick;
+    }
+
+    @Override
+    public void lbqmod$glowCheckTick(int tick) {
+        glowCheckTick = tick;
+    }
+
+    @Override
+    public boolean lbqmod$glowCancelled() {
+        return glowCancelled;
+    }
+
+    @Override
+    public void lbqmod$glowCancelled(boolean value) {
+        glowCancelled = value;
     }
 }

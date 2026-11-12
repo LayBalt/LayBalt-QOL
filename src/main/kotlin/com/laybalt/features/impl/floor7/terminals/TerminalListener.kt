@@ -19,13 +19,19 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 
 object TerminalListener: ISelfInit {
-    inline val FIRST_CLICK_DELAY get() = TerminalSolver.fcDelay.value
     var interactCooldown = 0
 
     @JvmField var inTerm = false
     var currentHandler: Terminal? = null
     var initialOpenTick = 0L
     var initialOpenTime = 0L
+
+    /**
+     * NoammAddons 5dff2334: the First Click Protection time of the open terminal, rolled from its range when the terminal
+     * opens (upstream rolls on every check, which leans towards the short end; one roll per terminal keeps it gaussian).
+     */
+    var firstClickProtMs = 0
+        private set
 
     var currentTitle = ""
     var lastWindowId = - 1
@@ -125,6 +131,7 @@ object TerminalListener: ISelfInit {
         simScreen = simulator
         initialOpenTick = DungeonListener.currentTime
         initialOpenTime = System.currentTimeMillis()
+        firstClickProtMs = TerminalSolver.firstClickProt.random().coerceAtLeast(0)
         lastHandler = handler
         lastOpenTime = initialOpenTime
         currentTitle = title
@@ -182,13 +189,13 @@ object TerminalListener: ISelfInit {
         if (simulated && TerminalSimulator.disableFirstClickProt.value) return false
         val isMelody = currentHandler is MelodyTerminal
 
-        val protMs = TerminalSolver.firstClickProt.value + if (isMelody) 150 else 0
+        val protMs = firstClickProtMs + if (isMelody) 150 else 0
         if (System.currentTimeMillis() - initialOpenTime < protMs) return true
         // Server ticks do not advance in the simulator, so only the time based protection applies there.
         if (simulated || ! TerminalSolver.lagProtection.value) return false
 
-        var delay = FIRST_CLICK_DELAY
-        if (isMelody) delay += 3
+        var delay = TerminalSolver.fcDelay.value
+        if (isMelody && delay != 0) delay += 3 // NoammAddons cff93729: 0 ticks turns it off for Melody too
         return DungeonListener.currentTime - initialOpenTick < delay
     }
 
@@ -214,6 +221,7 @@ object TerminalListener: ISelfInit {
         lastClick = null
         initialOpenTick = 0
         initialOpenTime = 0
+        firstClickProtMs = 0
         simScreen = null
 
         Terminal.all.forEach(Terminal::reset)

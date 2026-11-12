@@ -24,11 +24,14 @@ import com.laybalt.features.impl.general.experiments.ExperimentGame
 import com.laybalt.features.impl.general.experiments.ExperimentHost
 import com.laybalt.features.impl.general.experiments.Experiments.STATUS_SLOT
 import com.laybalt.features.impl.general.experiments.ItemKind
+import com.laybalt.features.impl.general.experiments.Stake
 import com.laybalt.features.impl.general.experiments.SuperpairsSolver
 import com.laybalt.features.impl.general.experiments.UltrasequencerSolver
 import com.laybalt.utils.ChatUtils
 import com.laybalt.utils.ChatUtils.removeFormatting
+import com.laybalt.utils.items.ItemUtils.lore
 import com.mojang.blaze3d.platform.InputConstants
+import net.minecraft.sounds.SoundEvents
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen
 import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket
@@ -72,13 +75,21 @@ object AutoExperiments: Feature(
     private val clickType by DropdownSetting("Click Type", 0, listOf("Middle", "Left"))
         .withDescription("Middle = middle click (the item never lands on your cursor). Left = plain left click, like the old LayBalt solver.")
 
+    private val stopAtMaxClicks by ToggleSetting("Stop At Max Clicks", true)
+        .withDescription("Reads from the stake you pick how many rounds give the most Superpairs clicks (its \"Chain of N\" / \"Series of N\" line, Metaphysical Serums already counted) and stops once they are answered, the way SkyHanni's alert knows it. Only the Metaphysical stake pays the third click. Off, or when the stake could not be read: Serums Consumed and the round targets under Advanced.")
+        .showIf { ! getMaxXp.value }
+    private val ultrasequencerEarly by ToggleSetting("Ultrasequencer Early Stop", false)
+        .withDescription("SkyHanni's rule: closes Ultrasequencer as soon as the Series of N shows, one round early (about 6 s saved), because Hypixel paid the full Series for one round less. Not confirmed for the current game: check once that the Experiment Over rewards still list every Superpairs click before relying on it.")
+        .showIf { stopAtMaxClicks.value && ! getMaxXp.value }
     private val serumCount by SliderSetting("Serums Consumed", 0, 0, 3, 1)
-        .withDescription("How many Metaphysical Serums you consumed. Each serum lowers the number of rounds needed for the full reward.")
+        .withDescription("How many Metaphysical Serums you consumed. Each serum lowers the number of rounds needed for the full reward. Only used when Stop At Max Clicks is off or could not read the stake.")
         .showIf { ! getMaxXp.value }
     private val getMaxXp by ToggleSetting("Get Max XP", false)
         .withDescription("Keeps solving for maximum enchanting XP: Chronomatron up to 15 rounds, Ultrasequencer up to 20.")
     private val autoClose by ToggleSetting("Auto Close", true)
         .withDescription("Closes the experiment once the round target is reached. Off = stops clicking and leaves the rest to you.")
+    private val targetAlert by ToggleSetting("Target Alert", true)
+        .withDescription("Plays a sound and says in chat when the target is reached (with Stop At Max Clicks: all Superpairs clicks of the add-on are yours).")
     private val blockClicks by ToggleSetting("Block Manual Clicks", true)
         .withDescription("Ignores your own mouse clicks inside the experiment while the solver is answering, so you cannot break the pattern by accident.")
     private val toggleKey by KeybindSetting("Toggle Keybind")
@@ -87,10 +98,10 @@ object AutoExperiments: Feature(
     private val advanced by ToggleSetting("Advanced", false)
         .withDescription("Shows the round targets and the debug log.")
     private val chronomatronRounds by SliderSetting("Chronomatron Rounds", 11, 5, 20, 1)
-        .withDescription("Chronomatron stops once more than (this - serums) rounds were answered. 11 matches OdinClient, the old LayBalt solver used 13.")
+        .withDescription("Without Stop At Max Clicks (or when the stake could not be read): Chronomatron stops once more than (this - serums) rounds were answered. 11 matches OdinClient, the old LayBalt solver used 13.")
         .showIf { advanced.value }
     private val ultrasequencerRounds by SliderSetting("Ultrasequencer Rounds", 9, 5, 20, 1)
-        .withDescription("Ultrasequencer stops before answering a sequence longer than (this - serums). 9 matches OdinClient, the old LayBalt solver used 12.")
+        .withDescription("Without Stop At Max Clicks (or when the stake could not be read): Ultrasequencer stops before answering a sequence longer than (this - serums). 9 matches OdinClient, the old LayBalt solver used 12.")
         .showIf { advanced.value }
     private val debugLog by ToggleSetting("Debug Log", false)
         .withDescription("Writes every solver step to the game log (latest.log) with the [AutoExperiment] prefix.")
@@ -99,6 +110,9 @@ object AutoExperiments: Feature(
     private var driver: ExperimentDriver? = null
     private var currentScreen: AbstractContainerScreen<*>? = null
     private var failed = false
+
+    /** The stake last picked per game in its "➜ Stakes" menu ([Stake]); a game without one uses the configured targets. */
+    private val stakes = mutableMapOf<ExperimentGame, Stake>()
 
     private val host = object: ExperimentHost {
         override fun debug(msg: String) = AutoExperiments.debug(msg)
@@ -125,9 +139,30 @@ object AutoExperiments: Feature(
 
         register<ContainerEvent.Open> { safely { onScreenOpened(event.screen, fromEvent = true) } }
 
+        // The stake you click in "Chronomatron ➜ Stakes" / "Ultrasequencer ➜ Stakes": its lore says how many rounds give
+        // the most Superpairs clicks for the game it starts (SkyHanni's SuperpairsClicksAlert reads the same lines).
+        // Registered globally, so a stake picked while the feature is off still counts once it is toggled on in the game.
+        EventBus.register<ContainerEvent.SlotClick> {
+            val title = event.screen.title.string.removeFormatting()
+            if (! title.endsWith("Stakes")) return@register
+            val game = ExperimentGame.entries.firstOrNull { title.startsWith(it.prefix.removeSuffix(" (")) } ?: return@register
+            val stack = event.screen.menu.slots.getOrNull(event.slotId)?.item?.takeUnless { it.isEmpty } ?: return@register
+            when (val stake = Stake.of(stack.lore.map { it.removeFormatting() })) {
+                null -> return@register
+                is Stake.Rewards -> stakes[game] = stake
+                Stake.Practice -> stakes.remove(game)
+            }
+            debug("stake for $game: ${stakes[game] ?: "practice (configured targets)"}")
+        }
+
         // Every experiment window starts a fresh solver: the logs of the old solver show no window re-opened mid-game, and
         // a quickly re-opened new game must never inherit the chain of the last one.
         register<ContainerEvent.Close> { if (event.screen === currentScreen) resetAll() }
+
+        // A stake counts for the one game it started: forgotten when that game's window closes (globally, as it is recorded).
+        EventBus.register<ContainerEvent.Close> {
+            ExperimentGame.of(event.screen.title.string)?.takeIf { isExperimentMenu(event.screen.menu) }?.let(stakes::remove)
+        }
 
         register<PacketEvent.Sent> { if (event.packet is ServerboundContainerClosePacket) mc.execute { resetAll() } }
 
@@ -241,21 +276,33 @@ object AutoExperiments: Feature(
         return ! solver.stopped && solver.blocksInput
     }
 
+    /** The rounds the picked stake gives the most Superpairs clicks for, when Stop At Max Clicks uses it. */
+    private fun stakeRounds(game: ExperimentGame) = (stakes[game] as? Stake.Rewards)?.rounds?.takeIf { stopAtMaxClicks.value && ! getMaxXp.value }
+
     /** Stop rule: true when [size] answered rounds / sequence length is past the target. */
     private fun reachedTarget(game: ExperimentGame, size: Int): Boolean {
-        val target = when (game) {
-            ExperimentGame.CHRONOMATRON -> if (getMaxXp.value) 15 else chronomatronRounds.value - serumCount.value
-            ExperimentGame.ULTRASEQUENCER -> if (getMaxXp.value) 20 else ultrasequencerRounds.value - serumCount.value
-            ExperimentGame.SUPERPAIRS -> return false
+        if (game == ExperimentGame.SUPERPAIRS) return false
+        val target = when {
+            getMaxXp.value -> if (game == ExperimentGame.CHRONOMATRON) 15 else 20
+            else -> stakeRounds(game)?.let { Stake.target(game, it, ultrasequencerEarly.value) }
+                ?: if (game == ExperimentGame.CHRONOMATRON) chronomatronRounds.value - serumCount.value else ultrasequencerRounds.value - serumCount.value
         }
         return size > target
     }
 
     private fun onTargetReached(size: Int) {
+        val game = currentScreen?.title?.string?.let(ExperimentGame::of)
         debug("target reached ($size), ${if (autoClose.value) "closing" else "stopping"}")
         driver = null
+        if (targetAlert.value) {
+            val name = game?.name?.lowercase()?.replaceFirstChar { it.uppercase() } ?: "Experiment"
+            val rounds = game?.let(::stakeRounds)
+            val what = if (rounds != null) "§aall Superpairs clicks§7 (${if (game == ExperimentGame.CHRONOMATRON) "chain" else "series"} of $rounds)" else "§atarget reached§7"
+            ChatUtils.modMessage("§7AutoExperiment: $name $what${if (autoClose.value) ", closed." else ", finish it yourself."}")
+            mc.player?.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 1f, 2f)
+        }
+        else if (! autoClose.value) ChatUtils.modMessage("§7AutoExperiment: §atarget reached§7, finish the experiment yourself.")
         if (autoClose.value) mc.player?.closeContainer()
-        else ChatUtils.modMessage("§7AutoExperiment: §atarget reached§7, finish the experiment yourself.")
     }
 
     /** The solver lost track and leaves this round to the player (input is not blocked); called once per round. */

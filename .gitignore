@@ -39,3 +39,6 @@ replay_*.log
 # macos
 .DS_Store
 *.DS_Store
+
+# recorder-only jar production test run
+run-recorder-prod/
